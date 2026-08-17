@@ -1,34 +1,150 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Searchbar, SegmentedButtons, Card, Chip, Appbar, Portal, Modal, Button } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, StyleSheet, FlatList, SectionList } from 'react-native';
+import { Text, Searchbar, SegmentedButtons, Card, Chip, Appbar, Portal, Modal, Button, ActivityIndicator } from 'react-native-paper';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { supabase } from '../lib/supabase';
 
-const DUMMY_KATALOG = [
-  { id: '1', judul: 'Laskar Pelangi', penulis: 'Andrea Hirata', kategori: 'Fiksi', rak: 'Rak A1', sinopsis: 'Cerita anak Belitung...', ketersediaan: 'Tersedia' },
-  { id: '2', judul: 'Clean Code', penulis: 'Robert C. Martin', kategori: 'Teknologi', rak: 'Rak T2', sinopsis: 'Buku panduan software...', ketersediaan: 'Habis Dipinjam' },
-];
+import { LogOut } from 'lucide-react-native';
+
+interface BukuPubilk {
+  id: string;
+  judul: string;
+  penulis: string | null;
+  sinopsis: string | null;
+  kategori: { nama: string } | null;
+  rak: { nama: string } | null;
+  salinan: { status: string }[];
+}
 
 export default function Pengunjung() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const tenantId = params.tenant_id as string;
+  const namaTenant = params.nama ? decodeURIComponent(params.nama as string) : 'Katalog';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [tab, setTab] = useState('semua');
-  const [selectedBuku, setSelectedBuku] = useState<any>(null);
+  const [selectedBuku, setSelectedBuku] = useState<BukuPubilk | null>(null);
+  const [books, setBooks] = useState<BukuPubilk[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchBooks();
+  }, [tenantId]);
+
+  const fetchBooks = async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('buku')
+        .select('id, judul, penulis, sinopsis, kategori:kategori_id(nama), rak:rak_id(nama), salinan(status)')
+        .eq('dihapus', false);
+      
+      if (tenantId) {
+        query = query.eq('tenant_id', tenantId);
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        setBooks(data as any[]);
+      }
+    } catch (e) {
+      console.error('Error fetching books:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getKetersediaan = (salinan: { status: string }[]) => {
+    if (!salinan || salinan.length === 0) return 'Tidak Diketahui';
+    const tersedia = salinan.filter(s => s.status === 'tersedia').length;
+    return tersedia > 0 ? `Tersedia (${tersedia}/${salinan.length})` : 'Habis Dipinjam';
+  };
+
+  const isTersedia = (salinan: { status: string }[]) => {
+    if (!salinan || salinan.length === 0) return false;
+    return salinan.some(s => s.status === 'tersedia');
+  };
+
+  // Filter by search
+  const filtered = useMemo(() => {
+    let result = books;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(b => 
+        b.judul.toLowerCase().includes(q) || 
+        (b.penulis && b.penulis.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [books, searchQuery]);
+
+  // Group by kategori
+  const groupedByKategori = useMemo(() => {
+    const groups: Record<string, BukuPubilk[]> = {};
+    filtered.forEach(b => {
+      const key = b.kategori?.nama || 'Tanpa Kategori';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(b);
+    });
+    return Object.entries(groups).map(([title, data]) => ({ title, data }));
+  }, [filtered]);
+
+  // Group by rak
+  const groupedByRak = useMemo(() => {
+    const groups: Record<string, BukuPubilk[]> = {};
+    filtered.forEach(b => {
+      const key = b.rak?.nama || 'Tanpa Rak';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(b);
+    });
+    return Object.entries(groups).map(([title, data]) => ({ title, data }));
+  }, [filtered]);
 
   const handleKeluar = () => {
     router.replace('/');
   };
 
-  const filteredData = DUMMY_KATALOG.filter(buku => {
-    if (tab === 'semua') return true;
-    // dummy filter logic
-    return true; 
-  });
+  const renderBookCard = (item: BukuPubilk) => {
+    const ketersediaan = getKetersediaan(item.salinan);
+    const tersedia = isTersedia(item.salinan);
+    return (
+      <Card style={styles.card} mode="outlined" onPress={() => setSelectedBuku(item)}>
+        <Card.Title 
+          title={item.judul} 
+          subtitle={item.penulis || 'Penulis tidak diketahui'} 
+          right={() => (
+            <Chip 
+              style={{ marginRight: 16, backgroundColor: tersedia ? '#E8F5E9' : '#FFF5E6' }} 
+              textStyle={{ color: tersedia ? '#2E7D32' : '#E65100' }}
+            >
+              {tersedia ? 'Tersedia' : 'Habis'}
+            </Chip>
+          )}
+        />
+        <Card.Content>
+          <Text variant="bodySmall" style={{ color: '#666' }}>
+            Kategori: {item.kategori?.nama || '-'} | Rak: {item.rak?.nama || '-'}
+          </Text>
+        </Card.Content>
+      </Card>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" />
+        <Text style={{ marginTop: 16, color: '#666' }}>Memuat katalog...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Appbar.Header style={{ backgroundColor: '#fff', elevation: 2 }}>
-        <Appbar.Content title="Katalog Perpustakaan" />
-        <Appbar.Action icon="logout" onPress={handleKeluar} />
+        <Appbar.Content title={namaTenant} subtitle="Katalog Perpustakaan" />
+        <Appbar.Action icon={() => <LogOut size={22} color="#000" />} onPress={handleKeluar} />
       </Appbar.Header>
 
       <View style={styles.stickyHeader}>
@@ -50,50 +166,65 @@ export default function Pengunjung() {
         />
       </View>
 
-      <FlatList
-        data={filteredData}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <Card style={styles.card} mode="outlined" onPress={() => setSelectedBuku(item)}>
-            <Card.Title 
-              title={item.judul} 
-              subtitle={item.penulis} 
-              right={() => (
-                <Chip style={{ marginRight: 16, backgroundColor: item.ketersediaan === 'Tersedia' ? '#E8F5E9' : '#FFF5E6' }} textStyle={{ color: item.ketersediaan === 'Tersedia' ? '#2E7D32' : '#E65100' }}>
-                  {item.ketersediaan}
-                </Chip>
-              )}
-            />
-            <Card.Content>
-              <Text variant="bodySmall" style={{ color: '#666' }}>Kategori: {item.kategori} | Rak: {item.rak}</Text>
-            </Card.Content>
-          </Card>
-        )}
-      />
+      {tab === 'semua' && (
+        <FlatList
+          data={filtered}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => renderBookCard(item)}
+          ListEmptyComponent={<Text style={styles.emptyText}>Tidak ada buku ditemukan.</Text>}
+        />
+      )}
+
+      {tab === 'kategori' && (
+        <SectionList
+          sections={groupedByKategori}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => renderBookCard(item)}
+          renderSectionHeader={({ section: { title } }) => (
+            <Text variant="titleMedium" style={styles.sectionHeader}>{title}</Text>
+          )}
+          ListEmptyComponent={<Text style={styles.emptyText}>Tidak ada buku ditemukan.</Text>}
+        />
+      )}
+
+      {tab === 'rak' && (
+        <SectionList
+          sections={groupedByRak}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => renderBookCard(item)}
+          renderSectionHeader={({ section: { title } }) => (
+            <Text variant="titleMedium" style={styles.sectionHeader}>{title}</Text>
+          )}
+          ListEmptyComponent={<Text style={styles.emptyText}>Tidak ada buku ditemukan.</Text>}
+        />
+      )}
 
       <Portal>
         <Modal visible={!!selectedBuku} onDismiss={() => setSelectedBuku(null)} contentContainerStyle={styles.modalContent}>
           {selectedBuku && (
             <View>
               <Text variant="titleLarge" style={{ fontWeight: 'bold' }}>{selectedBuku.judul}</Text>
-              <Text variant="bodyLarge" style={{ color: '#666', marginBottom: 16 }}>{selectedBuku.penulis}</Text>
+              <Text variant="bodyLarge" style={{ color: '#666', marginBottom: 16 }}>{selectedBuku.penulis || '-'}</Text>
               
               <View style={styles.badgeRow}>
-                <Chip>{selectedBuku.kategori}</Chip>
-                <Chip>{selectedBuku.rak}</Chip>
-                <Chip style={{ backgroundColor: selectedBuku.ketersediaan === 'Tersedia' ? '#E8F5E9' : '#FFF5E6' }}>{selectedBuku.ketersediaan}</Chip>
+                <Chip>{selectedBuku.kategori?.nama || '-'}</Chip>
+                <Chip>{selectedBuku.rak?.nama || '-'}</Chip>
+                <Chip style={{ backgroundColor: isTersedia(selectedBuku.salinan) ? '#E8F5E9' : '#FFF5E6' }}>
+                  {getKetersediaan(selectedBuku.salinan)}
+                </Chip>
               </View>
 
               <Text variant="titleMedium" style={{ marginTop: 16, marginBottom: 8, fontWeight: 'bold' }}>Sinopsis</Text>
-              <Text variant="bodyMedium">{selectedBuku.sinopsis}</Text>
+              <Text variant="bodyMedium">{selectedBuku.sinopsis || 'Belum ada sinopsis.'}</Text>
 
               <Button mode="contained" onPress={() => setSelectedBuku(null)} style={{ marginTop: 24, borderRadius: 8 }}>Tutup</Button>
             </View>
           )}
         </Modal>
       </Portal>
-
     </View>
   );
 }
@@ -105,5 +236,7 @@ const styles = StyleSheet.create({
   list: { padding: 16 },
   card: { marginBottom: 12, backgroundColor: '#FFFFFF' },
   modalContent: { backgroundColor: 'white', padding: 24, margin: 20, borderRadius: 12 },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  sectionHeader: { fontWeight: 'bold', marginTop: 16, marginBottom: 8, color: '#333' },
+  emptyText: { textAlign: 'center', marginTop: 32, color: '#666' },
 });

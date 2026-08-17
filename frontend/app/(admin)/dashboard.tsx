@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Card, SegmentedButtons, ActivityIndicator } from 'react-native-paper';
-import { mockClient } from '../../lib/api/mockClient';
+import { Text, Card, SegmentedButtons, ActivityIndicator, Snackbar } from 'react-native-paper';
+import { apiClient } from '../../lib/api/apiClient';
 import { DashboardSummary } from '../../lib/types';
 import { CartesianChart, Line } from 'victory-native';
+import { useTenant } from '../../lib/context/TenantContext';
+import { supabase } from '../../lib/supabase';
 
 export default function Dashboard() {
+  const { tenantId } = useTenant();
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [snackMsg, setSnackMsg] = useState('');
+  const [visible, setVisible] = useState(false);
   const [chartContext, setChartContext] = useState('buku');
 
   useEffect(() => {
@@ -15,11 +20,33 @@ export default function Dashboard() {
   }, []);
 
   const loadData = async () => {
+    if (!tenantId) { setLoading(false); return; }
     try {
-      const data = await mockClient.dashboard.summary('tenant-id');
+      const data = await apiClient.dashboard.summary(tenantId);
       setSummary(data);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error('API failed, fallback to direct query:', e);
+      // Fallback: query Supabase directly
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const [bukuRes, pinjamRes, terlambatRes] = await Promise.all([
+          supabase.from('buku').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('dihapus', false),
+          supabase.from('peminjaman').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'aktif'),
+          supabase.from('peminjaman').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'aktif').lt('jatuh_tempo', today),
+        ]);
+        setSummary({
+          jumlah_buku: bukuRes.count || 0,
+          peminjam_aktif: pinjamRes.count || 0,
+          buku_dipinjam: pinjamRes.count || 0,
+          buku_terlambat: terlambatRes.count || 0,
+          total_denda_periode: 0,
+        });
+      } catch (fallbackErr) {
+        console.error(fallbackErr);
+        setSummary({ jumlah_buku: 0, peminjam_aktif: 0, buku_dipinjam: 0, buku_terlambat: 0, total_denda_periode: 0 });
+        setSnackMsg('Gagal memuat dashboard');
+        setVisible(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -104,6 +131,13 @@ export default function Dashboard() {
         </Card.Content>
       </Card>
 
+      <Snackbar
+        visible={visible}
+        onDismiss={() => setVisible(false)}
+        duration={3000}
+      >
+        {snackMsg}
+      </Snackbar>
     </ScrollView>
   );
 }

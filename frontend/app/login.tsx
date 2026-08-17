@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { TextInput, Button, Text, Snackbar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { mockClient } from '../lib/api/mockClient';
+import { supabase } from '../lib/supabase';
+import { useTenant } from '../lib/context/TenantContext';
 
 export default function Login() {
   const router = useRouter();
+  const { setActiveTenant } = useTenant();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
@@ -13,6 +15,7 @@ export default function Login() {
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   const validate = () => {
     let valid = true;
@@ -35,20 +38,72 @@ export default function Login() {
     return valid;
   };
 
+  const checkTenantAndNavigate = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('tenant_member')
+        .select('tenant_id, role, tenant:tenant_id(nama)')
+        .eq('user_id', userId)
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        const tenantObj = data.tenant as any;
+        setActiveTenant(data.tenant_id, tenantObj?.nama || '', data.role);
+        router.replace('/(admin)/dashboard');
+      } else {
+        // User belum punya tenant
+        router.replace('/tenant-setup');
+      }
+    } catch {
+      // Belum punya tenant
+      router.replace('/tenant-setup');
+    }
+  };
+
   const handleLogin = async () => {
     if (!validate()) return;
     
     setLoading(true);
+    setGeneralError('');
     try {
-      // Mock login logic: For now we simulate success. If they use specific wrong passwords we could mock error.
-      if (email === 'salah@email.com') {
-        throw new Error('Email atau password salah');
+      if (isRegistering) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        setGeneralError('Pendaftaran berhasil. Silakan cek email/login.');
+        setIsRegistering(false);
+      } else {
+        const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+           if (error.message.includes('Invalid login credentials')) {
+               throw new Error('Email atau password salah');
+           }
+           throw error;
+        }
+        if (authData.user) {
+          await checkTenantAndNavigate(authData.user.id);
+        }
       }
-      // Usually we call a mock auth method, e.g. mockClient.auth.signIn
-      // For this spec, we just navigate forward to tenant-setup
-      router.push('/tenant-setup');
     } catch (e: any) {
       setGeneralError(e.message || 'Email atau password salah');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setGeneralError('Isi email Anda di field di atas terlebih dahulu');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      setGeneralError('Link reset password telah dikirim ke email Anda');
+    } catch (e: any) {
+      setGeneralError(e.message || 'Gagal mengirim reset password');
     } finally {
       setLoading(false);
     }
@@ -60,7 +115,7 @@ export default function Login() {
       style={styles.container}
     >
       <View style={styles.content}>
-        <Text variant="headlineMedium" style={styles.title}>Masuk</Text>
+        <Text variant="headlineMedium" style={styles.title}>{isRegistering ? 'Buat Akun' : 'Masuk'}</Text>
         
         <TextInput
           label="Email"
@@ -92,12 +147,14 @@ export default function Login() {
           disabled={loading}
           style={styles.button}
         >
-          Masuk
+          {isRegistering ? 'Daftar' : 'Masuk'}
         </Button>
 
         <View style={styles.linksContainer}>
-          <Button mode="text" onPress={() => {}}>Buat Akun</Button>
-          <Button mode="text" onPress={() => {}}>Lupa Password</Button>
+          <Button mode="text" onPress={() => setIsRegistering(!isRegistering)}>
+            {isRegistering ? 'Sudah Punya Akun?' : 'Buat Akun'}
+          </Button>
+          {!isRegistering && <Button mode="text" onPress={handleForgotPassword} disabled={loading}>Lupa Password</Button>}
         </View>
       </View>
 
@@ -129,7 +186,7 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 8,
-    backgroundColor: '#FFFFFF', // flat style
+    backgroundColor: '#FFFFFF',
   },
   errorText: {
     color: '#D32F2F',

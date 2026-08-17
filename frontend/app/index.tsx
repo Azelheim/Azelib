@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Image, Alert } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { Text, Button, Portal, Modal, Snackbar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { Key, QrCode } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { supabase } from '../lib/supabase';
 
 export default function Gerbang() {
   const router = useRouter();
   const [showScanner, setShowScanner] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [errorVisible, setErrorVisible] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const handleScanPress = async () => {
     if (!permission?.granted) {
@@ -22,14 +24,28 @@ export default function Gerbang() {
     setShowScanner(true);
   };
 
-  const handleBarCodeScanned = ({ data }: { data: string }) => {
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    if (scanning) return; // prevent double scan
+    setScanning(true);
     setShowScanner(false);
-    // Simple mock validation for QR
-    if (data && data.length > 5) {
-      // route /pengunjung
-      router.push('/pengunjung');
-    } else {
+    
+    try {
+      // Validate QR against tenant table
+      const { data: tenant, error } = await supabase
+        .from('tenant')
+        .select('id, nama')
+        .eq('qr_code_value', data)
+        .single();
+
+      if (error || !tenant) {
+        setErrorVisible(true);
+      } else {
+        router.push(`/pengunjung?tenant_id=${tenant.id}&nama=${encodeURIComponent(tenant.nama)}`);
+      }
+    } catch {
       setErrorVisible(true);
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -96,7 +112,7 @@ export default function Gerbang() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF', // Design Direction: minimalis, flat
+    backgroundColor: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -108,7 +124,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     backgroundColor: '#F0F0F0',
-    borderRadius: 50, // rounded-minimalis
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
@@ -127,7 +143,7 @@ const styles = StyleSheet.create({
   },
   button: {
     paddingVertical: 6,
-    borderRadius: 8, // konsisten
+    borderRadius: 8,
   },
   modalContent: {
     backgroundColor: 'white',

@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, Button, TextInput, Card, ActivityIndicator, Snackbar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { mockClient } from '../lib/api/mockClient';
+import { apiClient } from '../lib/api/apiClient';
+import { supabase } from '../lib/supabase';
+import { useTenant } from '../lib/context/TenantContext';
 
 export default function TenantSetup() {
   const router = useRouter();
+  const { setActiveTenant } = useTenant();
   const [viewMode, setViewMode] = useState<'options' | 'create' | 'join'>('options');
   const [loading, setLoading] = useState(false);
+  const [snackMsg, setSnackMsg] = useState('');
   
   // Create state
   const [nama, setNama] = useState('');
@@ -17,13 +21,19 @@ export default function TenantSetup() {
   const [invitations, setInvitations] = useState<any[]>([]);
 
   const handleCreate = async () => {
-    if (nama.length < 3) return; // Simple validation
+    if (nama.trim().length < 3) {
+      setSnackMsg('Nama Perpustakaan minimal 3 karakter');
+      return;
+    }
     setLoading(true);
     try {
-      await mockClient.tenant.create(nama, alamat);
-      router.push('/(admin)/dashboard'); // Proceed to admin shell
-    } catch (e) {
+      const result = await apiClient.tenant.create(nama, alamat);
+      // Result: { tenant_id, qr_code_value }
+      setActiveTenant(result.tenant_id, nama, 'owner');
+      router.replace('/(admin)/dashboard');
+    } catch (e: any) {
       console.error(e);
+      setSnackMsg(e.message || 'Terjadi kesalahan saat membuat perpustakaan');
     } finally {
       setLoading(false);
     }
@@ -32,19 +42,29 @@ export default function TenantSetup() {
   const loadInvitations = async () => {
     setLoading(true);
     try {
-      const data = await mockClient.tenant.invitations();
-      setInvitations(data);
-    } catch (e) {
+      const data = await apiClient.tenant.invitations();
+      setInvitations(Array.isArray(data) ? data : []);
+    } catch (e: any) {
       console.error(e);
+      setSnackMsg(e.message || 'Gagal memuat undangan');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleJoin = async (tenantId: string) => {
-    // In actual logic, we'd accept the invite
-    // For now, proceed to dashboard
-    router.push('/(admin)/dashboard');
+  const handleJoin = async (tenantId: string, namaTenant: string, role: string) => {
+    setLoading(true);
+    try {
+      // Accept invitation — the backend should handle this via the invitation flow
+      // For now, we set the active tenant and navigate
+      setActiveTenant(tenantId, namaTenant, role);
+      router.replace('/(admin)/dashboard');
+    } catch (e: any) {
+      console.error(e);
+      setSnackMsg(e.message || 'Gagal bergabung');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderOptions = () => (
@@ -80,7 +100,7 @@ export default function TenantSetup() {
       />
       <View style={styles.actionRow}>
         <Button mode="text" onPress={() => setViewMode('options')} style={{flex: 1}}>Batal</Button>
-        <Button mode="contained" onPress={handleCreate} loading={loading} style={{flex: 1}}>Buat</Button>
+        <Button mode="contained" onPress={handleCreate} loading={loading} disabled={loading} style={{flex: 1}}>Buat</Button>
       </View>
     </View>
   );
@@ -97,7 +117,7 @@ export default function TenantSetup() {
           data={invitations}
           keyExtractor={(item) => item.tenant_id}
           renderItem={({ item }) => (
-            <Card style={styles.card} mode="outlined" onPress={() => handleJoin(item.tenant_id)}>
+            <Card style={styles.card} mode="outlined" onPress={() => handleJoin(item.tenant_id, item.nama_tenant, item.role_ditawarkan)}>
               <Card.Title title={item.nama_tenant} subtitle={`Peran: ${item.role_ditawarkan}`} />
             </Card>
           )}
@@ -112,6 +132,13 @@ export default function TenantSetup() {
       {viewMode === 'options' && renderOptions()}
       {viewMode === 'create' && renderCreate()}
       {viewMode === 'join' && renderJoin()}
+      <Snackbar
+        visible={!!snackMsg}
+        onDismiss={() => setSnackMsg('')}
+        duration={3000}
+      >
+        {snackMsg}
+      </Snackbar>
     </View>
   );
 }
