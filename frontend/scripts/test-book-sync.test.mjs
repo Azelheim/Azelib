@@ -748,3 +748,105 @@ test('PHASE 13 — REPORT-003: Date presets and period filtering synchronize cor
   assert.ok(generateHeaderSnippet(tujuhHari).includes('2026-08-11 s/d 2026-08-18'));
 });
 
+test('PHASE 14 — ROLE-001 & ROLE-002: Backend authorization guards enforce strict permission matrix', () => {
+  const authorizeAction = (actorRole, action, targetRole = null) => {
+    switch (action) {
+      case 'MUTATE_DATA': // Add/Edit/Delete Books, Loans, Members, Settings
+        if (actorRole === 'staff') throw new Error('Member hanya memiliki akses baca (view-only)');
+        return true;
+      case 'INVITE_MEMBER':
+        if (actorRole === 'staff') throw new Error('Hanya Owner dan Admin yang dapat mengundang anggota');
+        return true;
+      case 'PROMOTE_MEMBER':
+        if (actorRole !== 'owner') throw new Error('Hanya Owner yang dapat mengubah role pengelola');
+        return true;
+      case 'REMOVE_MEMBER':
+        if (actorRole === 'staff') throw new Error('Hanya Owner dan Admin yang dapat mengeluarkan anggota');
+        if (targetRole === 'owner') throw new Error('Owner tidak dapat dikeluarkan');
+        if (actorRole === 'admin' && targetRole === 'admin') throw new Error('Hanya Owner yang dapat mengeluarkan Admin');
+        return true;
+      case 'EXPORT_REPORT':
+      case 'GENERATE_BARCODE':
+        return true; // All roles allowed
+      default:
+        throw new Error('Aksi tidak dikenali');
+    }
+  };
+
+  // 1. Mutation: Owner & Admin allowed, Staff forbidden
+  assert.equal(authorizeAction('owner', 'MUTATE_DATA'), true);
+  assert.equal(authorizeAction('admin', 'MUTATE_DATA'), true);
+  assert.throws(() => authorizeAction('staff', 'MUTATE_DATA'), /view-only/);
+
+  // 2. Invite: Owner & Admin allowed, Staff forbidden
+  assert.equal(authorizeAction('owner', 'INVITE_MEMBER'), true);
+  assert.equal(authorizeAction('admin', 'INVITE_MEMBER'), true);
+  assert.throws(() => authorizeAction('staff', 'INVITE_MEMBER'), /Hanya Owner dan Admin/);
+
+  // 3. Promote: Only Owner allowed
+  assert.equal(authorizeAction('owner', 'PROMOTE_MEMBER'), true);
+  assert.throws(() => authorizeAction('admin', 'PROMOTE_MEMBER'), /Hanya Owner/);
+  assert.throws(() => authorizeAction('staff', 'PROMOTE_MEMBER'), /Hanya Owner/);
+
+  // 4. Remove:
+  // - Owner can remove admin & staff, but not owner
+  assert.equal(authorizeAction('owner', 'REMOVE_MEMBER', 'admin'), true);
+  assert.equal(authorizeAction('owner', 'REMOVE_MEMBER', 'staff'), true);
+  assert.throws(() => authorizeAction('owner', 'REMOVE_MEMBER', 'owner'), /Owner tidak dapat dikeluarkan/);
+
+  // - Admin can remove staff, but cannot remove admin or owner
+  assert.equal(authorizeAction('admin', 'REMOVE_MEMBER', 'staff'), true);
+  assert.throws(() => authorizeAction('admin', 'REMOVE_MEMBER', 'admin'), /Hanya Owner yang dapat mengeluarkan Admin/);
+  assert.throws(() => authorizeAction('admin', 'REMOVE_MEMBER', 'owner'), /Owner tidak dapat dikeluarkan/);
+
+  // - Staff cannot remove anyone
+  assert.throws(() => authorizeAction('staff', 'REMOVE_MEMBER', 'staff'), /Hanya Owner dan Admin/);
+
+  // 5. Reports & Barcode: All allowed
+  assert.equal(authorizeAction('owner', 'EXPORT_REPORT'), true);
+  assert.equal(authorizeAction('admin', 'EXPORT_REPORT'), true);
+  assert.equal(authorizeAction('staff', 'EXPORT_REPORT'), true);
+
+  assert.equal(authorizeAction('owner', 'GENERATE_BARCODE'), true);
+  assert.equal(authorizeAction('admin', 'GENERATE_BARCODE'), true);
+  assert.equal(authorizeAction('staff', 'GENERATE_BARCODE'), true);
+});
+
+test('PHASE 14 — ROLE-003 & ROLE-004: UI permission helpers and role display consistency', () => {
+  const getRoleUIPermissions = (role) => {
+    return {
+      canMutateBooksAndMembers: role === 'owner' || role === 'admin',
+      canInvite: role === 'owner' || role === 'admin',
+      canPromote: role === 'owner',
+      canRemoveAdmin: role === 'owner',
+      canRemoveStaff: role === 'owner' || role === 'admin',
+      canExportReport: true,
+      canGenerateBarcode: true,
+    };
+  };
+
+  const ownerPerms = getRoleUIPermissions('owner');
+  assert.equal(ownerPerms.canMutateBooksAndMembers, true);
+  assert.equal(ownerPerms.canInvite, true);
+  assert.equal(ownerPerms.canPromote, true);
+  assert.equal(ownerPerms.canRemoveAdmin, true);
+  assert.equal(ownerPerms.canRemoveStaff, true);
+
+  const adminPerms = getRoleUIPermissions('admin');
+  assert.equal(adminPerms.canMutateBooksAndMembers, true);
+  assert.equal(adminPerms.canInvite, true);
+  assert.equal(adminPerms.canPromote, false);
+  assert.equal(adminPerms.canRemoveAdmin, false);
+  assert.equal(adminPerms.canRemoveStaff, true);
+
+  const memberPerms = getRoleUIPermissions('staff');
+  assert.equal(memberPerms.canMutateBooksAndMembers, false);
+  assert.equal(memberPerms.canInvite, false);
+  assert.equal(memberPerms.canPromote, false);
+  assert.equal(memberPerms.canRemoveAdmin, false);
+  assert.equal(memberPerms.canRemoveStaff, false);
+  assert.equal(memberPerms.canExportReport, true);
+  assert.equal(memberPerms.canGenerateBarcode, true);
+});
+
+

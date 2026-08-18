@@ -18,7 +18,7 @@ interface BukuItem {
 
 export default function BukuList() {
   const router = useRouter();
-  const { tenantId } = useTenant();
+  const { tenantId, userRole } = useTenant();
   const [searchQuery, setSearchQuery] = useState('');
   const [books, setBooks] = useState<BukuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -245,11 +245,13 @@ export default function BukuList() {
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 32, color: '#666' }}>Belum ada buku.</Text>}
       />
 
-      <FAB
-        icon={() => <Plus size={24} color="#FFF" />}
-        style={styles.fab}
-        onPress={() => router.push({ pathname: '/(admin)/buku-detail', params: { id: 'tambah' } })}
-      />
+      {userRole !== 'staff' && (
+        <FAB
+          icon={() => <Plus size={24} color="#FFF" />}
+          style={styles.fab}
+          onPress={() => router.push({ pathname: '/(admin)/buku-detail', params: { id: 'tambah' } })}
+        />
+      )}
 
       <Snackbar visible={!!snackMsg} onDismiss={() => setSnackMsg('')} duration={3000}>
         {snackMsg}

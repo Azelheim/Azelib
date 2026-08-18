@@ -94,7 +94,10 @@ export const apiClient = {
         role_ditawarkan: item.role,
       }));
     },
-    memberInvite: async (tenant_id: string, email: string, role: string) => {
+    memberInvite: async (tenant_id: string, email: string, role: string, actor_role: string = 'owner') => {
+      if (actor_role === 'staff') {
+        throw new Error('Hanya Owner dan Admin yang dapat mengundang anggota');
+      }
       try {
         return await invokeFunction('tenant', `/${tenant_id}/member/invite`, { body: { email, role } });
       } catch (err: any) {
@@ -113,12 +116,36 @@ export const apiClient = {
         throw err;
       }
     },
-    memberPromote: async (tenant_id: string, member_id: string, role: string) => {
+    memberPromote: async (tenant_id: string, member_id: string, role: string, actor_role: string = 'owner') => {
+      if (actor_role !== 'owner') {
+        throw new Error('Hanya Owner yang dapat mengubah role pengelola');
+      }
       try {
         return await invokeFunction('tenant', `/${tenant_id}/member/${member_id}/promote`, { method: 'PATCH', body: { role } });
       } catch (err: any) {
         if (err.message?.includes('Requested function was not found') || err.message?.includes('404') || err.message?.includes('Function error')) {
           const { error } = await supabase.from('tenant_member').update({ role }).eq('id', member_id);
+          if (error) throw error;
+          return { status: 'success' };
+        }
+        throw err;
+      }
+    },
+    memberRemove: async (tenant_id: string, member_id: string, actor_role: string = 'owner', target_role: string = 'staff') => {
+      if (actor_role === 'staff') {
+        throw new Error('Hanya Owner dan Admin yang dapat mengeluarkan anggota');
+      }
+      if (target_role === 'owner') {
+        throw new Error('Owner tidak dapat dikeluarkan');
+      }
+      if (actor_role === 'admin' && target_role === 'admin') {
+        throw new Error('Hanya Owner yang dapat mengeluarkan Admin');
+      }
+      try {
+        return await invokeFunction('tenant', `/${tenant_id}/member/${member_id}`, { method: 'DELETE' });
+      } catch (err: any) {
+        if (err.message?.includes('Requested function was not found') || err.message?.includes('404') || err.message?.includes('Function error')) {
+          const { error } = await supabase.from('tenant_member').delete().eq('id', member_id);
           if (error) throw error;
           return { status: 'success' };
         }

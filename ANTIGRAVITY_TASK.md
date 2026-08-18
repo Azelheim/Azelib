@@ -1158,16 +1158,16 @@ Fitur ini cross-cutting — menyentuh hampir semua halaman. Kerjakan paling akhi
 
 Task:
 
-- [ ] Cek struktur role yang ada sekarang (hasil investigasi) — kemungkinan besar baru ada Owner/Member.
-- [ ] Tambahkan nilai role baru "Admin" di antara Owner dan Member.
-- [ ] Pastikan migrasi data existing: semua member yang ada sekarang tetap berstatus Member (tidak otomatis jadi Admin).
+- [x] Cek struktur role yang ada sekarang (hasil investigasi) — enum `member_role` ('owner', 'admin', 'staff').
+- [x] Tambahkan nilai role baru "Admin" di antara Owner dan Member.
+- [x] Pastikan migrasi data existing: semua member yang ada sekarang tetap berstatus Member (tidak otomatis jadi Admin).
 
 Acceptance:
 
-- [ ] Role tersimpan sebagai salah satu dari: Owner, Admin, Member.
-- [ ] Data member lama tidak berubah rolenya secara tidak sengaja setelah migrasi.
+- [x] Role tersimpan sebagai salah satu dari: Owner, Admin, Member.
+- [x] Data member lama tidak berubah rolenya secara tidak sengaja setelah migrasi.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -1175,18 +1175,18 @@ Status: `PENDING`
 
 Task:
 
-- [ ] Untuk setiap endpoint/fungsi mutasi data (Buku, Peminjaman, Anggota, Pengaturan Perpustakaan), tambahkan pengecekan role sesuai matrix di atas.
-- [ ] Endpoint invite member: hanya Owner & Admin.
-- [ ] Endpoint remove member: hanya Owner & Admin; Admin tidak boleh remove Owner (validasi di level backend, bukan cuma UI).
-- [ ] Endpoint promote ke Admin: hanya Owner.
-- [ ] Semua aturan ini WAJIB dicek juga di backend/API, bukan cuma UI, supaya tidak bisa dilewati lewat request langsung.
+- [x] Untuk setiap endpoint/fungsi mutasi data (Buku, Peminjaman, Anggota, Pengaturan Perpustakaan), tambahkan pengecekan role sesuai matrix di atas.
+- [x] Endpoint invite member: hanya Owner & Admin.
+- [x] Endpoint remove member: hanya Owner & Admin; Admin tidak boleh remove Owner (validasi di level backend, bukan cuma UI).
+- [x] Endpoint promote ke Admin: hanya Owner.
+- [x] Semua aturan ini WAJIB dicek juga di backend/API, bukan cuma UI, supaya tidak bisa dilewati lewat request langsung.
 
 Acceptance:
 
-- [ ] Request mutasi dari role yang tidak berwenang ditolak di level backend.
-- [ ] Admin yang mencoba remove Owner via API langsung → ditolak.
+- [x] Request mutasi dari role yang tidak berwenang ditolak di level backend.
+- [x] Admin yang mencoba remove Owner via API langsung → ditolak.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -1194,19 +1194,19 @@ Status: `PENDING`
 
 Task:
 
-- [ ] Member: sembunyikan/disable semua tombol tambah/edit/hapus di halaman Buku, Peminjaman, Anggota, Pengaturan — tampilkan sebagai view-only.
-- [ ] Member: tetap tampilkan & aktifkan tombol export laporan dan generate barcode.
-- [ ] Admin: semua tombol aktif kecuali "keluarkan Owner" dan "tambah/promote Admin".
-- [ ] Owner: semua tombol aktif tanpa pengecualian.
-- [ ] Pastikan perubahan role langsung ter-refresh di UI tanpa perlu logout/restart.
+- [x] Member: sembunyikan/disable semua tombol tambah/edit/hapus di halaman Buku, Peminjaman, Anggota, Pengaturan — tampilkan sebagai view-only.
+- [x] Member: tetap tampilkan & aktifkan tombol export laporan dan generate barcode.
+- [x] Admin: semua tombol aktif kecuali "keluarkan Owner" dan "tambah/promote Admin".
+- [x] Owner: semua tombol aktif tanpa pengecualian.
+- [x] Pastikan perubahan role langsung ter-refresh di UI tanpa perlu logout/restart.
 
 Acceptance:
 
-- [ ] UI Member benar-benar view-only + export laporan + barcode saja.
-- [ ] UI Admin tidak bisa remove Owner atau promote Admin baru.
-- [ ] UI Owner punya akses penuh.
+- [x] UI Member benar-benar view-only + export laporan + barcode saja.
+- [x] UI Admin tidak bisa remove Owner atau promote Admin baru.
+- [x] UI Owner punya akses penuh.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -1214,16 +1214,16 @@ Status: `PENDING`
 
 Task:
 
-- [ ] Update flow undang member (dari LIB-001/003) agar hanya bisa dilakukan Owner & Admin.
-- [ ] Update flow remove member agar hanya bisa dilakukan Owner & Admin, dengan Owner tidak bisa jadi target remove sama sekali.
-- [ ] Tambahkan UI untuk Owner promote Member jadi Admin — hanya Owner yang lihat opsi ini.
+- [x] Update flow undang member (dari LIB-001/003) agar hanya bisa dilakukan Owner & Admin.
+- [x] Update flow remove member agar hanya bisa dilakukan Owner & Admin, dengan Owner tidak bisa jadi target remove sama sekali.
+- [x] Tambahkan UI untuk Owner promote Member jadi Admin — hanya Owner yang lihat opsi ini.
 
 Acceptance:
 
-- [ ] Alur invite/remove tetap berjalan seperti LIB-001/003 sebelumnya, ditambah pengecekan role di atas.
-- [ ] Tidak ada regresi pada flow invitation yang sudah PASS sebelumnya.
+- [x] Alur invite/remove tetap berjalan seperti LIB-001/003 sebelumnya, ditambah pengecekan role di atas.
+- [x] Tidak ada regresi pada flow invitation yang sudah PASS sebelumnya.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

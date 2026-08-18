@@ -17,7 +17,7 @@ interface AnggotaItem {
 
 export default function AnggotaList() {
   const router = useRouter();
-  const { tenantId } = useTenant();
+  const { tenantId, userRole } = useTenant();
   const [filterStatus, setFilterStatus] = useState('semua');
   const [anggota, setAnggota] = useState<AnggotaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +111,9 @@ export default function AnggotaList() {
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 32, color: '#666' }}>Belum ada anggota.</Text>}
       />
 
-      <FAB icon={() => <Plus size={24} color="#FFF" />} style={styles.fab} onPress={() => router.push({ pathname: '/(admin)/anggota-detail', params: { id: 'tambah' } })} />
+      {userRole !== 'staff' && (
+        <FAB icon={() => <Plus size={24} color="#FFF" />} style={styles.fab} onPress={() => router.push({ pathname: '/(admin)/anggota-detail', params: { id: 'tambah' } })} />
+      )}
 
       <Snackbar visible={!!snackMsg} onDismiss={() => setSnackMsg('')} duration={3000}>
         {snackMsg}

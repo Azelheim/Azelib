@@ -24,7 +24,7 @@ interface PeminjamanItem {
 }
 
 export default function Peminjaman() {
-  const { tenantId } = useTenant();
+  const { tenantId, userRole } = useTenant();
   const [tab, setTab] = useState('aktif');
   const [data, setData] = useState<PeminjamanItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -329,7 +329,7 @@ export default function Peminjaman() {
                 {item.tanggal_kembali && <Text variant="bodySmall">Kembali: {item.tanggal_kembali}</Text>}
                 {item.biaya_penggantian && <Text variant="bodySmall" style={{ color: '#D32F2F' }}>Ganti Rugi: Rp {item.biaya_penggantian}</Text>}
               </Card.Content>
-              {item.status === 'aktif' && (
+              {item.status === 'aktif' && userRole !== 'staff' && (
                 <Card.Actions>
                   <Button onPress={() => handleKembalikan(item.id)}>Kembalikan</Button>
                   <Button onPress={() => { setHilangId(item.id); setShowHilang(true); }} textColor="#D32F2F">Tandai Hilang</Button>
@@ -341,7 +341,9 @@ export default function Peminjaman() {
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 32, color: '#666' }}>Tidak ada data.</Text>}
       />
 
-      <FAB icon={() => <Plus size={24} color="#FFF" />} style={styles.fab} onPress={openNewModal} />
+      {userRole !== 'staff' && (
+        <FAB icon={() => <Plus size={24} color="#FFF" />} style={styles.fab} onPress={openNewModal} />
+      )}
 
       <Portal>
         <Modal visible={showNew} onDismiss={() => setShowNew(false)} contentContainerStyle={styles.modalContent}>

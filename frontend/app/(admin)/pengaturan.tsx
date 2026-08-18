@@ -161,6 +161,10 @@ export default function Pengaturan() {
 
   const handleInvite = async () => {
     if (!tenantId) return;
+    if (userRole === 'staff') {
+      setSnackMsg('Hanya Owner dan Admin yang dapat mengundang anggota');
+      return;
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(inviteEmail.trim())) {
       setSnackMsg('Format email tidak valid');
@@ -168,7 +172,7 @@ export default function Pengaturan() {
     }
     setInviteLoading(true);
     try {
-      await apiClient.tenant.memberInvite(tenantId, inviteEmail.trim(), inviteRole);
+      await apiClient.tenant.memberInvite(tenantId, inviteEmail.trim(), inviteRole, userRole || 'owner');
       setSnackMsg('Undangan berhasil diproses');
       setInviteEmail('');
       loadMembers();
@@ -181,12 +185,16 @@ export default function Pengaturan() {
 
   const handlePromote = (memberId: string, currentRole: string) => {
     if (!tenantId) return;
+    if (userRole !== 'owner') {
+      setSnackMsg('Hanya Owner yang dapat mengubah role pengelola');
+      return;
+    }
     const newRole = currentRole === 'admin' ? 'staff' : 'admin';
-    Alert.alert('Konfirmasi', `Ubah role menjadi ${newRole}?`, [
+    Alert.alert('Konfirmasi', `Ubah role menjadi ${newRole === 'admin' ? 'Admin' : 'Member (Staff)'}?`, [
       { text: 'Batal', style: 'cancel' },
       { text: 'Ubah', onPress: async () => {
         try {
-          await apiClient.tenant.memberPromote(tenantId, memberId, newRole);
+          await apiClient.tenant.memberPromote(tenantId, memberId, newRole, userRole || 'owner');
           setSnackMsg(`Role berhasil diubah ke ${newRole}`);
           loadMembers();
         } catch (e: any) {
@@ -206,20 +214,23 @@ export default function Pengaturan() {
     ]);
   };
 
-  const handleRemoveMember = (memberId: string, memberName: string) => {
-    if (userRole !== 'owner') {
-      setSnackMsg('Hanya Owner yang dapat mengeluarkan member');
+  const canRemoveMember = (targetRole: string) => {
+    if (targetRole === 'owner') return false;
+    if (userRole === 'owner') return true;
+    if (userRole === 'admin' && targetRole === 'staff') return true;
+    return false;
+  };
+
+  const handleRemoveMember = (memberId: string, memberName: string, targetRole: string) => {
+    if (!canRemoveMember(targetRole)) {
+      setSnackMsg('Anda tidak memiliki izin untuk mengeluarkan pengelola ini');
       return;
     }
     Alert.alert('Konfirmasi', `Keluarkan ${memberName} dari perpustakaan?`, [
       { text: 'Batal', style: 'cancel' },
       { text: 'Keluarkan', style: 'destructive', onPress: async () => {
         try {
-          const { error } = await supabase
-            .from('tenant_member')
-            .delete()
-            .eq('id', memberId);
-          if (error) throw error;
+          await apiClient.tenant.memberRemove(tenantId || '', memberId, userRole || 'owner', targetRole);
           setSnackMsg(`${memberName} dikeluarkan`);
           loadMembers();
         } catch (e: any) {
@@ -246,6 +257,14 @@ export default function Pengaturan() {
     return '#2E7D32';
   };
 
+  const getRoleLabel = (role: string) => {
+    if (role === 'owner') return 'OWNER';
+    if (role === 'admin') return 'ADMIN';
+    return 'MEMBER';
+  };
+
+  const isViewOnly = userRole === 'staff';
+
   return (
     <View style={styles.container}>
       <Appbar.Header style={{ backgroundColor: '#fff', height: 48, elevation: 0, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
@@ -267,6 +286,9 @@ export default function Pengaturan() {
                 const appUserObj = Array.isArray(m.app_user) ? m.app_user[0] : m.app_user;
                 const displayName = appUserObj?.nama || appUserObj?.email || (m.user_id ? `User (${m.user_id.slice(0, 6)})` : 'Anggota');
                 const displayEmail = appUserObj?.email || '-';
+                const showRemove = canRemoveMember(m.role);
+                const showPromote = userRole === 'owner' && m.role !== 'owner';
+
                 return (
                   <View key={m.id} style={styles.memberRow}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
@@ -274,17 +296,17 @@ export default function Pengaturan() {
                       <Text variant="bodySmall" style={{ color: '#666' }}>{displayEmail}</Text>
                     </View>
                     <Chip style={{ backgroundColor: getRoleColor(m.role) + '22' }} textStyle={{ color: getRoleColor(m.role), fontSize: 12 }}>
-                      {m.role ? m.role.toUpperCase() : 'STAFF'}
+                      {getRoleLabel(m.role)}
                     </Chip>
-                    {m.role !== 'owner' && (
+                    {(showPromote || showRemove) && (
                       <View style={{ flexDirection: 'row', marginLeft: 4 }}>
-                        {userRole === 'owner' && (
+                        {showPromote && (
                           <Button compact mode="text" onPress={() => handlePromote(m.id, m.role)}>
-                            {m.role === 'admin' ? '→Staff' : '→Admin'}
+                            {m.role === 'admin' ? '→Member' : '→Admin'}
                           </Button>
                         )}
-                        {userRole === 'owner' && (
-                          <Button compact mode="text" textColor="#D32F2F" onPress={() => handleRemoveMember(m.id, displayName)}>
+                        {showRemove && (
+                          <Button compact mode="text" textColor="#D32F2F" onPress={() => handleRemoveMember(m.id, displayName, m.role)}>
                             Hapus
                           </Button>
                         )}
@@ -295,29 +317,33 @@ export default function Pengaturan() {
               })
             )}
 
-            <Divider style={{ marginVertical: 16 }} />
-            <Text variant="titleSmall" style={{ fontWeight: 'bold', marginBottom: 8 }}>Undang Pengelola Baru</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TextInput
-                label="Email"
-                value={inviteEmail}
-                onChangeText={setInviteEmail}
-                mode="outlined"
-                style={{ flex: 1, backgroundColor: '#FFF' }}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                dense
-              />
-              <Button
-                mode="contained"
-                onPress={handleInvite}
-                loading={inviteLoading}
-                disabled={inviteLoading}
-                style={{ alignSelf: 'center', borderRadius: 8 }}
-              >
-                Undang
-              </Button>
-            </View>
+            {!isViewOnly && (
+              <>
+                <Divider style={{ marginVertical: 16 }} />
+                <Text variant="titleSmall" style={{ fontWeight: 'bold', marginBottom: 8 }}>Undang Pengelola Baru</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    label="Email"
+                    value={inviteEmail}
+                    onChangeText={setInviteEmail}
+                    mode="outlined"
+                    style={{ flex: 1, backgroundColor: '#FFF' }}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    dense
+                  />
+                  <Button
+                    mode="contained"
+                    onPress={handleInvite}
+                    loading={inviteLoading}
+                    disabled={inviteLoading}
+                    style={{ alignSelf: 'center', borderRadius: 8 }}
+                  >
+                    Undang
+                  </Button>
+                </View>
+              </>
+            )}
           </Card.Content>
         </Card>
 
@@ -344,11 +370,14 @@ export default function Pengaturan() {
                 onChangeText={setBatasPinjam}
                 mode="outlined"
                 keyboardType="numeric"
+                disabled={isViewOnly}
                 style={{ width: 100, backgroundColor: '#FFF' }}
                 dense
               />
               <Text variant="bodyMedium" style={{ flex: 1 }}>buku per anggota</Text>
-              <Button mode="contained" onPress={handleSaveBatas} style={{ borderRadius: 8 }}>Simpan</Button>
+              {!isViewOnly && (
+                <Button mode="contained" onPress={handleSaveBatas} style={{ borderRadius: 8 }}>Simpan</Button>
+              )}
             </View>
           </Card.Content>
         </Card>
@@ -363,15 +392,15 @@ export default function Pengaturan() {
                 onChangeText={setMaksimalHariPinjam}
                 mode="outlined"
                 keyboardType="numeric"
+                disabled={isViewOnly}
                 style={{ width: 100, backgroundColor: '#FFF' }}
                 dense
               />
-              <Text variant="bodyMedium" style={{ flex: 1 }}>hari (jatuh tempo otomatis)</Text>
-              <Button mode="contained" onPress={handleSaveMaksimalHariPinjam} style={{ borderRadius: 8 }}>Simpan</Button>
+              <Text variant="bodyMedium" style={{ flex: 1 }}>hari</Text>
+              {!isViewOnly && (
+                <Button mode="contained" onPress={handleSaveMaksimalHariPinjam} style={{ borderRadius: 8 }}>Simpan</Button>
+              )}
             </View>
-            <Text variant="bodySmall" style={{ color: '#888', marginTop: 8 }}>
-              Digunakan untuk menghitung tanggal jatuh tempo otomatis saat transaksi peminjaman baru dibuat.
-            </Text>
           </Card.Content>
         </Card>
 
@@ -380,17 +409,19 @@ export default function Pengaturan() {
           <Card.Title title="Nominal Denda per Hari" />
           <Card.Content>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text variant="bodyMedium">Rp</Text>
               <TextInput
                 value={tarifDenda}
                 onChangeText={setTarifDenda}
                 mode="outlined"
                 keyboardType="numeric"
-                style={{ width: 120, backgroundColor: '#FFF' }}
+                disabled={isViewOnly}
+                style={{ width: 100, backgroundColor: '#FFF' }}
                 dense
               />
-              <Text variant="bodyMedium" style={{ flex: 1 }}>/hari/buku</Text>
-              <Button mode="contained" onPress={handleSaveTarif} style={{ borderRadius: 8 }}>Simpan</Button>
+              <Text variant="bodyMedium" style={{ flex: 1 }}>rupiah / hari / buku</Text>
+              {!isViewOnly && (
+                <Button mode="contained" onPress={handleSaveTarif} style={{ borderRadius: 8 }}>Simpan</Button>
+              )}
             </View>
             <Text variant="bodySmall" style={{ color: '#888', marginTop: 8 }}>
               Tarif denda berlaku mulai hari ini dan perubahan tidak berlaku retroaktif.

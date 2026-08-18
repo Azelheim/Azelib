@@ -15,7 +15,8 @@ const KATEGORI_OPTIONS = [
 export default function DetailAnggota() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { tenantId } = useTenant();
+  const { tenantId, userRole } = useTenant();
+  const isViewOnly = userRole === 'staff';
   const isNew = id === 'tambah' || !id;
 
   const [nama, setNama] = useState('');
@@ -191,7 +192,7 @@ export default function DetailAnggota() {
       <Appbar.Header style={{ backgroundColor: '#fff', height: 48, elevation: 0, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
         <Appbar.BackAction onPress={handleGoBack} />
         <Appbar.Content title={isNew ? "Tambah Anggota" : "Detail Anggota"} titleStyle={{ fontSize: 16, fontWeight: 'bold' }} />
-        {!isNew && <Appbar.Action icon={() => <Trash2 size={20} color="#D32F2F" />} onPress={handleHapus} />}
+        {!isNew && !isViewOnly && <Appbar.Action icon={() => <Trash2 size={20} color="#D32F2F" />} onPress={handleHapus} />}
       </Appbar.Header>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -209,6 +210,7 @@ export default function DetailAnggota() {
           value={nama}
           onChangeText={setNama}
           mode="outlined"
+          disabled={isViewOnly}
           style={styles.input}
         />
 
@@ -227,6 +229,7 @@ export default function DetailAnggota() {
           onChangeText={setKontak}
           mode="outlined"
           keyboardType="phone-pad"
+          disabled={isViewOnly}
           style={styles.input}
         />
         <TextInput
@@ -236,12 +239,15 @@ export default function DetailAnggota() {
           mode="outlined"
           multiline
           numberOfLines={3}
+          disabled={isViewOnly}
           style={styles.input}
         />
 
-        <Button mode="contained" onPress={handleSimpan} style={styles.btn} loading={loading} disabled={loading}>
-          {isNew ? "Simpan Anggota" : "Perbarui Anggota"}
-        </Button>
+        {!isViewOnly && (
+          <Button mode="contained" onPress={handleSimpan} style={styles.btn} loading={loading} disabled={loading}>
+            {isNew ? "Simpan Anggota" : "Perbarui Anggota"}
+          </Button>
+        )}
 
         {!isNew && (
           <Card style={styles.riwayatCard} mode="outlined">

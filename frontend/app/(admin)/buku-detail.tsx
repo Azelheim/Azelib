@@ -17,7 +17,8 @@ interface SalinanItem {
 export default function DetailBuku() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { tenantId } = useTenant();
+  const { tenantId, userRole } = useTenant();
+  const isViewOnly = userRole === 'staff';
   const isNew = id === 'tambah' || !id;
 
   const [judul, setJudul] = useState('');
@@ -360,7 +361,7 @@ export default function DetailBuku() {
       <Appbar.Header style={{ backgroundColor: '#fff', height: 48, elevation: 0, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
         <Appbar.BackAction onPress={handleGoBack} />
         <Appbar.Content title={isNew ? "Tambah Buku" : "Detail Buku"} titleStyle={{ fontSize: 16, fontWeight: 'bold' }} />
-        {!isNew && <Appbar.Action icon={() => <Trash2 size={20} color="#D32F2F" />} onPress={handleHapus} />}
+        {!isNew && !isViewOnly && <Appbar.Action icon={() => <Trash2 size={20} color="#D32F2F" />} onPress={handleHapus} />}
       </Appbar.Header>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -482,9 +483,11 @@ export default function DetailBuku() {
         <TextInput label="Jumlah Halaman" value={jumlahHalaman} onChangeText={setJumlahHalaman} mode="outlined" style={styles.input} keyboardType="numeric" />
         <TextInput label="Sinopsis" value={sinopsis} onChangeText={setSinopsis} mode="outlined" style={styles.input} multiline numberOfLines={4} />
 
-        <Button mode="contained" onPress={handleSimpan} style={styles.simpanBtn} loading={loading} disabled={loading}>
-          {isNew ? "Simpan Buku" : "Perbarui Buku"}
-        </Button>
+        {!isViewOnly && (
+          <Button mode="contained" onPress={handleSimpan} style={styles.simpanBtn} loading={loading} disabled={loading}>
+            {isNew ? "Simpan Buku" : "Perbarui Buku"}
+          </Button>
+        )}
 
         {/* Section: Salinan Eksemplar (Untuk Edit / Detail) */}
         {!isNew && (
@@ -517,30 +520,33 @@ export default function DetailBuku() {
                 })
               )}
 
-              <Divider style={{ marginVertical: 12 }} />
-
-              <Text variant="labelMedium" style={{ fontWeight: '600', marginBottom: 8 }}>Tambah Salinan Baru</Text>
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <TextInput
-                  label="Jumlah"
-                  value={tambahSalinanCount}
-                  onChangeText={setTambahSalinanCount}
-                  mode="outlined"
-                  keyboardType="numeric"
-                  style={{ width: 80, backgroundColor: '#FFF' }}
-                  dense
-                />
-                <Button
-                  mode="contained-tonal"
-                  icon={() => <Plus size={16} color="#000" />}
-                  onPress={handleTambahSalinan}
-                  loading={salinanLoading}
-                  disabled={salinanLoading}
-                  style={{ flex: 1, borderRadius: 8 }}
-                >
-                  Tambah Eksemplar
-                </Button>
-              </View>
+              {!isViewOnly && (
+                <>
+                  <Divider style={{ marginVertical: 12 }} />
+                  <Text variant="labelMedium" style={{ fontWeight: '600', marginBottom: 8 }}>Tambah Salinan Baru</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                    <TextInput
+                      label="Jumlah"
+                      value={tambahSalinanCount}
+                      onChangeText={setTambahSalinanCount}
+                      mode="outlined"
+                      keyboardType="numeric"
+                      style={{ width: 80, backgroundColor: '#FFF' }}
+                      dense
+                    />
+                    <Button
+                      mode="contained-tonal"
+                      icon={() => <Plus size={16} color="#000" />}
+                      onPress={handleTambahSalinan}
+                      loading={salinanLoading}
+                      disabled={salinanLoading}
+                      style={{ flex: 1, borderRadius: 8 }}
+                    >
+                      Tambah Eksemplar
+                    </Button>
+                  </View>
+                </>
+              )}
             </Card.Content>
           </Card>
         )}
