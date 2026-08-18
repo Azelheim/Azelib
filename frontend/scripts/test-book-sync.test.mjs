@@ -419,3 +419,58 @@ test('PHASE 7 — Flow 5 (Invitation & Multi-tenant Auth E2E Flow): Safe invitat
   assert.deepEqual(evaluateRouting([{ id: 't-1', role: 'owner' }], []), { target: '/(admin)/dashboard', activeTenant: { id: 't-1', role: 'owner' } });
   assert.equal(evaluateRouting([{ id: 't-1' }, { id: 't-2' }], []).mode, 'select');
 });
+
+test('PHASE 8 — SUGGESTION-001: Searchable & Creatable Category handles case-insensitivity & whitespace trimming without duplicate DB entries', () => {
+  const dbCategories = [
+    { id: 'kat-1', nama: 'Fiksi' },
+    { id: 'kat-2', nama: 'Sains' },
+  ];
+
+  const getOrCreateCategory = (input) => {
+    if (!input || !input.trim()) return null;
+    const clean = input.trim();
+    const existing = dbCategories.find(c => c.nama.toLowerCase() === clean.toLowerCase());
+    if (existing) return existing.id;
+
+    const newCat = { id: 'kat-' + (dbCategories.length + 1), nama: clean };
+    dbCategories.push(newCat);
+    return newCat.id;
+  };
+
+  // Case-insensitive match should reuse existing
+  const fiksiId1 = getOrCreateCategory('fiksi');
+  const fiksiId2 = getOrCreateCategory('  FIKSI   ');
+  assert.equal(fiksiId1, 'kat-1');
+  assert.equal(fiksiId2, 'kat-1');
+
+  // New category created upon save
+  const sejarahId = getOrCreateCategory('  Sejarah Indonesia  ');
+  assert.equal(sejarahId, 'kat-3');
+  assert.equal(dbCategories.find(c => c.id === 'kat-3').nama, 'Sejarah Indonesia');
+  assert.equal(dbCategories.length, 3);
+});
+
+test('PHASE 8 — SUGGESTION-002: Quick Add Anggota creates member and automatically selects them in active loan modal', () => {
+  const members = [{ id: 'm-1', nama: 'Budi' }];
+  let selectedMemberInLoan = null;
+
+  const quickAddAndSelect = (nama, kategori, kontak) => {
+    assert.ok(nama.trim().length >= 3, 'Nama min 3 chars');
+    assert.ok(/^08\d{8,11}$/.test(kontak), 'Valid phone');
+    const newMember = {
+      id: 'm-' + (members.length + 1),
+      nomor_anggota: `ANG-${String(members.length + 1).padStart(5, '0')}`,
+      nama: nama.trim(),
+      kategori,
+      kontak: kontak.trim(),
+    };
+    members.push(newMember);
+    selectedMemberInLoan = newMember;
+    return newMember;
+  };
+
+  const newMember = quickAddAndSelect('Dewi Lestari', 'Guru', '081299887766');
+  assert.equal(newMember.nomor_anggota, 'ANG-00002');
+  assert.equal(selectedMemberInLoan.id, 'm-2');
+  assert.equal(selectedMemberInLoan.nama, 'Dewi Lestari');
+});

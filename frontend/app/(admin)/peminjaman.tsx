@@ -35,6 +35,80 @@ export default function Peminjaman() {
   const [anggotaMenuVisible, setAnggotaMenuVisible] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  // Quick Add Anggota state
+  const [showQuickAnggota, setShowQuickAnggota] = useState(false);
+  const [quickNama, setQuickNama] = useState('');
+  const [quickKategori, setQuickKategori] = useState<'Siswa' | 'Guru' | 'Umum'>('Siswa');
+  const [quickKontak, setQuickKontak] = useState('');
+  const [quickAlamat, setQuickAlamat] = useState('');
+  const [quickLoading, setQuickLoading] = useState(false);
+
+  const resetQuickAnggotaForm = () => {
+    setQuickNama('');
+    setQuickKategori('Siswa');
+    setQuickKontak('');
+    setQuickAlamat('');
+  };
+
+  const handleQuickAddAnggota = async () => {
+    if (quickNama.trim().length < 3) {
+      setSnackMsg('Nama minimal 3 karakter');
+      return;
+    }
+    const phoneRegex = /^08\d{8,11}$/;
+    if (!phoneRegex.test(quickKontak.trim())) {
+      setSnackMsg('Nomor HP tidak valid (contoh: 08123456789)');
+      return;
+    }
+
+    setQuickLoading(true);
+    try {
+      // Auto-generate nomor_anggota
+      const { count } = await supabase
+        .from('anggota')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId);
+
+      const nextNum = (count || 0) + 1;
+      const nomor_anggota = `ANG-${String(nextNum).padStart(5, '0')}`;
+
+      const { data: newAnggota, error } = await supabase
+        .from('anggota')
+        .insert({
+          tenant_id: tenantId,
+          nomor_anggota,
+          nama: quickNama.trim(),
+          kategori_anggota: quickKategori,
+          kontak: quickKontak.trim(),
+          alamat: quickAlamat.trim() || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Refresh list
+      const { data: refreshedList } = await supabase
+        .from('anggota')
+        .select('id, nama')
+        .eq('tenant_id', tenantId)
+        .eq('dihapus', false);
+
+      if (refreshedList) setAnggotaList(refreshedList);
+
+      // Auto-select the newly added member
+      setSelectedAnggota(newAnggota);
+      setShowQuickAnggota(false);
+      resetQuickAnggotaForm();
+      setSnackMsg(`Anggota ${newAnggota.nama} berhasil ditambahkan dan dipilih`);
+    } catch (e: any) {
+      console.error(e);
+      setSnackMsg(e.message || 'Gagal menambahkan anggota');
+    } finally {
+      setQuickLoading(false);
+    }
+  };
+
   // Modal hilang
   const [showHilang, setShowHilang] = useState(false);
   const [hilangId, setHilangId] = useState('');
@@ -255,18 +329,33 @@ export default function Peminjaman() {
           <ScrollView>
             <Text variant="titleLarge" style={{ fontWeight: 'bold', marginBottom: 16 }}>Peminjaman Baru</Text>
 
-            {/* Anggota picker */}
-            <Text variant="labelMedium" style={{ marginBottom: 8 }}>Anggota</Text>
+            {/* Anggota picker with Quick Add */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text variant="labelMedium">Anggota</Text>
+              <Button
+                mode="text"
+                compact
+                icon={() => <Plus size={14} color="#1565C0" />}
+                textColor="#1565C0"
+                onPress={() => {
+                  resetQuickAnggotaForm();
+                  setShowQuickAnggota(true);
+                }}
+              >
+                + Tambah Anggota Baru
+              </Button>
+            </View>
+
             <Menu
               visible={anggotaMenuVisible}
               onDismiss={() => setAnggotaMenuVisible(false)}
               anchor={
                 <Button mode="outlined" onPress={() => setAnggotaMenuVisible(true)} style={{ marginBottom: 16 }}>
-                  {selectedAnggota ? selectedAnggota.nama : 'Pilih Anggota'}
+                  {selectedAnggota ? `${selectedAnggota.nama} (${selectedAnggota.nomor_anggota || ''})` : 'Pilih Anggota'}
                 </Button>
               }>
               {anggotaList.map(a => (
-                <Menu.Item key={a.id} onPress={() => { setSelectedAnggota(a); setAnggotaMenuVisible(false); }} title={a.nama} />
+                <Menu.Item key={a.id} onPress={() => { setSelectedAnggota(a); setAnggotaMenuVisible(false); }} title={`${a.nama} (${a.nomor_anggota || ''})`} />
               ))}
             </Menu>
 
@@ -296,6 +385,67 @@ export default function Peminjaman() {
               Buat Peminjaman
             </Button>
             <Button mode="text" onPress={() => setShowNew(false)} style={{ marginTop: 8 }}>
+              Batal
+            </Button>
+          </ScrollView>
+        </Modal>
+      </Portal>
+
+      {/* Modal: Quick Add Anggota */}
+      <Portal>
+        <Modal visible={showQuickAnggota} onDismiss={() => setShowQuickAnggota(false)} contentContainerStyle={styles.modalContent}>
+          <ScrollView>
+            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16 }}>Tambah Anggota Baru</Text>
+            
+            <TextInput
+              label="Nama Anggota"
+              value={quickNama}
+              onChangeText={setQuickNama}
+              mode="outlined"
+              style={{ marginBottom: 12, backgroundColor: '#FFF' }}
+            />
+
+            <Text variant="labelMedium" style={{ marginBottom: 6 }}>Kategori Anggota</Text>
+            <SegmentedButtons
+              value={quickKategori}
+              onValueChange={(val) => setQuickKategori(val as any)}
+              buttons={[
+                { value: 'Siswa', label: 'Siswa' },
+                { value: 'Guru', label: 'Guru' },
+                { value: 'Umum', label: 'Umum' },
+              ]}
+              style={{ marginBottom: 12 }}
+            />
+
+            <TextInput
+              label="Nomor HP (contoh: 08123456789)"
+              value={quickKontak}
+              onChangeText={setQuickKontak}
+              mode="outlined"
+              keyboardType="phone-pad"
+              style={{ marginBottom: 12, backgroundColor: '#FFF' }}
+            />
+
+            <TextInput
+              label="Alamat (Opsional)"
+              value={quickAlamat}
+              onChangeText={setQuickAlamat}
+              mode="outlined"
+              multiline
+              numberOfLines={2}
+              style={{ marginBottom: 16, backgroundColor: '#FFF' }}
+            />
+
+            <Button
+              mode="contained"
+              onPress={handleQuickAddAnggota}
+              loading={quickLoading}
+              disabled={quickLoading}
+              style={{ borderRadius: 8 }}
+            >
+              Simpan & Pilih
+            </Button>
+            <Button mode="text" onPress={() => setShowQuickAnggota(false)} style={{ marginTop: 8 }}>
               Batal
             </Button>
           </ScrollView>

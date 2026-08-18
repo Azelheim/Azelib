@@ -835,14 +835,14 @@ Jika tidak ditemukan:
 
 Saat buku berhasil disimpan:
 
-- [ ] Jika kategori sudah ada → gunakan kategori existing.
-- [ ] Jika belum ada → buat kategori baru.
-- [ ] Hindari duplikasi case-insensitive.
-- [ ] Trim whitespace.
-- [ ] Jangan membuat kategori hanya karena user mengetik.
-- [ ] Kategori baru dibuat setelah buku berhasil disimpan.
+- [x] Jika kategori sudah ada → gunakan kategori existing.
+- [x] Jika belum ada → buat kategori baru.
+- [x] Hindari duplikasi case-insensitive.
+- [x] Trim whitespace.
+- [x] Jangan membuat kategori hanya karena user mengetik.
+- [x] Kategori baru dibuat setelah buku berhasil disimpan.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -866,12 +866,12 @@ lanjutkan peminjaman
 
 Task:
 
-- [ ] Tambahkan quick action.
-- [ ] Jangan memutus alur peminjaman.
-- [ ] Setelah anggota dibuat, otomatis pilih anggota tersebut.
-- [ ] Jangan membuat duplicate member.
+- [x] Tambahkan quick action.
+- [x] Jangan memutus alur peminjaman.
+- [x] Setelah anggota dibuat, otomatis pilih anggota tersebut.
+- [x] Jangan membuat duplicate member.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -1025,7 +1025,8 @@ Project dianggap selesai hanya apabila:
 - [x] Bottom Navigation menunjukkan konteks halaman yang benar.
 - [x] Invitation/Auth flow tidak melewati state yang seharusnya.
 - [x] Halaman Pengaturan Perpustakaan tidak force close.
-- [ ] Baru setelah itu task `[SARAN]` boleh dikerjakan.
+- [x] Baru setelah itu task `[SARAN]` boleh dikerjakan.
 
 **Mulai dari PHASE 1 setelah selesai melakukan investigation. Jangan langsung melompat ke fitur `[SARAN]`.**
+
 

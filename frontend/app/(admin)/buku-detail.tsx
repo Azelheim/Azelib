@@ -43,6 +43,10 @@ export default function DetailBuku() {
   const [pageLoading, setPageLoading] = useState(!isNew);
   const [snackMsg, setSnackMsg] = useState('');
 
+  // Searchable & Creatable Category & Rak
+  const [availableCategories, setAvailableCategories] = useState<{ id: string; nama: string }[]>([]);
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+
   const resetForm = useCallback(() => {
     setJudul('');
     setPenulis('');
@@ -58,16 +62,32 @@ export default function DetailBuku() {
     setCoverUrl('');
     setJumlahSalinan('1');
     setSalinanList([]);
+    setShowCategoryMenu(false);
   }, []);
 
+  const loadCategoriesAndRaks = useCallback(async () => {
+    if (!tenantId) return;
+    try {
+      const { data: katData } = await supabase
+        .from('kategori')
+        .select('id, nama')
+        .eq('tenant_id', tenantId)
+        .order('nama', { ascending: true });
+      if (katData) setAvailableCategories(katData);
+    } catch (e) {
+      console.error('Error loadCategories:', e);
+    }
+  }, [tenantId]);
+
   useEffect(() => {
+    loadCategoriesAndRaks();
     if (isNew) {
       resetForm();
       setPageLoading(false);
     } else if (id && id !== 'tambah') {
       loadBuku();
     }
-  }, [id, isNew]);
+  }, [id, isNew, loadCategoriesAndRaks]);
 
   const loadBuku = async () => {
     setPageLoading(true);
@@ -139,19 +159,20 @@ export default function DetailBuku() {
   };
 
   const getOrCreateKategori = async (namaKat: string) => {
-    if (!namaKat.trim()) return null;
+    if (!namaKat || !namaKat.trim()) return null;
+    const cleanKat = namaKat.trim();
     const { data: existing } = await supabase
       .from('kategori')
       .select('id')
       .eq('tenant_id', tenantId)
-      .ilike('nama', namaKat.trim())
+      .ilike('nama', cleanKat)
       .single();
 
     if (existing) return existing.id;
 
     const { data: created, error } = await supabase
       .from('kategori')
-      .insert({ tenant_id: tenantId, nama: namaKat.trim() })
+      .insert({ tenant_id: tenantId, nama: cleanKat })
       .select('id')
       .single();
 
@@ -351,7 +372,48 @@ export default function DetailBuku() {
         </View>
 
         <View style={styles.row}>
-          <TextInput label="Kategori" value={kategori} onChangeText={setKategori} mode="outlined" style={[styles.input, { flex: 1, marginRight: 8 }]} />
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <TextInput
+              label="Kategori"
+              value={kategori}
+              onChangeText={(text) => {
+                setKategori(text);
+                setShowCategoryMenu(true);
+              }}
+              onFocus={() => setShowCategoryMenu(true)}
+              mode="outlined"
+              style={styles.input}
+            />
+            {showCategoryMenu && kategori.trim().length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {availableCategories
+                  .filter(c => c.nama.toLowerCase().includes(kategori.trim().toLowerCase()))
+                  .map(c => (
+                    <Chip
+                      key={c.id}
+                      style={{ margin: 2 }}
+                      onPress={() => {
+                        setKategori(c.nama);
+                        setShowCategoryMenu(false);
+                      }}
+                    >
+                      {c.nama}
+                    </Chip>
+                  ))}
+                {!availableCategories.some(c => c.nama.trim().toLowerCase() === kategori.trim().toLowerCase()) && (
+                  <Chip
+                    style={{ margin: 2, backgroundColor: '#E3F2FD' }}
+                    textStyle={{ color: '#1565C0', fontWeight: 'bold' }}
+                    onPress={() => {
+                      setShowCategoryMenu(false);
+                    }}
+                  >
+                    + Tambah kategori "{kategori.trim()}"
+                  </Chip>
+                )}
+              </View>
+            )}
+          </View>
           <TextInput label="Rak" value={rak} onChangeText={setRak} mode="outlined" style={[styles.input, { flex: 1 }]} />
         </View>
 
@@ -445,5 +507,7 @@ const styles = StyleSheet.create({
   simpanBtn: { marginTop: 16, borderRadius: 8 },
   salinanCard: { marginTop: 24, backgroundColor: '#FFFFFF', borderRadius: 8 },
   salinanRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  suggestionsContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4, marginBottom: 8, padding: 4, backgroundColor: '#FAFAFA', borderRadius: 8, borderWidth: 1, borderColor: '#E0E0E0' },
 });
+
 
