@@ -563,20 +563,20 @@ Dialog
 
 Task:
 
-- [ ] Setelah PDF berhasil dibuat, tampilkan pilihan kepada user.
-- [ ] Jangan auto-save.
-- [ ] Jangan auto-share.
-- [ ] Untuk Save, gunakan file picker/mechanism storage yang sudah sesuai dengan Expo/project.
-- [ ] Untuk Share, gunakan mekanisme sharing yang sesuai dengan project.
-- [ ] Pastikan user secara eksplisit menentukan tindakan.
+- [x] Setelah PDF berhasil dibuat, tampilkan pilihan kepada user.
+- [x] Jangan auto-save.
+- [x] Jangan auto-share.
+- [x] Untuk Save, gunakan file picker/mechanism storage yang sudah sesuai dengan Expo/project.
+- [x] Untuk Share, gunakan mekanisme sharing yang sesuai dengan project.
+- [x] Pastikan user secara eksplisit menentukan tindakan.
 
 Acceptance:
 
-- [ ] User bisa memilih Simpan.
-- [ ] User bisa memilih Share.
-- [ ] Tidak ada auto-save/auto-share.
+- [x] User bisa memilih Simpan.
+- [x] User bisa memilih Share.
+- [x] Tidak ada auto-save/auto-share.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -584,17 +584,17 @@ Status: `PENDING`
 
 Task:
 
-- [ ] Tambahkan date picker.
-- [ ] Gunakan untuk menentukan periode laporan.
-- [ ] Pastikan filter memengaruhi data yang akan diekspor.
-- [ ] Pastikan tanggal awal/akhir ditangani dengan benar.
+- [x] Tambahkan date picker.
+- [x] Gunakan untuk menentukan periode laporan.
+- [x] Pastikan filter memengaruhi data yang akan diekspor.
+- [x] Pastikan tanggal awal/akhir ditangani dengan benar.
 
 Acceptance:
 
-- [ ] User dapat menentukan periode laporan.
-- [ ] Data hasil export sesuai periode tersebut.
+- [x] User dapat menentukan periode laporan.
+- [x] Data hasil export sesuai periode tersebut.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

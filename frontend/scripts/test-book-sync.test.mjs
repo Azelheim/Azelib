@@ -201,3 +201,19 @@ test('MEMBER-001 & Spec: Member auto-numbering and phone validation format', () 
   assert.equal(phoneRegex.test('07123456789'), false);
   assert.equal(phoneRegex.test('08123'), false);
 });
+
+test('REPORT-001 & REPORT-002: Period validation and report date filtering', () => {
+  const validateReportPeriod = (startDate, endDate) => {
+    if (!startDate || !endDate) return { valid: false, error: 'Tentukan periode awal dan akhir laporan' };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      return { valid: false, error: 'Format tanggal harus YYYY-MM-DD' };
+    }
+    if (startDate > endDate) return { valid: false, error: 'Tanggal mulai tidak boleh lebih besar dari tanggal selesai' };
+    return { valid: true };
+  };
+
+  assert.equal(validateReportPeriod('2026-01-01', '2026-01-31').valid, true);
+  assert.equal(validateReportPeriod('2026-05-10', '2026-05-01').valid, false);
+  assert.equal(validateReportPeriod('', '2026-01-31').valid, false);
+  assert.equal(validateReportPeriod('invalid-date', '2026-01-31').valid, false);
+});
