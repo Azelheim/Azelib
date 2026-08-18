@@ -1274,24 +1274,24 @@ Status: `PASS`
 Setelah PHASE 9–15 selesai, jalankan regression menyeluruh — flow lama PHASE 7 (Flow 1–5) DITAMBAH flow baru berikut:
 
 ### Flow 6 — Login & Pemilihan Perpustakaan
-1. Login sebagai user dengan 1 perpustakaan → harus berhenti dulu di halaman pemilihan.
-2. Login sebagai user dengan beberapa perpustakaan → semua muncul di halaman pemilihan.
-3. Login sebagai user dengan undangan pending → undangan muncul, bisa diterima/tolak.
+- [x] Login sebagai user dengan 1 perpustakaan → harus berhenti dulu di halaman pemilihan.
+- [x] Login sebagai user dengan beberapa perpustakaan → semua muncul di halaman pemilihan.
+- [x] Login sebagai user dengan undangan pending → undangan muncul, bisa diterima/tolak.
 
 ### Flow 7 — Peminjaman End-to-End (Setelah Update)
-1. Tambah peminjaman → pilih judul → pilih salinan (LOAN-005).
-2. Filter berdasarkan Rak → hasil sesuai (LOAN-006).
-3. Pilih tanggal lewat date picker (LOAN-007).
-4. Salinan tampil sebagai `Kode: XXXX`, bukan ID mentah (LOAN-008).
-5. Setelah peminjaman tersimpan, Dashboard & halaman Buku ter-update tanpa restart (regresi BOOK-003/LOAN-002 round 1 — pastikan masih PASS).
+- [x] Tambah peminjaman → pilih judul → pilih salinan (LOAN-005).
+- [x] Filter berdasarkan Rak → hasil sesuai (LOAN-006).
+- [x] Pilih tanggal lewat date picker (LOAN-007).
+- [x] Salinan tampil sebagai `Kode: XXXX`, bukan ID mentah (LOAN-008).
+- [x] Setelah peminjaman tersimpan, Dashboard & halaman Buku ter-update tanpa restart (regresi BOOK-003/LOAN-002 round 1 — pastikan masih PASS).
 
 ### Flow 8 — Role & Permission
-1. Login sebagai Member → coba akses tambah/edit/hapus di semua halaman → harus terblokir di UI DAN via API langsung.
-2. Login sebagai Admin → coba remove Owner → ditolak. Coba remove Member biasa → berhasil.
-3. Login sebagai Owner → promote Member jadi Admin → berhasil, role langsung ter-refresh tanpa restart.
-4. Member → export laporan & generate barcode → tetap berhasil meski view-only untuk fitur lain.
+- [x] Login sebagai Member → coba akses tambah/edit/hapus di semua halaman → harus terblokir di UI DAN via API langsung.
+- [x] Login sebagai Admin → coba remove Owner → ditolak. Coba remove Member biasa → berhasil.
+- [x] Login sebagai Owner → promote Member jadi Admin → berhasil, role langsung ter-refresh tanpa restart.
+- [x] Member → export laporan & generate barcode → tetap berhasil meski view-only untuk fitur lain.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

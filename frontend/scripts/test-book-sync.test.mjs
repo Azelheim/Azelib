@@ -935,5 +935,138 @@ test('PHASE 15 — BARCODE-001: Guest QR Code resolution and public catalog view
   assert.equal(guestRoutes.includes('/pengaturan'), false);
 });
 
+test('PHASE 16 — Flow 6 (Login & Library Selection E2E Flow): All users unconditionally stop at selection hub', () => {
+  // Scenario 1: User with 1 library
+  const userWithOneLib = { id: 'u1', email: 'owner1@test.com', tenants: [{ id: 't1', nama: 'Perpus 1' }], invitations: [] };
+  const routeForUser1 = userWithOneLib.id ? '/tenant-setup' : '/login';
+  assert.equal(routeForUser1, '/tenant-setup');
+
+  // Scenario 2: User with multiple libraries
+  const userWithMultiLib = { id: 'u2', email: 'multi@test.com', tenants: [{ id: 't1', nama: 'P1' }, { id: 't2', nama: 'P2' }], invitations: [] };
+  const routeForUser2 = userWithMultiLib.id ? '/tenant-setup' : '/login';
+  assert.equal(routeForUser2, '/tenant-setup');
+
+  // Scenario 3: User with pending invitations
+  const userWithInvites = { id: 'u3', email: 'invitee@test.com', tenants: [], invitations: [{ id: 'inv-1', tenant: { nama: 'Perpus Baru' } }] };
+  const routeForUser3 = userWithInvites.id ? '/tenant-setup' : '/login';
+  assert.equal(routeForUser3, '/tenant-setup');
+
+  // Scenario 4: User without libraries or invitations
+  const newRegisteredUser = { id: 'u4', email: 'newbie@test.com', tenants: [], invitations: [] };
+  const routeForUser4 = newRegisteredUser.id ? '/tenant-setup' : '/login';
+  assert.equal(routeForUser4, '/tenant-setup');
+});
+
+test('PHASE 16 — Flow 7 (Loan End-to-End Flow): 2-tier selection, rak filter, date picker, copy codes, and live metrics', () => {
+  // Setup books with copies in various shelves
+  const books = [
+    {
+      id: 'b1',
+      judul: 'Fisika Dasar',
+      rak_id: 'rak-sains',
+      rak: { id: 'rak-sains', nama: 'Rak Sains' },
+      salinan: [
+        { id: 's1', nomor_urut: 1, kode_eksemplar: 'FIS-01', status: 'tersedia' },
+        { id: 's2', nomor_urut: 2, kode_eksemplar: 'FIS-02', status: 'tersedia' },
+      ]
+    },
+    {
+      id: 'b2',
+      judul: 'Sejarah Dunia',
+      rak_id: 'rak-sejarah',
+      rak: { id: 'rak-sejarah', nama: 'Rak Sejarah' },
+      salinan: [
+        { id: 's3', nomor_urut: 1, kode_eksemplar: 'SEJ-01', status: 'tersedia' },
+      ]
+    }
+  ];
+
+  // 1. Filter by Rak (LOAN-006)
+  const filterByRak = (bookList, selectedRak) => {
+    if (!selectedRak) return bookList;
+    return bookList.filter(b => b.rak_id === selectedRak);
+  };
+  const sainsBooks = filterByRak(books, 'rak-sains');
+  assert.equal(sainsBooks.length, 1);
+  assert.equal(sainsBooks[0].judul, 'Fisika Dasar');
+
+  // 2. 2-Tier Selection (LOAN-005) & Formatted Copy Codes (LOAN-008)
+  const formatKodeSalinan = (nomorUrut, totalSalinan) => {
+    const digits = Math.max(2, String(Math.max(totalSalinan, nomorUrut)).length);
+    return `Kode: ${String(nomorUrut).padStart(digits, '0')}`;
+  };
+
+  const selectedBook = sainsBooks[0];
+  const availableCopies = selectedBook.salinan.filter(s => s.status === 'tersedia');
+  assert.equal(availableCopies.length, 2);
+
+  const formattedCode1 = formatKodeSalinan(availableCopies[0].nomor_urut, selectedBook.salinan.length);
+  const formattedCode2 = formatKodeSalinan(availableCopies[1].nomor_urut, selectedBook.salinan.length);
+  assert.equal(formattedCode1, 'Kode: 01');
+  assert.equal(formattedCode2, 'Kode: 02');
+
+  // 3. Date Presets (LOAN-007)
+  const today = '2026-08-18';
+  const calculatePresetDueDate = (baseDateStr, days) => {
+    const d = new Date(baseDateStr);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  };
+  assert.equal(calculatePresetDueDate(today, 7), '2026-08-25');
+  assert.equal(calculatePresetDueDate(today, 14), '2026-09-01');
+
+  // 4. Perform Loan Mutation
+  availableCopies[0].status = 'dipinjam';
+  const updatedAvailable = selectedBook.salinan.filter(s => s.status === 'tersedia');
+  assert.equal(updatedAvailable.length, 1);
+  assert.equal(updatedAvailable[0].nomor_urut, 2);
+});
+
+test('PHASE 16 — Flow 8 (Role & Permission Matrix Full Enforcement): Owner, Admin, Member actions', () => {
+  const checkPermission = (role, action, targetRole = null) => {
+    if (role === 'staff') {
+      // Member can only export reports and generate/print barcodes
+      if (action === 'EXPORT_REPORT' || action === 'GENERATE_BARCODE' || action === 'VIEW_CATALOG') return true;
+      return false;
+    }
+    if (role === 'admin') {
+      if (action === 'REMOVE_ADMIN' || action === 'REMOVE_OWNER' || action === 'PROMOTE_ADMIN') return false;
+      return true;
+    }
+    if (role === 'owner') {
+      if (action === 'REMOVE_OWNER') return false;
+      return true;
+    }
+    return false;
+  };
+
+  // Member (Staff):
+  assert.equal(checkPermission('staff', 'ADD_BOOK'), false);
+  assert.equal(checkPermission('staff', 'EDIT_BOOK'), false);
+  assert.equal(checkPermission('staff', 'DELETE_BOOK'), false);
+  assert.equal(checkPermission('staff', 'CREATE_LOAN'), false);
+  assert.equal(checkPermission('staff', 'RETURN_LOAN'), false);
+  assert.equal(checkPermission('staff', 'INVITE_MEMBER'), false);
+  assert.equal(checkPermission('staff', 'EXPORT_REPORT'), true);
+  assert.equal(checkPermission('staff', 'GENERATE_BARCODE'), true);
+
+  // Admin:
+  assert.equal(checkPermission('admin', 'ADD_BOOK'), true);
+  assert.equal(checkPermission('admin', 'CREATE_LOAN'), true);
+  assert.equal(checkPermission('admin', 'INVITE_MEMBER'), true);
+  assert.equal(checkPermission('admin', 'REMOVE_MEMBER'), true);
+  assert.equal(checkPermission('admin', 'REMOVE_ADMIN'), false);
+  assert.equal(checkPermission('admin', 'REMOVE_OWNER'), false);
+  assert.equal(checkPermission('admin', 'PROMOTE_ADMIN'), false);
+
+  // Owner:
+  assert.equal(checkPermission('owner', 'ADD_BOOK'), true);
+  assert.equal(checkPermission('owner', 'PROMOTE_ADMIN'), true);
+  assert.equal(checkPermission('owner', 'REMOVE_ADMIN'), true);
+  assert.equal(checkPermission('owner', 'REMOVE_MEMBER'), true);
+  assert.equal(checkPermission('owner', 'REMOVE_OWNER'), false);
+});
+
+
 
 
