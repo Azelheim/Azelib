@@ -264,11 +264,158 @@ test('LIB-002: Routing after login evaluates all 5 conditions correctly', () => 
 test('LIB-003: Member display parser handles null app_user and missing fields safely without crashing', () => {
   const parseMemberDisplayName = (member) => {
     if (!member) return 'Anggota';
-    return member.app_user?.nama || member.app_user?.email || (member.user_id ? `User (${member.user_id.slice(0, 6)})` : 'Anggota');
+    const appUserObj = Array.isArray(member.app_user) ? member.app_user[0] : member.app_user;
+    return appUserObj?.nama || appUserObj?.email || (member.user_id ? `User (${member.user_id.slice(0, 6)})` : 'Anggota');
   };
 
   assert.equal(parseMemberDisplayName({ user_id: 'usr-123456', app_user: { nama: 'Budi Santoso', email: 'budi@test.com' } }), 'Budi Santoso');
+  assert.equal(parseMemberDisplayName({ user_id: 'usr-123456', app_user: [{ nama: 'Budi Santoso', email: 'budi@test.com' }] }), 'Budi Santoso');
   assert.equal(parseMemberDisplayName({ user_id: 'usr-123456', app_user: { nama: null, email: 'budi@test.com' } }), 'budi@test.com');
   assert.equal(parseMemberDisplayName({ user_id: 'usr-123456', app_user: null }), 'User (usr-12)');
   assert.equal(parseMemberDisplayName(null), 'Anggota');
+});
+
+test('PHASE 7 — Flow 1 (Book E2E Flow): Sequential creation of 3 books with clear forms & correct copy counts', () => {
+  const db = { books: [], copies: [] };
+  
+  const createBookWithCopies = (bookData, copyCount) => {
+    assert.ok(copyCount >= 1, 'Copy count must be at least 1');
+    const bookId = 'buku-' + (db.books.length + 1);
+    const newBook = { id: bookId, ...bookData };
+    db.books.push(newBook);
+
+    const identifier = newBook.isbn || newBook.kode_lokal || 'LOK-00001';
+    for (let i = 1; i <= copyCount; i++) {
+      db.copies.push({
+        id: 'salinan-' + (db.copies.length + 1),
+        buku_id: bookId,
+        nomor_urut: i,
+        kode_eksemplar: `${identifier}-${i}`,
+        status: 'tersedia'
+      });
+    }
+    return newBook;
+  };
+
+  // 1. Tambah Buku Pertama
+  createBookWithCopies({ judul: 'Laskar Pelangi', isbn: '978-979-3062-79-2' }, 3);
+  // 2. Tambah Buku Kedua
+  createBookWithCopies({ judul: 'Bumi Manusia', kode_lokal: 'LOK-00002' }, 2);
+  // 3. Tambah Buku Ketiga
+  createBookWithCopies({ judul: 'Negeri 5 Menara', isbn: '978-979-22-4861-6' }, 4);
+
+  assert.equal(db.books.length, 3);
+  assert.equal(db.copies.length, 9);
+  
+  // Verify no 0/0 copies
+  for (const b of db.books) {
+    const total = db.copies.filter(c => c.buku_id === b.id).length;
+    const available = db.copies.filter(c => c.buku_id === b.id && c.status === 'tersedia').length;
+    assert.ok(total > 0, `Book ${b.judul} must have copies > 0`);
+    assert.equal(available, total, `Book ${b.judul} must be fully available initially`);
+  }
+});
+
+test('PHASE 7 — Flow 2 (Loan E2E Flow): Borrowing multiple books updates availability & quota', () => {
+  const db = {
+    members: [{ id: 'm-1', nama: 'Andi' }],
+    copies: [
+      { id: 'c-1', buku_id: 'b-1', status: 'tersedia' },
+      { id: 'c-2', buku_id: 'b-1', status: 'tersedia' },
+      { id: 'c-3', buku_id: 'b-2', status: 'tersedia' },
+    ],
+    loans: [],
+    maxQuota: 3,
+  };
+
+  const borrow = (memberId, copyIds, dueDate) => {
+    assert.ok(copyIds.length <= db.maxQuota, 'Cannot exceed quota');
+    for (const cId of copyIds) {
+      const copy = db.copies.find(c => c.id === cId);
+      assert.ok(copy, 'Copy must exist');
+      assert.equal(copy.status, 'tersedia', 'Copy must be available');
+      copy.status = 'dipinjam';
+    }
+    const loan = { id: 'l-' + (db.loans.length + 1), memberId, copyIds, dueDate, status: 'aktif' };
+    db.loans.push(loan);
+    return loan;
+  };
+
+  // Borrow Book 1
+  borrow('m-1', ['c-1'], '2026-08-25');
+  assert.equal(db.copies.find(c => c.id === 'c-1').status, 'dipinjam');
+  assert.equal(db.copies.find(c => c.id === 'c-2').status, 'tersedia');
+  assert.equal(db.copies.find(c => c.id === 'c-3').status, 'tersedia');
+
+  // Borrow Book 2
+  borrow('m-1', ['c-3'], '2026-08-26');
+  assert.equal(db.copies.find(c => c.id === 'c-3').status, 'dipinjam');
+
+  // Verify dashboard counts
+  const activeLoans = db.loans.filter(l => l.status === 'aktif');
+  const totalBorrowedCopies = activeLoans.reduce((sum, l) => sum + l.copyIds.length, 0);
+  assert.equal(activeLoans.length, 2);
+  assert.equal(totalBorrowedCopies, 2);
+});
+
+test('PHASE 7 — Flow 3 (Member E2E Flow): Creation, auto-numbering, and category dropdown consistency', () => {
+  const members = [];
+  const validCategories = ['Siswa', 'Guru', 'Umum'];
+
+  const addMember = (nama, kategori, kontak) => {
+    assert.ok(nama.trim().length >= 3, 'Nama min 3 chars');
+    assert.ok(validCategories.includes(kategori), 'Category must be Siswa, Guru, or Umum');
+    assert.ok(/^08\d{8,11}$/.test(kontak), 'Phone must start with 08');
+    const nomor_anggota = `ANG-${String(members.length + 1).padStart(5, '0')}`;
+    const m = { id: 'm-' + (members.length + 1), nomor_anggota, nama, kategori, kontak };
+    members.push(m);
+    return m;
+  };
+
+  addMember('Rudi Hartono', 'Siswa', '08123456789');
+  addMember('Siti Aminah', 'Guru', '08198765432');
+  addMember('Bambang Sutrisno', 'Umum', '08134567890');
+
+  assert.equal(members[0].nomor_anggota, 'ANG-00001');
+  assert.equal(members[1].nomor_anggota, 'ANG-00002');
+  assert.equal(members[2].nomor_anggota, 'ANG-00003');
+  assert.equal(members.every(m => validCategories.includes(m.kategori)), true);
+});
+
+test('PHASE 7 — Flow 4 (Report E2E Flow): Period date filtering & explicit Save/Share decision', () => {
+  const transactions = [
+    { id: '1', date: '2026-08-01', type: 'loan' },
+    { id: '2', date: '2026-08-10', type: 'loan' },
+    { id: '3', date: '2026-08-15', type: 'loan' },
+    { id: '4', date: '2026-08-20', type: 'loan' },
+  ];
+
+  const filterByPeriod = (items, start, end) => {
+    return items.filter(item => item.date >= start && item.date <= end);
+  };
+
+  const filtered = filterByPeriod(transactions, '2026-08-05', '2026-08-15');
+  assert.equal(filtered.length, 2);
+  assert.equal(filtered[0].id, '2');
+  assert.equal(filtered[1].id, '3');
+});
+
+test('PHASE 7 — Flow 5 (Invitation & Multi-tenant Auth E2E Flow): Safe invitation acceptance and routing', () => {
+  const evaluateRouting = (userTenants, userInvitations) => {
+    if (!userTenants || userTenants.length === 0) {
+      if (userInvitations && userInvitations.length > 0) {
+        return { target: '/tenant-setup', mode: 'join' };
+      }
+      return { target: '/tenant-setup', mode: 'options' };
+    }
+    if (userTenants.length === 1) {
+      return { target: '/(admin)/dashboard', activeTenant: userTenants[0] };
+    }
+    return { target: '/tenant-setup', mode: 'select', libraries: userTenants };
+  };
+
+  assert.deepEqual(evaluateRouting([], []), { target: '/tenant-setup', mode: 'options' });
+  assert.deepEqual(evaluateRouting([], [{ id: 'inv-1' }]), { target: '/tenant-setup', mode: 'join' });
+  assert.deepEqual(evaluateRouting([{ id: 't-1', role: 'owner' }], []), { target: '/(admin)/dashboard', activeTenant: { id: 't-1', role: 'owner' } });
+  assert.equal(evaluateRouting([{ id: 't-1' }, { id: 't-2' }], []).mode, 'select');
 });

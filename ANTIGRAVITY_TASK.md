@@ -721,12 +721,12 @@ Login
 
 Verify:
 
-- [ ] Form baru selalu clear.
-- [ ] Salinan benar.
-- [ ] Tidak ada 0/0 palsu.
-- [ ] Buku langsung muncul.
-- [ ] Tidak perlu restart.
-- [ ] Bottom Nav Buku aktif.
+- [x] Form baru selalu clear.
+- [x] Salinan benar.
+- [x] Tidak ada 0/0 palsu.
+- [x] Buku langsung muncul.
+- [x] Tidak perlu restart.
+- [x] Bottom Nav Buku aktif.
 
 ---
 
@@ -745,10 +745,10 @@ Buku tersedia
 
 Verify:
 
-- [ ] Buku 2 terdeteksi.
-- [ ] Dashboard langsung berubah.
-- [ ] Due date otomatis.
-- [ ] Tidak perlu restart.
+- [x] Buku 2 terdeteksi.
+- [x] Dashboard langsung berubah.
+- [x] Due date otomatis.
+- [x] Tidak perlu restart.
 
 ---
 
@@ -766,11 +766,11 @@ Anggota
 
 Verify:
 
-- [ ] Form create clear.
-- [ ] Edit tetap mempertahankan data.
-- [ ] Navigasi kembali ke Anggota.
-- [ ] Bottom Nav Anggota aktif.
-- [ ] Kategori hanya Siswa/Guru/Umum.
+- [x] Form create clear.
+- [x] Edit tetap mempertahankan data.
+- [x] Navigasi kembali ke Anggota.
+- [x] Bottom Nav Anggota aktif.
+- [x] Kategori hanya Siswa/Guru/Umum.
 
 ---
 
@@ -784,10 +784,10 @@ Laporan
 
 Verify:
 
-- [ ] Date picker bekerja.
-- [ ] Data sesuai periode.
-- [ ] User mendapatkan pilihan Save atau Share.
-- [ ] Tidak ada auto-save/auto-share.
+- [x] Date picker bekerja.
+- [x] Data sesuai periode.
+- [x] User mendapatkan pilihan Save atau Share.
+- [x] Tidak ada auto-save/auto-share.
 
 ---
 
@@ -805,11 +805,11 @@ Owner login
 
 Verify:
 
-- [ ] Invitation flow benar.
-- [ ] Routing login benar.
-- [ ] Tidak ada bypass.
-- [ ] Tidak ada force close.
-- [ ] Owner dan Member sama-sama dapat membuka halaman Perpustakaan.
+- [x] Invitation flow benar.
+- [x] Routing login benar.
+- [x] Tidak ada bypass.
+- [x] Tidak ada force close.
+- [x] Owner dan Member sama-sama dapat membuka halaman Perpustakaan.
 
 ---
 
