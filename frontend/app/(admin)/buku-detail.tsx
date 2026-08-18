@@ -45,7 +45,9 @@ export default function DetailBuku() {
 
   // Searchable & Creatable Category & Rak
   const [availableCategories, setAvailableCategories] = useState<{ id: string; nama: string }[]>([]);
+  const [availableRaks, setAvailableRaks] = useState<{ id: string; nama: string }[]>([]);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [showRakMenu, setShowRakMenu] = useState(false);
 
   const resetForm = useCallback(() => {
     setJudul('');
@@ -63,19 +65,20 @@ export default function DetailBuku() {
     setJumlahSalinan('1');
     setSalinanList([]);
     setShowCategoryMenu(false);
+    setShowRakMenu(false);
   }, []);
 
   const loadCategoriesAndRaks = useCallback(async () => {
     if (!tenantId) return;
     try {
-      const { data: katData } = await supabase
-        .from('kategori')
-        .select('id, nama')
-        .eq('tenant_id', tenantId)
-        .order('nama', { ascending: true });
-      if (katData) setAvailableCategories(katData);
+      const [katRes, rakRes] = await Promise.all([
+        supabase.from('kategori').select('id, nama').eq('tenant_id', tenantId).order('nama', { ascending: true }),
+        supabase.from('rak').select('id, nama').eq('tenant_id', tenantId).order('nama', { ascending: true }),
+      ]);
+      if (katRes.data) setAvailableCategories(katRes.data);
+      if (rakRes.data) setAvailableRaks(rakRes.data);
     } catch (e) {
-      console.error('Error loadCategories:', e);
+      console.error('Error loadCategoriesAndRaks:', e);
     }
   }, [tenantId]);
 
@@ -181,19 +184,20 @@ export default function DetailBuku() {
   };
 
   const getOrCreateRak = async (namaRak: string) => {
-    if (!namaRak.trim()) return null;
+    if (!namaRak || !namaRak.trim()) return null;
+    const cleanRak = namaRak.trim();
     const { data: existing } = await supabase
       .from('rak')
       .select('id')
       .eq('tenant_id', tenantId)
-      .ilike('nama', namaRak.trim())
+      .ilike('nama', cleanRak)
       .single();
 
     if (existing) return existing.id;
 
     const { data: created, error } = await supabase
       .from('rak')
-      .insert({ tenant_id: tenantId, nama: namaRak.trim() })
+      .insert({ tenant_id: tenantId, nama: cleanRak })
       .select('id')
       .single();
 
@@ -204,6 +208,11 @@ export default function DetailBuku() {
   const handleSimpan = async () => {
     if (!judul.trim()) {
       setSnackMsg('Judul buku wajib diisi');
+      return;
+    }
+
+    if (!rak.trim()) {
+      setSnackMsg('Rak wajib diisi');
       return;
     }
 
@@ -414,7 +423,49 @@ export default function DetailBuku() {
               </View>
             )}
           </View>
-          <TextInput label="Rak" value={rak} onChangeText={setRak} mode="outlined" style={[styles.input, { flex: 1 }]} />
+
+          <View style={{ flex: 1 }}>
+            <TextInput
+              label="Rak (Wajib)"
+              value={rak}
+              onChangeText={(text) => {
+                setRak(text);
+                setShowRakMenu(true);
+              }}
+              onFocus={() => setShowRakMenu(true)}
+              mode="outlined"
+              style={styles.input}
+            />
+            {showRakMenu && rak.trim().length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {availableRaks
+                  .filter(r => r.nama.toLowerCase().includes(rak.trim().toLowerCase()))
+                  .map(r => (
+                    <Chip
+                      key={r.id}
+                      style={{ margin: 2 }}
+                      onPress={() => {
+                        setRak(r.nama);
+                        setShowRakMenu(false);
+                      }}
+                    >
+                      {r.nama}
+                    </Chip>
+                  ))}
+                {!availableRaks.some(r => r.nama.trim().toLowerCase() === rak.trim().toLowerCase()) && (
+                  <Chip
+                    style={{ margin: 2, backgroundColor: '#E3F2FD' }}
+                    textStyle={{ color: '#1565C0', fontWeight: 'bold' }}
+                    onPress={() => {
+                      setShowRakMenu(false);
+                    }}
+                  >
+                    + Tambah rak "{rak.trim()}"
+                  </Chip>
+                )}
+              </View>
+            )}
+          </View>
         </View>
 
         {isNew && (

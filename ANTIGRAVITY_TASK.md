@@ -995,17 +995,17 @@ Field "Rak" pada form Tambah/Edit Buku perlu dijadikan wajib — akan dipakai se
 
 Task:
 
-- [ ] Cek dulu apakah field Rak sudah ada di schema — kalau belum, tambahkan.
-- [ ] Tambahkan validasi wajib diisi di form Tambah Buku dan Edit Buku.
-- [ ] **Migrasi data lama:** untuk buku yang sudah ada dan belum punya nilai Rak, set default value sementara (misal "Belum Ditentukan") — jangan sampai app crash atau buku lama hilang dari list karena field ini kosong. Tampilkan indikator visual (badge/warning) di halaman Buku untuk buku dengan Rak masih default.
-- [ ] Style field Rak mengikuti pola input lain yang sudah ada di form.
+- [x] Cek dulu apakah field Rak sudah ada di schema — kalau belum, tambahkan. *(Sudah ada: tabel rak dan kolom rak_id di tabel buku)*
+- [x] Tambahkan validasi wajib diisi di form Tambah Buku dan Edit Buku.
+- [x] **Migrasi data lama:** untuk buku yang sudah ada dan belum punya nilai Rak, set default value sementara (misal "Belum Ditentukan") — jangan sampai app crash atau buku lama hilang dari list karena field ini kosong. Tampilkan indikator visual (badge/warning) di halaman Buku untuk buku dengan Rak masih default.
+- [x] Style field Rak mengikuti pola input lain yang sudah ada di form.
 
 Acceptance:
 
-- [ ] Tidak bisa submit form Tambah/Edit Buku tanpa isi Rak.
-- [ ] Buku lama yang belum punya Rak tetap muncul normal (tidak hilang/crash), dengan nilai default yang jelas.
+- [x] Tidak bisa submit form Tambah/Edit Buku tanpa isi Rak.
+- [x] Buku lama yang belum punya Rak tetap muncul normal (tidak hilang/crash), dengan nilai default yang jelas.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

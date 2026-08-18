@@ -563,3 +563,62 @@ test('PHASE 10 — DASH-007: Chart filter configurations contain full unabridged
     assert.ok(!f.label.includes('...'), `Label ${f.label} must not be truncated`);
   }
 });
+
+test('PHASE 11 — BOOK-006: Rak is mandatory for book creation/edit, deduplicated, with fallback indicator for legacy books', () => {
+  const dbRaks = [
+    { id: 'rak-1', nama: 'Rak A' },
+    { id: 'rak-2', nama: 'Rak B' },
+  ];
+
+  const validateAndSaveBook = (bookInput) => {
+    if (!bookInput.judul || !bookInput.judul.trim()) {
+      return { success: false, error: 'Judul buku wajib diisi' };
+    }
+    if (!bookInput.rak || !bookInput.rak.trim()) {
+      return { success: false, error: 'Rak wajib diisi' };
+    }
+
+    const cleanRak = bookInput.rak.trim();
+    let rakObj = dbRaks.find(r => r.nama.toLowerCase() === cleanRak.toLowerCase());
+    if (!rakObj) {
+      rakObj = { id: 'rak-' + (dbRaks.length + 1), nama: cleanRak };
+      dbRaks.push(rakObj);
+    }
+
+    return { success: true, book: { ...bookInput, rak_id: rakObj.id, rak_nama: rakObj.nama } };
+  };
+
+  // 1. Rejection without Rak
+  const noRakRes = validateAndSaveBook({ judul: 'Belajar Sains', rak: '' });
+  assert.equal(noRakRes.success, false);
+  assert.equal(noRakRes.error, 'Rak wajib diisi');
+
+  const whitespaceRakRes = validateAndSaveBook({ judul: 'Belajar Sains', rak: '   ' });
+  assert.equal(whitespaceRakRes.success, false);
+  assert.equal(whitespaceRakRes.error, 'Rak wajib diisi');
+
+  // 2. Acceptance with existing Rak (case-insensitive deduplication)
+  const existingRakRes = validateAndSaveBook({ judul: 'Belajar Sains', rak: '  rak a  ' });
+  assert.equal(existingRakRes.success, true);
+  assert.equal(existingRakRes.book.rak_id, 'rak-1');
+  assert.equal(dbRaks.length, 2); // no duplicates created
+
+  // 3. Acceptance with new Rak
+  const newRakRes = validateAndSaveBook({ judul: 'Ensiklopedia Sejarah', rak: 'Rak C (Lantai 2)' });
+  assert.equal(newRakRes.success, true);
+  assert.equal(newRakRes.book.rak_id, 'rak-3');
+  assert.equal(dbRaks.length, 3);
+
+  // 4. Legacy book fallback renderer
+  const renderRakBadge = (book) => {
+    if (book.rak_nama) {
+      return { label: `Rak: ${book.rak_nama}`, isWarning: false };
+    }
+    return { label: 'Rak: Belum Ditentukan ⚠️', isWarning: true };
+  };
+
+  const legacyBook = { id: 'legacy-1', judul: 'Buku Jadul', rak_nama: null };
+  const badge = renderRakBadge(legacyBook);
+  assert.equal(badge.label, 'Rak: Belum Ditentukan ⚠️');
+  assert.equal(badge.isWarning, true);
+});

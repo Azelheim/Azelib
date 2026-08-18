@@ -224,7 +224,20 @@ export default function BukuList() {
                 )}
               />
               <Card.Content>
-                <Chip style={{ alignSelf: 'flex-start' }}>{item.kategori?.nama || 'Tanpa Kategori'}</Chip>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  <Chip style={{ backgroundColor: '#F0F0F0' }}>
+                    {item.kategori?.nama || 'Tanpa Kategori'}
+                  </Chip>
+                  {item.rak?.nama ? (
+                    <Chip style={{ backgroundColor: '#E8F5E9' }} textStyle={{ color: '#2E7D32' }}>
+                      Rak: {item.rak.nama}
+                    </Chip>
+                  ) : (
+                    <Chip style={{ backgroundColor: '#FFF3E0' }} textStyle={{ color: '#E65100', fontWeight: '500' }}>
+                      Rak: Belum Ditentukan ⚠️
+                    </Chip>
+                  )}
+                </View>
               </Card.Content>
             </Card>
           );
