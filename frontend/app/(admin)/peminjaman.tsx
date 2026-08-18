@@ -1,11 +1,16 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, FlatList, Alert, ScrollView } from 'react-native';
-import { Text, Card, FAB, SegmentedButtons, Snackbar, Portal, Modal, Button, TextInput, ActivityIndicator, Menu, Chip } from 'react-native-paper';
+import { Text, Card, FAB, SegmentedButtons, Snackbar, Portal, Modal, Button, TextInput, ActivityIndicator, Menu, Chip, Divider } from 'react-native-paper';
 import { useFocusEffect } from 'expo-router';
 import { apiClient } from '../../lib/api/apiClient';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../lib/context/TenantContext';
-import { Plus } from 'lucide-react-native';
+import { Plus, Calendar, BookOpen, ChevronDown, ChevronUp } from 'lucide-react-native';
+
+export function formatKodeSalinan(nomorUrut: number, totalSalinan: number = 10): string {
+  const digits = Math.max(2, String(Math.max(totalSalinan, nomorUrut)).length);
+  return `Kode: ${String(nomorUrut).padStart(digits, '0')}`;
+}
 
 interface PeminjamanItem {
   id: string;
@@ -28,12 +33,17 @@ export default function Peminjaman() {
   // Modal new
   const [showNew, setShowNew] = useState(false);
   const [anggotaList, setAnggotaList] = useState<any[]>([]);
-  const [salinanList, setSalinanList] = useState<any[]>([]);
   const [selectedAnggota, setSelectedAnggota] = useState<any>(null);
   const [selectedSalinan, setSelectedSalinan] = useState<string[]>([]);
   const [jatuhTempo, setJatuhTempo] = useState('');
   const [anggotaMenuVisible, setAnggotaMenuVisible] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  // 2-tier book selection & Rak filter
+  const [booksWithCopies, setBooksWithCopies] = useState<any[]>([]);
+  const [rakList, setRakList] = useState<{ id: string; nama: string }[]>([]);
+  const [filterRakLoan, setFilterRakLoan] = useState<string | null>(null);
+  const [expandedBookId, setExpandedBookId] = useState<string | null>(null);
 
   // Quick Add Anggota state
   const [showQuickAnggota, setShowQuickAnggota] = useState(false);
@@ -63,44 +73,35 @@ export default function Peminjaman() {
 
     setQuickLoading(true);
     try {
-      // Auto-generate nomor_anggota
       const { count } = await supabase
         .from('anggota')
         .select('*', { count: 'exact', head: true })
         .eq('tenant_id', tenantId);
 
       const nextNum = (count || 0) + 1;
-      const nomor_anggota = `ANG-${String(nextNum).padStart(5, '0')}`;
+      const formattedNomor = `ANG-${String(nextNum).padStart(5, '0')}`;
 
       const { data: newAnggota, error } = await supabase
         .from('anggota')
         .insert({
           tenant_id: tenantId,
-          nomor_anggota,
+          nomor_anggota: formattedNomor,
           nama: quickNama.trim(),
           kategori_anggota: quickKategori,
           kontak: quickKontak.trim(),
           alamat: quickAlamat.trim() || null,
+          dihapus: false
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Refresh list
-      const { data: refreshedList } = await supabase
-        .from('anggota')
-        .select('id, nama')
-        .eq('tenant_id', tenantId)
-        .eq('dihapus', false);
-
-      if (refreshedList) setAnggotaList(refreshedList);
-
-      // Auto-select the newly added member
+      setAnggotaList(prev => [...prev, newAnggota]);
       setSelectedAnggota(newAnggota);
       setShowQuickAnggota(false);
       resetQuickAnggotaForm();
-      setSnackMsg(`Anggota ${newAnggota.nama} berhasil ditambahkan dan dipilih`);
+      setSnackMsg(`Anggota ${newAnggota.nama} berhasil ditambahkan & dipilih`);
     } catch (e: any) {
       console.error(e);
       setSnackMsg(e.message || 'Gagal menambahkan anggota');
@@ -109,63 +110,79 @@ export default function Peminjaman() {
     }
   };
 
-  // Modal hilang
+  // Tandai Hilang state
   const [showHilang, setShowHilang] = useState(false);
-  const [hilangId, setHilangId] = useState('');
+  const [hilangId, setHilangId] = useState<string | null>(null);
   const [biayaPenggantian, setBiayaPenggantian] = useState('');
+
+  const today = new Date().toISOString().split('T')[0];
 
   useFocusEffect(
     useCallback(() => {
-      if (tenantId) fetchPeminjaman();
-    }, [tenantId, tab])
+      if (tenantId) {
+        fetchPeminjaman();
+      } else {
+        setLoading(false);
+      }
+    }, [tenantId])
   );
 
   const fetchPeminjaman = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      const { data: loans, error } = await supabase
         .from('peminjaman')
-        .select('id, tanggal_pinjam, jatuh_tempo, tanggal_kembali, status, biaya_penggantian, anggota:anggota_id(nama), peminjaman_detail(salinan:salinan_id(buku:buku_id(judul)))')
+        .select(`
+          id, tanggal_pinjam, jatuh_tempo, tanggal_kembali, status, biaya_penggantian,
+          anggota:anggota_id(nama),
+          peminjaman_detail(
+            salinan:salinan_id(
+              buku:buku_id(judul)
+            )
+          )
+        `)
         .eq('tenant_id', tenantId)
-        .order('tanggal_pinjam', { ascending: false });
+        .order('created_at', { ascending: false });
 
-      const { data: result, error } = await query;
-      if (!error && result) setData(result as any[]);
-    } catch (e) {
+      if (error) throw error;
+      setData((loans as any[]) || []);
+    } catch (e: any) {
       console.error(e);
-      setSnackMsg('Gagal memuat data peminjaman');
+      setSnackMsg(e.message || "Gagal memuat data peminjaman");
     } finally {
       setLoading(false);
     }
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const getFilteredData = () => {
+    if (tab === 'aktif') {
+      return data.filter(item => item.status === 'aktif' && item.jatuh_tempo >= today);
+    }
+    if (tab === 'terlambat') {
+      return data.filter(item => item.status === 'aktif' && item.jatuh_tempo < today);
+    }
+    return data.filter(item => item.status !== 'aktif');
+  };
 
-  const filteredData = data.filter(item => {
-    if (tab === 'aktif') return item.status === 'aktif' && item.jatuh_tempo >= today;
-    if (tab === 'terlambat') return item.status === 'aktif' && item.jatuh_tempo < today;
-    if (tab === 'riwayat') return item.status !== 'aktif';
-    return true;
-  });
-
-  const handleKembalikan = (id: string) => {
-    Alert.alert("Konfirmasi", "Kembalikan peminjaman ini?", [
+  const handleKembalikan = async (id: string) => {
+    Alert.alert("Konfirmasi", "Kembalikan buku sekarang?", [
       { text: "Batal", style: "cancel" },
       { text: "Kembalikan", onPress: async () => {
         try {
           await apiClient.peminjaman.kembalikan(id);
-          setSnackMsg("Peminjaman dikembalikan");
+          setSnackMsg("Buku berhasil dikembalikan");
           fetchPeminjaman();
         } catch (e: any) {
-          setSnackMsg(e.message || "Gagal mengembalikan");
+          setSnackMsg(e.message || "Gagal mengembalikan buku");
         }
       }}
     ]);
   };
 
   const handleTandaiHilang = async () => {
-    if (!biayaPenggantian) {
-      setSnackMsg("Masukkan biaya penggantian");
+    if (!hilangId) return;
+    if (!biayaPenggantian || isNaN(parseFloat(biayaPenggantian)) || parseFloat(biayaPenggantian) < 0) {
+      setSnackMsg("Masukkan biaya penggantian yang valid");
       return;
     }
     try {
@@ -184,27 +201,44 @@ export default function Peminjaman() {
 
   const openNewModal = async () => {
     try {
-      const [anggotaRes, salinanRes, tenantRes] = await Promise.all([
+      const [anggotaRes, booksRes, salinanRes, allSalinanRes, rakRes, tenantRes] = await Promise.all([
         supabase.from('anggota').select('id, nama, nomor_anggota').eq('tenant_id', tenantId).eq('dihapus', false),
-        supabase.from('salinan').select('id, kode_eksemplar, status, buku:buku_id(id, judul, tenant_id, dihapus)').eq('status', 'tersedia'),
+        supabase.from('buku').select('id, judul, rak_id, rak:rak_id(id, nama)').eq('tenant_id', tenantId).eq('dihapus', false),
+        supabase.from('salinan').select('id, buku_id, nomor_urut, kode_eksemplar, status').eq('status', 'tersedia'),
+        supabase.from('salinan').select('buku_id, nomor_urut'),
+        supabase.from('rak').select('id, nama').eq('tenant_id', tenantId),
         supabase.from('tenant').select('batas_maksimal_peminjaman, maksimal_hari_pinjam').eq('id', tenantId).single(),
       ]);
+
       setAnggotaList(anggotaRes.data || []);
-      const validSalinan = (salinanRes.data || []).filter((s: any) => 
-        s.buku && s.buku.tenant_id === tenantId && !s.buku.dihapus
-      );
-      setSalinanList(validSalinan);
+      setRakList(rakRes.data || []);
+
       if (tenantRes.data?.batas_maksimal_peminjaman) {
         setBatasMaksimal(tenantRes.data.batas_maksimal_peminjaman);
       }
       const days = tenantRes.data?.maksimal_hari_pinjam || 7;
       setMaksimalHariPinjam(days);
 
-      // Hitung Jatuh Tempo Otomatis: Tanggal pinjam + Maksimal Hari Pinjam
       const autoDueDate = new Date();
       autoDueDate.setDate(autoDueDate.getDate() + days);
       const autoDateStr = autoDueDate.toISOString().split('T')[0];
 
+      const allCopies = allSalinanRes.data || [];
+      const availableCopies = salinanRes.data || [];
+
+      const grouped = (booksRes.data || []).map((b: any) => {
+        const copiesForBook = availableCopies.filter((s: any) => s.buku_id === b.id);
+        const totalCopiesCount = allCopies.filter((s: any) => s.buku_id === b.id).length || copiesForBook.length;
+        return {
+          ...b,
+          totalCopiesCount,
+          availableCopies: copiesForBook,
+        };
+      });
+
+      setBooksWithCopies(grouped);
+      setFilterRakLoan(null);
+      setExpandedBookId(null);
       setSelectedAnggota(null);
       setSelectedSalinan([]);
       setJatuhTempo(autoDateStr);
@@ -216,38 +250,21 @@ export default function Peminjaman() {
   };
 
   const handleCreatePeminjaman = () => {
-    if (!selectedAnggota) {
-      setSnackMsg("Pilih anggota terlebih dahulu");
-      return;
-    }
-    if (selectedSalinan.length === 0) {
-      setSnackMsg("Pilih minimal 1 buku");
-      return;
-    }
-    if (selectedSalinan.length > batasMaksimal) {
-      setSnackMsg(`Maksimal peminjaman adalah ${batasMaksimal} buku`);
-      return;
-    }
-    if (!jatuhTempo || !/^\d{4}-\d{2}-\d{2}$/.test(jatuhTempo)) {
-      setSnackMsg("Isi tanggal jatuh tempo dengan format YYYY-MM-DD");
-      return;
-    }
-    if (jatuhTempo < today) {
-      setSnackMsg("Tanggal jatuh tempo tidak boleh sebelum hari ini");
-      return;
-    }
+    if (!selectedAnggota) { setSnackMsg("Pilih anggota"); return; }
+    if (selectedSalinan.length === 0) { setSnackMsg("Pilih buku"); return; }
+    if (selectedSalinan.length > batasMaksimal) { setSnackMsg(`Maksimal ${batasMaksimal} buku`); return; }
 
-    Alert.alert("Konfirmasi", `Buat peminjaman untuk ${selectedAnggota.nama}?\n${selectedSalinan.length} buku dipilih\nJatuh tempo: ${jatuhTempo}`, [
+    Alert.alert("Konfirmasi", "Buat peminjaman?", [
       { text: "Batal", style: "cancel" },
       { text: "Buat", onPress: async () => {
         setCreating(true);
         try {
           await apiClient.peminjaman.create(selectedAnggota.id, selectedSalinan, jatuhTempo, tenantId || undefined);
-          setSnackMsg("Peminjaman berhasil dibuat");
+          setSnackMsg("Peminjaman berhasil");
           setShowNew(false);
           fetchPeminjaman();
         } catch (e: any) {
-          setSnackMsg(e.message || "Gagal membuat peminjaman");
+          setSnackMsg(e.message || "Gagal");
         } finally {
           setCreating(false);
         }
@@ -261,19 +278,10 @@ export default function Peminjaman() {
     );
   };
 
-  const getStatusColor = (item: PeminjamanItem) => {
-    if (item.status === 'dikembalikan') return '#2E7D32';
-    if (item.status === 'hilang') return '#D32F2F';
-    if (item.jatuh_tempo < today) return '#E65100';
-    return '#1565C0';
-  };
-
-  const getStatusLabel = (item: PeminjamanItem) => {
-    if (item.status === 'dikembalikan') return 'Dikembalikan';
-    if (item.status === 'hilang') return 'Hilang';
-    if (item.jatuh_tempo < today) return 'Terlambat';
-    return 'Aktif';
-  };
+  const filteredBooksForLoan = booksWithCopies.filter(b => {
+    if (filterRakLoan && b.rak_id !== filterRakLoan) return false;
+    return (b.availableCopies || []).length > 0;
+  });
 
   if (loading) {
     return (
@@ -293,30 +301,33 @@ export default function Peminjaman() {
           { value: 'terlambat', label: 'Terlambat' },
           { value: 'riwayat', label: 'Riwayat' },
         ]}
-        style={{ margin: 16 }}
+        style={styles.segmented}
       />
 
       <FlatList
-        data={filteredData}
+        data={getFilteredData()}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
-          const bukuTitles = item.peminjaman_detail?.map(d => (d.salinan as any)?.buku?.judul || '-').join(', ') || '-';
+          const bukuList = item.peminjaman_detail.map(d => d.salinan?.buku?.judul || 'Buku').join(', ');
           return (
             <Card style={styles.card} mode="outlined">
-              <Card.Title 
-                title={item.anggota?.nama || '-'}
-                subtitle={bukuTitles}
+              <Card.Title
+                title={item.anggota?.nama || 'Anggota'}
+                subtitle={bukuList}
                 right={() => (
-                  <Chip style={{ marginRight: 16, backgroundColor: getStatusColor(item) + '22' }} textStyle={{ color: getStatusColor(item) }}>
-                    {getStatusLabel(item)}
-                  </Chip>
+                  <View style={{ marginRight: 16 }}>
+                    <Text variant="labelSmall" style={{ color: item.status === 'aktif' && item.jatuh_tempo < today ? '#D32F2F' : '#666' }}>
+                      {item.status === 'aktif' ? (item.jatuh_tempo < today ? 'Terlambat' : 'Aktif') : item.status}
+                    </Text>
+                  </View>
                 )}
               />
               <Card.Content>
-                <Text variant="bodySmall" style={{ color: '#666' }}>
-                  Pinjam: {item.tanggal_pinjam} | Tempo: {item.jatuh_tempo}
-                </Text>
+                <Text variant="bodySmall">Tgl Pinjam: {item.tanggal_pinjam}</Text>
+                <Text variant="bodySmall">Jatuh Tempo: {item.jatuh_tempo}</Text>
+                {item.tanggal_kembali && <Text variant="bodySmall">Kembali: {item.tanggal_kembali}</Text>}
+                {item.biaya_penggantian && <Text variant="bodySmall" style={{ color: '#D32F2F' }}>Ganti Rugi: Rp {item.biaya_penggantian}</Text>}
               </Card.Content>
               {item.status === 'aktif' && (
                 <Card.Actions>
@@ -332,15 +343,13 @@ export default function Peminjaman() {
 
       <FAB icon={() => <Plus size={24} color="#FFF" />} style={styles.fab} onPress={openNewModal} />
 
-      {/* Modal: New Peminjaman */}
       <Portal>
         <Modal visible={showNew} onDismiss={() => setShowNew(false)} contentContainerStyle={styles.modalContent}>
           <ScrollView>
             <Text variant="titleLarge" style={{ fontWeight: 'bold', marginBottom: 16 }}>Peminjaman Baru</Text>
 
-            {/* Anggota picker with Quick Add */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text variant="labelMedium">Anggota</Text>
+              <Text variant="labelMedium">Pilih Anggota</Text>
               <Button
                 mode="text"
                 compact
@@ -351,7 +360,7 @@ export default function Peminjaman() {
                   setShowQuickAnggota(true);
                 }}
               >
-                + Tambah Anggota Baru
+                + Anggota Baru
               </Button>
             </View>
 
@@ -368,30 +377,107 @@ export default function Peminjaman() {
               ))}
             </Menu>
 
-            {/* Salinan list */}
-            <Text variant="labelMedium" style={{ marginBottom: 8 }}>Pilih Buku (tap untuk memilih)</Text>
-            {salinanList.map(s => (
-              <Chip
-                key={s.id}
-                mode="outlined"
-                selected={selectedSalinan.includes(s.id)}
-                onPress={() => toggleSalinan(s.id)}
-                style={{ marginBottom: 8 }}
-              >
-                {(s.buku as any)?.judul || '-'} ({s.kode_eksemplar})
-              </Chip>
-            ))}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text variant="labelMedium">Pilih Judul Buku (Filter Rak)</Text>
+              <Text variant="labelSmall" style={{ color: '#1565C0', fontWeight: 'bold' }}>
+                {selectedSalinan.length}/{batasMaksimal} dipilih
+              </Text>
+            </View>
 
-            <TextInput
-              label="Jatuh Tempo (YYYY-MM-DD)"
-              value={jatuhTempo}
-              onChangeText={setJatuhTempo}
-              mode="outlined"
-              style={{ marginTop: 16, marginBottom: 4, backgroundColor: '#FFF' }}
-            />
-            <Text variant="bodySmall" style={{ color: '#666', marginBottom: 16 }}>
-              Otomatis dihitung {maksimalHariPinjam} hari dari hari ini.
-            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <Chip
+                  selected={filterRakLoan === null}
+                  onPress={() => setFilterRakLoan(null)}
+                  style={{ backgroundColor: filterRakLoan === null ? '#0000001A' : '#F0F0F0' }}
+                >
+                  Semua Rak
+                </Chip>
+                {rakList.map(r => (
+                  <Chip
+                    key={r.id}
+                    selected={filterRakLoan === r.id}
+                    onPress={() => setFilterRakLoan(r.id === filterRakLoan ? null : r.id)}
+                    style={{ backgroundColor: filterRakLoan === r.id ? '#0000001A' : '#F0F0F0' }}
+                  >
+                    {r.nama}
+                  </Chip>
+                ))}
+              </View>
+            </ScrollView>
+
+            {filteredBooksForLoan.length === 0 ? (
+              <Text style={{ color: '#888', fontStyle: 'italic', marginBottom: 16, textAlign: 'center' }}>
+                Tidak ada buku dengan salinan tersedia pada rak ini.
+              </Text>
+            ) : (
+              filteredBooksForLoan.map(b => {
+                const isExpanded = expandedBookId === b.id;
+                const selectedInThisBook = b.availableCopies.filter((c: any) => selectedSalinan.includes(c.id)).length;
+                return (
+                  <Card key={b.id} mode="outlined" style={{ marginBottom: 8, borderColor: selectedInThisBook > 0 ? '#1565C0' : '#E0E0E0' }}>
+                    <Card.Title
+                      title={b.judul}
+                      subtitle={`${b.rak?.nama ? `Rak: ${b.rak.nama} • ` : ''}${b.availableCopies.length} salinan tersedia`}
+                      right={() => (
+                        <Button
+                          mode={isExpanded ? 'contained-tonal' : 'text'}
+                          compact
+                          onPress={() => setExpandedBookId(isExpanded ? null : b.id)}
+                        >
+                          {isExpanded ? 'Tutup' : selectedInThisBook > 0 ? `${selectedInThisBook} Dipilih` : 'Pilih Salinan'}
+                        </Button>
+                      )}
+                    />
+                    {isExpanded && (
+                      <Card.Content style={{ paddingTop: 0, paddingBottom: 12 }}>
+                        <Divider style={{ marginBottom: 8 }} />
+                        <Text variant="labelSmall" style={{ color: '#666', marginBottom: 6 }}>Pilih Salinan (Tap untuk memilih):</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                          {b.availableCopies.map((c: any) => {
+                            const isSelected = selectedSalinan.includes(c.id);
+                            const kodeLabel = formatKodeSalinan(c.nomor_urut, b.totalCopiesCount);
+                            return (
+                              <Chip
+                                key={c.id}
+                                mode="outlined"
+                                selected={isSelected}
+                                onPress={() => toggleSalinan(c.id)}
+                                style={{ backgroundColor: isSelected ? '#E3F2FD' : '#FFFFFF' }}
+                                textStyle={{ color: isSelected ? '#1565C0' : '#000000', fontWeight: isSelected ? 'bold' : 'normal' }}
+                              >
+                                {kodeLabel} ({c.kode_eksemplar})
+                              </Chip>
+                            );
+                          })}
+                        </View>
+                      </Card.Content>
+                    )}
+                  </Card>
+                );
+              })
+            )}
+
+            <View style={{ marginTop: 8, marginBottom: 16 }}>
+              <Text variant="labelMedium" style={{ marginBottom: 6 }}>Jatuh Tempo</Text>
+              <TextInput
+                value={jatuhTempo}
+                onChangeText={setJatuhTempo}
+                mode="outlined"
+                style={{ backgroundColor: '#FFF' }}
+                placeholder="YYYY-MM-DD"
+                right={<TextInput.Icon icon={() => <Calendar size={20} color="#666" />} />}
+              />
+              <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                <Chip compact onPress={() => { const d = new Date(); d.setDate(d.getDate() + 3); setJatuhTempo(d.toISOString().split('T')[0]); }}>+3 Hari</Chip>
+                <Chip compact onPress={() => { const d = new Date(); d.setDate(d.getDate() + 7); setJatuhTempo(d.toISOString().split('T')[0]); }}>+7 Hari</Chip>
+                <Chip compact onPress={() => { const d = new Date(); d.setDate(d.getDate() + 14); setJatuhTempo(d.toISOString().split('T')[0]); }}>+14 Hari</Chip>
+                <Chip compact onPress={() => { const d = new Date(); d.setDate(d.getDate() + 30); setJatuhTempo(d.toISOString().split('T')[0]); }}>+30 Hari</Chip>
+              </View>
+              <Text variant="bodySmall" style={{ color: '#666', marginTop: 6 }}>
+                Default dihitung otomatis {maksimalHariPinjam} hari dari hari ini.
+              </Text>
+            </View>
 
             <Button mode="contained" onPress={handleCreatePeminjaman} loading={creating} disabled={creating} style={{ borderRadius: 8 }}>
               Buat Peminjaman
@@ -490,6 +576,7 @@ export default function Peminjaman() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
+  segmented: { margin: 16 },
   list: { padding: 16 },
   card: { marginBottom: 12, backgroundColor: '#FFFFFF' },
   fab: { position: 'absolute', margin: 16, right: 0, bottom: 0, backgroundColor: '#000000' },

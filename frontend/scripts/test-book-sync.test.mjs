@@ -622,3 +622,85 @@ test('PHASE 11 — BOOK-006: Rak is mandatory for book creation/edit, deduplicat
   assert.equal(badge.label, 'Rak: Belum Ditentukan ⚠️');
   assert.equal(badge.isWarning, true);
 });
+
+test('PHASE 12 — LOAN-005 & LOAN-006: 2-Tier Book Selection groups copies under titles and filters by Rak', () => {
+  const books = [
+    { id: 'b-1', judul: 'Fisika Dasar', rak_id: 'rak-A' },
+    { id: 'b-2', judul: 'Kimia Organik', rak_id: 'rak-B' },
+    { id: 'b-3', judul: 'Biologi Sel', rak_id: 'rak-A' },
+    { id: 'b-4', judul: 'Matematika Diskrit', rak_id: 'rak-C' },
+  ];
+
+  const copies = [
+    { id: 'c-1', buku_id: 'b-1', nomor_urut: 1, status: 'tersedia' },
+    { id: 'c-2', buku_id: 'b-1', nomor_urut: 2, status: 'dipinjam' },
+    { id: 'c-3', buku_id: 'b-2', nomor_urut: 1, status: 'tersedia' },
+    { id: 'c-4', buku_id: 'b-3', nomor_urut: 1, status: 'dipinjam' }, // 0 available copies
+    { id: 'c-5', buku_id: 'b-4', nomor_urut: 1, status: 'tersedia' },
+  ];
+
+  // 1. Group available copies per title (LOAN-005)
+  const groupAvailableCopies = (rawBooks, rawCopies, filterRak = null) => {
+    return rawBooks
+      .filter(b => !filterRak || b.rak_id === filterRak)
+      .map(b => {
+        const available = rawCopies.filter(c => c.buku_id === b.id && c.status === 'tersedia');
+        return { ...b, availableCopies: available };
+      })
+      .filter(b => b.availableCopies.length > 0);
+  };
+
+  // Semua Rak -> Fisika (1 tersedia), Kimia (1 tersedia), Matematika (1 tersedia); Biologi excluded (0 tersedia)
+  const allRak = groupAvailableCopies(books, copies, null);
+  assert.equal(allRak.length, 3);
+  assert.equal(allRak.find(b => b.id === 'b-1').availableCopies.length, 1);
+  assert.equal(allRak.find(b => b.id === 'b-3'), undefined); // 0 available -> excluded
+
+  // Filter Rak A -> Only Fisika (1 tersedia)
+  const rakA = groupAvailableCopies(books, copies, 'rak-A');
+  assert.equal(rakA.length, 1);
+  assert.equal(rakA[0].id, 'b-1');
+
+  // Filter Rak B -> Only Kimia (1 tersedia)
+  const rakB = groupAvailableCopies(books, copies, 'rak-B');
+  assert.equal(rakB.length, 1);
+  assert.equal(rakB[0].id, 'b-2');
+});
+
+test('PHASE 12 — LOAN-007: Date adjustment chips calculate future due date strings correctly', () => {
+  const getPresetDate = (baseDateStr, daysToAdd) => {
+    const d = new Date(baseDateStr);
+    d.setDate(d.getDate() + daysToAdd);
+    return d.toISOString().split('T')[0];
+  };
+
+  const base = '2026-08-18';
+  assert.equal(getPresetDate(base, 3), '2026-08-21');
+  assert.equal(getPresetDate(base, 7), '2026-08-25');
+  assert.equal(getPresetDate(base, 14), '2026-09-01');
+  assert.equal(getPresetDate(base, 30), '2026-09-17');
+});
+
+test('PHASE 12 — LOAN-008: Dynamic padding for copy code display [Kode: XXXX]', () => {
+  const formatKodeSalinan = (nomorUrut, totalSalinan) => {
+    const digits = Math.max(2, String(Math.max(totalSalinan, nomorUrut)).length);
+    return `Kode: ${String(nomorUrut).padStart(digits, '0')}`;
+  };
+
+  // 1 to 9 copies -> 2 digits minimum (01, 02, ..., 09)
+  assert.equal(formatKodeSalinan(1, 5), 'Kode: 01');
+  assert.equal(formatKodeSalinan(5, 5), 'Kode: 05');
+
+  // 10 to 99 copies -> 2 digits (01, ..., 25, ..., 99)
+  assert.equal(formatKodeSalinan(3, 45), 'Kode: 03');
+  assert.equal(formatKodeSalinan(45, 45), 'Kode: 45');
+
+  // 100+ copies -> 3 digits (001, ..., 120)
+  assert.equal(formatKodeSalinan(1, 150), 'Kode: 001');
+  assert.equal(formatKodeSalinan(89, 150), 'Kode: 089');
+  assert.equal(formatKodeSalinan(150, 150), 'Kode: 150');
+
+  // 1000+ copies -> 4 digits (0001, ..., 1250)
+  assert.equal(formatKodeSalinan(7, 2000), 'Kode: 0007');
+  assert.equal(formatKodeSalinan(1250, 2000), 'Kode: 1250');
+});

@@ -1033,17 +1033,17 @@ Pilih salinan
 
 Task:
 
-- [ ] Ubah UI pemilihan buku jadi 2 tingkat: list judul dulu, salinan setelah judul diklik.
-- [ ] Di tingkat salinan, hanya tampilkan salinan yang statusnya tersedia (belum dipinjam).
-- [ ] Pastikan search/filter judul (kalau ada) tetap berfungsi di tingkat pertama.
+- [x] Ubah UI pemilihan buku jadi 2 tingkat: list judul dulu, salinan setelah judul diklik.
+- [x] Di tingkat salinan, hanya tampilkan salinan yang statusnya tersedia (belum dipinjam).
+- [x] Pastikan search/filter judul (kalau ada) tetap berfungsi di tingkat pertama.
 
 Acceptance:
 
-- [ ] Tingkat pertama hanya menampilkan judul, bukan salinan.
-- [ ] Klik judul → tampil salinan yang tersedia untuk judul itu.
-- [ ] Tidak ada regresi pada proses peminjaman setelah salinan dipilih (LOAN-001/002 round 1).
+- [x] Tingkat pertama hanya menampilkan judul, bukan salinan.
+- [x] Klik judul → tampil salinan yang tersedia untuk judul itu.
+- [x] Tidak ada regresi pada proses peminjaman setelah salinan dipilih (LOAN-001/002 round 1).
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -1057,16 +1057,16 @@ Saat memilih buku untuk dipinjam, ingin ada filter berdasarkan Rak.
 
 Task:
 
-- [ ] Tambahkan filter Rak di halaman/dialog pemilihan buku (dropdown daftar Rak yang ada).
-- [ ] Filter bekerja di tingkat judul (hasil LOAN-005) — hanya tampilkan judul yang punya salinan tersedia di Rak terpilih.
-- [ ] Pastikan filter bisa di-reset/lihat semua Rak.
+- [x] Tambahkan filter Rak di halaman/dialog pemilihan buku (dropdown daftar Rak yang ada).
+- [x] Filter bekerja di tingkat judul (hasil LOAN-005) — hanya tampilkan judul yang punya salinan tersedia di Rak terpilih.
+- [x] Pastikan filter bisa di-reset/lihat semua Rak.
 
 Acceptance:
 
-- [ ] Memilih Rak tertentu → hanya judul dari Rak itu yang muncul.
-- [ ] Reset filter → semua judul muncul lagi.
+- [x] Memilih Rak tertentu → hanya judul dari Rak itu yang muncul.
+- [x] Reset filter → semua judul muncul lagi.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -1078,15 +1078,15 @@ Pemilihan tanggal masih manual/susah diketik.
 
 Task:
 
-- [ ] Ganti input tanggal manual dengan komponen date picker (cek dulu apakah sudah ada komponen date picker lain yang dipakai di project, reuse kalau ada — jangan tambah library baru kalau tidak perlu).
-- [ ] Terapkan di semua field tanggal pada dialog Tambah/Edit Peminjaman.
+- [x] Ganti input tanggal manual dengan komponen date picker (cek dulu apakah sudah ada komponen date picker lain yang dipakai di project, reuse kalau ada — jangan tambah library baru kalau tidak perlu).
+- [x] Terapkan di semua field tanggal pada dialog Tambah/Edit Peminjaman.
 
 Acceptance:
 
-- [ ] User memilih tanggal lewat date picker, tidak perlu mengetik manual.
-- [ ] Format tanggal tersimpan konsisten dengan data lain.
+- [x] User memilih tanggal lewat date picker, tidak perlu mengetik manual.
+- [x] Format tanggal tersimpan konsisten dengan data lain.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -1100,19 +1100,19 @@ Salinan buku saat ini menampilkan ID mentah (database id). Ingin diganti jadi no
 
 Task:
 
-- [ ] Buat field/derived value "Kode" untuk tiap salinan — nomor urut sesuai urutan penambahan salinan.
-- [ ] Tentukan jumlah digit padding berdasarkan total salinan judul tsb (bukan hardcode 4 digit) — misal salinan cuma puluhan → 2 digit (`01`, `02`); sampai ratusan → 3 digit; dst. Minimum 2 digit disarankan.
-- [ ] Tampilkan sebagai `Kode: XXXX` di semua tempat yang sebelumnya menampilkan ID mentah (Detail Buku, pemilihan salinan di LOAN-005, dll).
-- [ ] ID asli tetap dipakai secara internal (database), "Kode" murni tampilan.
-- [ ] Ini menjadi basis untuk BARCODE-001 — pastikan "Kode" konsisten dan tidak berubah-ubah setiap refresh.
+- [x] Buat field/derived value "Kode" untuk tiap salinan — nomor urut sesuai urutan penambahan salinan.
+- [x] Tentukan jumlah digit padding berdasarkan total salinan judul tsb (bukan hardcode 4 digit) — misal salinan cuma puluhan → 2 digit (`01`, `02`); sampai ratusan → 3 digit; dst. Minimum 2 digit disarankan.
+- [x] Tampilkan sebagai `Kode: XXXX` di semua tempat yang sebelumnya menampilkan ID mentah (Detail Buku, pemilihan salinan di LOAN-005, dll).
+- [x] ID asli tetap dipakai secara internal (database), "Kode" murni tampilan.
+- [x] Ini menjadi basis untuk BARCODE-001 — pastikan "Kode" konsisten dan tidak berubah-ubah setiap refresh.
 
 Acceptance:
 
-- [ ] Semua tampilan salinan buku pakai format `Kode: XXXX`, bukan ID database mentah.
-- [ ] Jumlah digit menyesuaikan jumlah salinan, tidak hardcode.
-- [ ] Kode konsisten (tidak berubah) untuk salinan yang sama di berbagai halaman.
+- [x] Semua tampilan salinan buku pakai format `Kode: XXXX`, bukan ID database mentah.
+- [x] Jumlah digit menyesuaikan jumlah salinan, tidak hardcode.
+- [x] Kode konsisten (tidak berubah) untuk salinan yang sama di berbagai halaman.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

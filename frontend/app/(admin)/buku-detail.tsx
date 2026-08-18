@@ -498,17 +498,23 @@ export default function DetailBuku() {
               {salinanList.length === 0 ? (
                 <Text style={{ color: '#888', fontStyle: 'italic', marginBottom: 12 }}>Belum ada eksemplar tercatat.</Text>
               ) : (
-                salinanList.map(s => (
-                  <View key={s.id} style={styles.salinanRow}>
-                    <Text variant="bodyMedium" style={{ fontWeight: '500' }}>{s.kode_eksemplar}</Text>
-                    <Chip
-                      style={{ backgroundColor: getStatusColor(s.status) + '1A', height: 28 }}
-                      textStyle={{ color: getStatusColor(s.status), fontSize: 11, lineHeight: 14 }}
-                    >
-                      {s.status}
-                    </Chip>
-                  </View>
-                ))
+                salinanList.map(s => {
+                  const digits = Math.max(2, String(Math.max(salinanList.length, s.nomor_urut)).length);
+                  const kodeStr = `Kode: ${String(s.nomor_urut).padStart(digits, '0')}`;
+                  return (
+                    <View key={s.id} style={styles.salinanRow}>
+                      <Text variant="bodyMedium" style={{ fontWeight: '500' }}>
+                        {kodeStr} <Text style={{ color: '#666', fontSize: 12 }}>({s.kode_eksemplar})</Text>
+                      </Text>
+                      <Chip
+                        style={{ backgroundColor: getStatusColor(s.status) + '1A', height: 28 }}
+                        textStyle={{ color: getStatusColor(s.status), fontSize: 11, lineHeight: 14 }}
+                      >
+                        {s.status}
+                      </Chip>
+                    </View>
+                  );
+                })
               )}
 
               <Divider style={{ marginVertical: 12 }} />
