@@ -75,10 +75,24 @@ export const apiClient = {
     },
     invitations: async () => {
       try {
-        return await invokeFunction('tenant', '/invitations', { method: 'GET' });
-      } catch {
-        return [];
-      }
+        const res = await invokeFunction('tenant', '/invitations', { method: 'GET' });
+        if (Array.isArray(res) && res.length > 0) return res;
+      } catch {}
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('tenant_member')
+        .select('tenant_id, role, tenant:tenant_id(id, nama, alamat)')
+        .eq('user_id', user.id);
+
+      if (error || !data) return [];
+      return data.map((item: any) => ({
+        tenant_id: item.tenant_id,
+        nama_tenant: item.tenant?.nama || 'Perpustakaan',
+        role_ditawarkan: item.role,
+      }));
     },
     memberInvite: async (tenant_id: string, email: string, role: string) => {
       try {

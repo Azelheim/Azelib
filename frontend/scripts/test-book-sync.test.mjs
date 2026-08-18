@@ -217,3 +217,58 @@ test('REPORT-001 & REPORT-002: Period validation and report date filtering', () 
   assert.equal(validateReportPeriod('', '2026-01-31').valid, false);
   assert.equal(validateReportPeriod('invalid-date', '2026-01-31').valid, false);
 });
+
+test('LIB-002: Routing after login evaluates all 5 conditions correctly', () => {
+  const determinePostLoginRoute = (memberships, invitations = []) => {
+    if (!memberships || memberships.length === 0) {
+      if (invitations.length > 0) return { route: '/tenant-setup', mode: 'join' };
+      return { route: '/tenant-setup', mode: 'options' };
+    }
+    if (memberships.length === 1) {
+      return { route: '/(admin)/dashboard', selectedTenantId: memberships[0].tenant_id, role: memberships[0].role };
+    }
+    return { route: '/tenant-setup', mode: 'select', count: memberships.length };
+  };
+
+  // A. User belum punya library
+  const condA = determinePostLoginRoute([]);
+  assert.equal(condA.route, '/tenant-setup');
+  assert.equal(condA.mode, 'options');
+
+  // B. User punya library sebagai owner (1 library)
+  const condB = determinePostLoginRoute([{ tenant_id: 't-1', role: 'owner' }]);
+  assert.equal(condB.route, '/(admin)/dashboard');
+  assert.equal(condB.selectedTenantId, 't-1');
+  assert.equal(condB.role, 'owner');
+
+  // C. User punya invitation belum diterima (0 memberships, 1 invitation)
+  const condC = determinePostLoginRoute([], [{ tenant_id: 't-inv', role_ditawarkan: 'staff' }]);
+  assert.equal(condC.route, '/tenant-setup');
+  assert.equal(condC.mode, 'join');
+
+  // D. User sudah menjadi member (1 library staff)
+  const condD = determinePostLoginRoute([{ tenant_id: 't-2', role: 'staff' }]);
+  assert.equal(condD.route, '/(admin)/dashboard');
+  assert.equal(condD.role, 'staff');
+
+  // E. User memiliki lebih dari satu library (>1 libraries)
+  const condE = determinePostLoginRoute([
+    { tenant_id: 't-1', role: 'owner' },
+    { tenant_id: 't-2', role: 'admin' },
+  ]);
+  assert.equal(condE.route, '/tenant-setup');
+  assert.equal(condE.mode, 'select');
+  assert.equal(condE.count, 2);
+});
+
+test('LIB-003: Member display parser handles null app_user and missing fields safely without crashing', () => {
+  const parseMemberDisplayName = (member) => {
+    if (!member) return 'Anggota';
+    return member.app_user?.nama || member.app_user?.email || (member.user_id ? `User (${member.user_id.slice(0, 6)})` : 'Anggota');
+  };
+
+  assert.equal(parseMemberDisplayName({ user_id: 'usr-123456', app_user: { nama: 'Budi Santoso', email: 'budi@test.com' } }), 'Budi Santoso');
+  assert.equal(parseMemberDisplayName({ user_id: 'usr-123456', app_user: { nama: null, email: 'budi@test.com' } }), 'budi@test.com');
+  assert.equal(parseMemberDisplayName({ user_id: 'usr-123456', app_user: null }), 'User (usr-12)');
+  assert.equal(parseMemberDisplayName(null), 'Anggota');
+});

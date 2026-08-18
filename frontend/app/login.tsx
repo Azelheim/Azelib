@@ -40,23 +40,27 @@ export default function Login() {
 
   const checkTenantAndNavigate = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: memberships, error } = await supabase
         .from('tenant_member')
-        .select('tenant_id, role, tenant:tenant_id(nama)')
-        .eq('user_id', userId)
-        .limit(1)
-        .single();
+        .select('tenant_id, role, tenant:tenant_id(id, nama)')
+        .eq('user_id', userId);
 
-      if (!error && data) {
-        const tenantObj = data.tenant as any;
-        setActiveTenant(data.tenant_id, tenantObj?.nama || '', data.role);
-        router.replace('/(admin)/dashboard');
+      if (!error && memberships && memberships.length > 0) {
+        if (memberships.length === 1) {
+          // Tepat 1 perpustakaan: langsung set dan buka dashboard
+          const m = memberships[0];
+          const tenantObj = m.tenant as any;
+          setActiveTenant(m.tenant_id, tenantObj?.nama || 'Perpustakaan', m.role);
+          router.replace('/(admin)/dashboard');
+        } else {
+          // Memiliki >1 perpustakaan: arahkan ke halaman pilih perpustakaan
+          router.replace('/tenant-setup');
+        }
       } else {
-        // User belum punya tenant
+        // Belum memiliki perpustakaan: arahkan ke halaman buat baru / gabung
         router.replace('/tenant-setup');
       }
     } catch {
-      // Belum punya tenant
       router.replace('/tenant-setup');
     }
   };

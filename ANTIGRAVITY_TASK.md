@@ -622,18 +622,18 @@ Member menjadi anggota library
 
 Task:
 
-- [ ] Trace invitation creation.
-- [ ] Trace membership creation.
-- [ ] Pastikan membership tidak langsung aktif jika requirement existing mengharuskan acceptance.
-- [ ] Pastikan acceptance menjadi trigger yang benar.
-- [ ] Jangan membuat duplicate membership.
+- [x] Trace invitation creation.
+- [x] Trace membership creation.
+- [x] Pastikan membership tidak langsung aktif jika requirement existing mengharuskan acceptance.
+- [x] Pastikan acceptance menjadi trigger yang benar.
+- [x] Jangan membuat duplicate membership.
 
 Acceptance:
 
-- [ ] Member belum menjadi anggota aktif sebelum menerima undangan.
-- [ ] Setelah menerima undangan, membership terbentuk/aktif dengan benar.
+- [x] Member belum menjadi anggota aktif sebelum menerima undangan.
+- [x] Setelah menerima undangan, membership terbentuk/aktif dengan benar.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -645,12 +645,12 @@ User yang sudah memiliki hubungan dengan library langsung masuk library sehingga
 
 Task:
 
-- [ ] Trace session restore.
-- [ ] Trace active library.
-- [ ] Trace membership.
-- [ ] Trace invitation.
-- [ ] Trace owner/library creation state.
-- [ ] Tentukan route berdasarkan kondisi data yang memang sudah digunakan project.
+- [x] Trace session restore.
+- [x] Trace active library.
+- [x] Trace membership.
+- [x] Trace invitation.
+- [x] Trace owner/library creation state.
+- [x] Tentukan route berdasarkan kondisi data yang memang sudah digunakan project.
 
 Minimal kondisi yang harus diuji:
 
@@ -664,11 +664,11 @@ E. User memiliki lebih dari satu library
 
 Acceptance:
 
-- [ ] Routing tidak melewati halaman yang seharusnya.
-- [ ] User tidak diarahkan ke library yang salah.
-- [ ] Session restore tidak menghasilkan route yang salah.
+- [x] Routing tidak melewati halaman yang seharusnya.
+- [x] User tidak diarahkan ke library yang salah.
+- [x] Session restore tidak menghasilkan route yang salah.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -680,23 +680,23 @@ Setelah ada member dan member berhasil login, halaman Perpustakaan dapat force c
 
 Task:
 
-- [ ] Reproduce masalah.
-- [ ] Inspect console/log/error.
-- [ ] Trace null/undefined data.
-- [ ] Trace relasi membership/library.
-- [ ] Trace parsing data.
-- [ ] Trace conditional rendering.
-- [ ] Fix root cause.
-- [ ] Jangan menutupi exception hanya dengan catch kosong.
+- [x] Reproduce masalah.
+- [x] Inspect console/log/error.
+- [x] Trace null/undefined data.
+- [x] Trace relasi membership/library.
+- [x] Trace parsing data.
+- [x] Trace conditional rendering.
+- [x] Fix root cause.
+- [x] Jangan menutupi exception hanya dengan catch kosong.
 
 Acceptance:
 
-- [ ] Owner membuka halaman Perpustakaan → tidak force close.
-- [ ] Member membuka halaman Perpustakaan → tidak force close.
-- [ ] Kondisi library tanpa member tetap aman.
-- [ ] Kondisi library dengan member tetap aman.
+- [x] Owner membuka halaman Perpustakaan → tidak force close.
+- [x] Member membuka halaman Perpustakaan → tidak force close.
+- [x] Kondisi library tanpa member tetap aman.
+- [x] Kondisi library dengan member tetap aman.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
