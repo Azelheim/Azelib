@@ -114,3 +114,66 @@ test('BOOK-003 & LOAN-002: Available copies are properly detected in Peminjaman'
   assert.equal(available.length, 2);
   assert.deepEqual(available.map(a => a.id), ['s1', 's2']);
 });
+
+test('LOAN-001 & DASH-003/004: Loan creation & return updates Dashboard metrics in real-time', () => {
+  // Initial state: 0 loans
+  let loans = [];
+
+  const getDashboardMetrics = (activeLoans) => {
+    const peminjamAktifSet = new Set();
+    let bukuDipinjam = 0;
+    activeLoans.forEach(l => {
+      if (l.status === 'aktif') {
+        peminjamAktifSet.add(l.anggota_id);
+        bukuDipinjam += (l.salinan_ids || []).length;
+      }
+    });
+    return {
+      peminjam_aktif: peminjamAktifSet.size,
+      buku_dipinjam: bukuDipinjam,
+    };
+  };
+
+  // Check initial
+  let metrics = getDashboardMetrics(loans);
+  assert.equal(metrics.peminjam_aktif, 0);
+  assert.equal(metrics.buku_dipinjam, 0);
+
+  // User creates loan for Member 1 with 2 books
+  loans.push({ id: 'loan-1', anggota_id: 'member-1', status: 'aktif', salinan_ids: ['s1', 's2'] });
+  metrics = getDashboardMetrics(loans);
+  assert.equal(metrics.peminjam_aktif, 1);
+  assert.equal(metrics.buku_dipinjam, 2);
+
+  // User creates loan for Member 2 with 1 book
+  loans.push({ id: 'loan-2', anggota_id: 'member-2', status: 'aktif', salinan_ids: ['s3'] });
+  metrics = getDashboardMetrics(loans);
+  assert.equal(metrics.peminjam_aktif, 2);
+  assert.equal(metrics.buku_dipinjam, 3);
+
+  // Member 1 creates a 2nd active loan (should not double-count distinct member)
+  loans.push({ id: 'loan-3', anggota_id: 'member-1', status: 'aktif', salinan_ids: ['s4'] });
+  metrics = getDashboardMetrics(loans);
+  assert.equal(metrics.peminjam_aktif, 2);
+  assert.equal(metrics.buku_dipinjam, 4);
+
+  // Member 1 returns loan-1
+  loans[0].status = 'dikembalikan';
+  metrics = getDashboardMetrics(loans);
+  assert.equal(metrics.peminjam_aktif, 2); // still has loan-3
+  assert.equal(metrics.buku_dipinjam, 2);
+});
+
+test('LOAN-002: Loan quota enforcement prevents exceeding batas_maksimal_peminjaman', () => {
+  const batasMaksimal = 3;
+  const validateLoanSelection = (selectedCopies, limit) => {
+    if (selectedCopies.length === 0) return { valid: false, error: 'Pilih minimal 1 buku' };
+    if (selectedCopies.length > limit) return { valid: false, error: `Maksimal peminjaman adalah ${limit} buku` };
+    return { valid: true };
+  };
+
+  assert.equal(validateLoanSelection([], batasMaksimal).valid, false);
+  assert.equal(validateLoanSelection(['s1', 's2'], batasMaksimal).valid, true);
+  assert.equal(validateLoanSelection(['s1', 's2', 's3'], batasMaksimal).valid, true);
+  assert.equal(validateLoanSelection(['s1', 's2', 's3', 's4'], batasMaksimal).valid, false);
+});

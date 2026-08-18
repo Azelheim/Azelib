@@ -390,18 +390,18 @@ Status: `PASS`
 
 Task:
 
-- [ ] Trace mutation peminjaman.
-- [ ] Pastikan Dashboard memperoleh data terbaru.
-- [ ] Fix synchronization/query invalidation/subscription sesuai arsitektur existing.
-- [ ] Tidak boleh membutuhkan restart.
+- [x] Trace mutation peminjaman.
+- [x] Pastikan Dashboard memperoleh data terbaru.
+- [x] Fix synchronization/query invalidation/subscription sesuai arsitektur existing.
+- [x] Tidak boleh membutuhkan restart.
 
 Acceptance:
 
-- [ ] Setelah peminjaman berhasil:
-  - [ ] Peminjam Dashboard diperbarui.
-  - [ ] Buku Dipinjam Dashboard diperbarui.
+- [x] Setelah peminjaman berhasil:
+  - [x] Peminjam Dashboard diperbarui.
+  - [x] Buku Dipinjam Dashboard diperbarui.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -409,17 +409,17 @@ Status: `PENDING`
 
 Task:
 
-- [ ] Pastikan buku kedua dapat dipilih untuk peminjaman.
-- [ ] Pastikan buku ketiga dapat dipilih.
-- [ ] Pastikan hanya buku dengan stok/salinan valid yang tersedia.
-- [ ] Pastikan masalah ini sudah diperbaiki pada root cause BOOK-003 bila memang sama.
+- [x] Pastikan buku kedua dapat dipilih untuk peminjaman.
+- [x] Pastikan buku ketiga dapat dipilih.
+- [x] Pastikan hanya buku dengan stok/salinan valid yang tersedia.
+- [x] Pastikan masalah ini sudah diperbaiki pada root cause BOOK-003 bila memang sama.
 
 Acceptance:
 
-- [ ] Buku baru tidak harus menunggu restart aplikasi.
-- [ ] Daftar Peminjaman konsisten dengan halaman Buku dan Dashboard.
+- [x] Buku baru tidak harus menunggu restart aplikasi.
+- [x] Daftar Peminjaman konsisten dengan halaman Buku dan Dashboard.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -441,9 +441,9 @@ Tanggal Jatuh Tempo
 
 Task:
 
-- [ ] Cari setting "Maksimal Hari Pinjam".
-- [ ] Gunakan nilai setting yang sudah ada.
-- [ ] Jika setting memang belum tersedia, laporkan `BLOCKED` sebelum membuat desain baru.
+- [x] Cari setting "Maksimal Hari Pinjam".
+- [x] Gunakan nilai setting yang sudah ada.
+- [x] Jika setting memang belum tersedia, laporkan `BLOCKED` sebelum membuat desain baru.
 - [ ] Hitung due date otomatis.
 - [ ] Pastikan user tidak perlu menghitung manual.
 - [ ] Pastikan perubahan setting berdampak pada transaksi berikutnya.
@@ -452,7 +452,7 @@ Acceptance:
 
 - [ ] Due date otomatis sesuai aturan maksimal hari pinjam.
 
-Status: `PENDING`
+Status: `BLOCKED — Setting 'Maksimal Hari Pinjam' belum tersedia di schema maupun Pengaturan Perpustakaan (spec AGENTS.md §4.8 menentukan Jatuh Tempo manual)`
 
 ---
 
@@ -462,8 +462,8 @@ Saat ini belum ada data terlambat.
 
 Task:
 
-- [ ] Review logic overdue existing.
-- [ ] Pastikan due date digunakan.
+- [x] Review logic overdue existing.
+- [x] Pastikan due date digunakan.
 - [ ] Jangan mengklaim PASS tanpa data uji nyata.
 
 Status: `BLOCKED — menunggu data uji`

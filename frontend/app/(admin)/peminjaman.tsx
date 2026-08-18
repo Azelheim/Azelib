@@ -105,17 +105,23 @@ export default function Peminjaman() {
     }
   };
 
+  const [batasMaksimal, setBatasMaksimal] = useState(3);
+
   const openNewModal = async () => {
     try {
-      const [anggotaRes, salinanRes] = await Promise.all([
+      const [anggotaRes, salinanRes, tenantRes] = await Promise.all([
         supabase.from('anggota').select('id, nama').eq('tenant_id', tenantId).eq('dihapus', false),
         supabase.from('salinan').select('id, kode_eksemplar, status, buku:buku_id(id, judul, tenant_id, dihapus)').eq('status', 'tersedia'),
+        supabase.from('tenant').select('batas_maksimal_peminjaman').eq('id', tenantId).single(),
       ]);
       setAnggotaList(anggotaRes.data || []);
       const validSalinan = (salinanRes.data || []).filter((s: any) => 
         s.buku && s.buku.tenant_id === tenantId && !s.buku.dihapus
       );
       setSalinanList(validSalinan);
+      if (tenantRes.data?.batas_maksimal_peminjaman) {
+        setBatasMaksimal(tenantRes.data.batas_maksimal_peminjaman);
+      }
       setSelectedAnggota(null);
       setSelectedSalinan([]);
       setJatuhTempo('');
@@ -135,8 +141,16 @@ export default function Peminjaman() {
       setSnackMsg("Pilih minimal 1 buku");
       return;
     }
-    if (!jatuhTempo) {
-      setSnackMsg("Isi tanggal jatuh tempo (format: YYYY-MM-DD)");
+    if (selectedSalinan.length > batasMaksimal) {
+      setSnackMsg(`Maksimal peminjaman adalah ${batasMaksimal} buku`);
+      return;
+    }
+    if (!jatuhTempo || !/^\d{4}-\d{2}-\d{2}$/.test(jatuhTempo)) {
+      setSnackMsg("Isi tanggal jatuh tempo dengan format YYYY-MM-DD");
+      return;
+    }
+    if (jatuhTempo < today) {
+      setSnackMsg("Tanggal jatuh tempo tidak boleh sebelum hari ini");
       return;
     }
 
@@ -145,7 +159,7 @@ export default function Peminjaman() {
       { text: "Buat", onPress: async () => {
         setCreating(true);
         try {
-          await apiClient.peminjaman.create(selectedAnggota.id, selectedSalinan, jatuhTempo);
+          await apiClient.peminjaman.create(selectedAnggota.id, selectedSalinan, jatuhTempo, tenantId || undefined);
           setSnackMsg("Peminjaman berhasil dibuat");
           setShowNew(false);
           fetchPeminjaman();
