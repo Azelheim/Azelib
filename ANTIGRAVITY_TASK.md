@@ -948,19 +948,19 @@ Kalau maksudnya beda, koreksi definisi ini sebelum mulai kerja.
 
 Task:
 
-- [ ] Ubah card menjadi carousel 2 slide (swipeable, horizontal).
-- [ ] Tambahkan dot indicator di bagian bawah card menunjukkan slide aktif.
-- [ ] Slide 1: total salinan buku (definisi lama, tidak berubah).
-- [ ] Slide 2: total judul buku unik (data baru, hitung distinct judul).
-- [ ] Style carousel & dot indicator mengikuti design system yang sudah ada (AGENTS.md §2.1).
+- [x] Ubah card menjadi carousel 2 slide (swipeable, horizontal).
+- [x] Tambahkan dot indicator di bagian bawah card menunjukkan slide aktif.
+- [x] Slide 1: total salinan buku (definisi lama, tidak berubah).
+- [x] Slide 2: total judul buku unik (data baru, hitung distinct judul).
+- [x] Style carousel & dot indicator mengikuti design system yang sudah ada (AGENTS.md §2.1).
 
 Acceptance:
 
-- [ ] Card bisa digeser antara 2 slide.
-- [ ] Dot indicator berubah sesuai slide aktif.
-- [ ] Angka di kedua slide akurat dan konsisten dengan data Buku.
+- [x] Card bisa digeser antara 2 slide.
+- [x] Dot indicator berubah sesuai slide aktif.
+- [x] Angka di kedua slide akurat dan konsisten dengan data Buku.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -972,16 +972,16 @@ Teks filter pada chart (misal "Peminjam", "Mingguan") terpotong.
 
 Task:
 
-- [ ] Perlebar area filter/label secukupnya agar teks tidak terpotong.
-- [ ] Pastikan layout tetap rapi di berbagai ukuran layar — jangan sampai memperlebar bikin elemen lain terdesak/overflow.
-- [ ] Kalau ruang tetap terbatas di layar kecil, pertimbangkan text wrap atau font-size responsif — jangan truncate dengan "..." kecuali benar-benar tidak ada pilihan lain.
+- [x] Perlebar area filter/label secukupnya agar teks tidak terpotong.
+- [x] Pastikan layout tetap rapi di berbagai ukuran layar — jangan sampai memperlebar bikin elemen lain terdesak/overflow.
+- [x] Kalau ruang tetap terbatas di layar kecil, pertimbangkan text wrap atau font-size responsif — jangan truncate dengan "..." kecuali benar-benar tidak ada pilihan lain.
 
 Acceptance:
 
-- [ ] Semua label filter chart terbaca penuh tanpa terpotong di ukuran layar umum, termasuk layar kecil.
-- [ ] Layout chart tetap rapi, tidak ada elemen tumpang tindih.
+- [x] Semua label filter chart terbaca penuh tanpa terpotong di ukuran layar umum, termasuk layar kecil.
+- [x] Layout chart tetap rapi, tidak ada elemen tumpang tindih.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

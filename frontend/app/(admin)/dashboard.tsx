@@ -23,6 +23,8 @@ export default function Dashboard() {
   const [chartContext, setChartContext] = useState<'buku' | 'peminjam' | 'denda'>('buku');
   const [chartPeriod, setChartPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
   const [rawLoans, setRawLoans] = useState<any[]>([]);
+  const [activeBookSlide, setActiveBookSlide] = useState(0);
+  const [cardWidth, setCardWidth] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -180,28 +182,76 @@ export default function Dashboard() {
 
       {/* 4 Card Kecil */}
       <View style={styles.grid}>
-        <Card style={styles.smallCard} mode="outlined">
-          <Card.Content>
-            <Text variant="titleMedium">Jumlah Buku</Text>
-            <Text variant="headlineMedium" style={styles.value}>{summary.jumlah_buku}</Text>
+        {/* Card Carousel: Jumlah Buku & Jumlah Judul (DASH-006) */}
+        <Card
+          style={styles.smallCard}
+          mode="outlined"
+          onLayout={(e) => {
+            const w = e.nativeEvent.layout.width;
+            if (w > 0) setCardWidth(w);
+          }}
+        >
+          <Card.Content style={{ paddingHorizontal: 0, paddingBottom: 8 }}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={(e) => {
+                const offsetX = e.nativeEvent.contentOffset.x;
+                const slide = Math.round(offsetX / (cardWidth || 1));
+                if (slide !== activeBookSlide) {
+                  setActiveBookSlide(slide);
+                }
+              }}
+              scrollEventThrottle={16}
+            >
+              {/* Slide 1: Jumlah Buku (Total Salinan) */}
+              <View style={{ width: cardWidth > 0 ? cardWidth : 160, paddingHorizontal: 16 }}>
+                <Text variant="titleMedium" numberOfLines={1}>Jumlah Buku</Text>
+                <Text variant="headlineMedium" style={styles.value}>{summary.jumlah_buku ?? 0}</Text>
+                <Text variant="bodySmall" style={styles.subLabel}>Total Salinan</Text>
+              </View>
+
+              {/* Slide 2: Jumlah Judul (Distinct Titles) */}
+              <View style={{ width: cardWidth > 0 ? cardWidth : 160, paddingHorizontal: 16 }}>
+                <Text variant="titleMedium" numberOfLines={1}>Jumlah Judul</Text>
+                <Text variant="headlineMedium" style={styles.value}>{summary.jumlah_judul ?? 0}</Text>
+                <Text variant="bodySmall" style={styles.subLabel}>Judul Unik</Text>
+              </View>
+            </ScrollView>
+
+            {/* Dot Indicator (DASH-006) */}
+            <View style={styles.dotContainer}>
+              <View style={[styles.dot, activeBookSlide === 0 ? styles.activeDot : styles.inactiveDot]} />
+              <View style={[styles.dot, activeBookSlide === 1 ? styles.activeDot : styles.inactiveDot]} />
+            </View>
           </Card.Content>
         </Card>
+
+        {/* Peminjam Aktif */}
         <Card style={styles.smallCard} mode="outlined">
-          <Card.Content>
-            <Text variant="titleMedium">Peminjam</Text>
+          <Card.Content style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+            <Text variant="titleMedium" numberOfLines={1}>Peminjam</Text>
             <Text variant="headlineMedium" style={styles.value}>{summary.peminjam_aktif}</Text>
+            <Text variant="bodySmall" style={styles.subLabel}>Aktif Saat Ini</Text>
           </Card.Content>
         </Card>
+
+        {/* Buku Dipinjam */}
         <Card style={styles.smallCard} mode="outlined">
-          <Card.Content>
-            <Text variant="titleMedium">Buku Dipinjam</Text>
+          <Card.Content style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+            <Text variant="titleMedium" numberOfLines={1}>Buku Dipinjam</Text>
             <Text variant="headlineMedium" style={styles.value}>{summary.buku_dipinjam}</Text>
+            <Text variant="bodySmall" style={styles.subLabel}>Total Salinan</Text>
           </Card.Content>
         </Card>
+
+        {/* Buku Terlambat */}
         <Card style={styles.smallCard} mode="outlined">
-          <Card.Content>
-            <Text variant="titleMedium">Buku Terlambat</Text>
+          <Card.Content style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+            <Text variant="titleMedium" numberOfLines={1}>Buku Terlambat</Text>
             <Text variant="headlineMedium" style={[styles.value, { color: '#D32F2F' }]}>{summary.buku_terlambat}</Text>
+            <Text variant="bodySmall" style={[styles.subLabel, { color: '#D32F2F' }]}>Perlu Ditindak</Text>
           </Card.Content>
         </Card>
       </View>
@@ -214,35 +264,36 @@ export default function Dashboard() {
         </Card.Content>
       </Card>
 
-      {/* Card Lebar #1: Line Chart */}
+      {/* Card Lebar #1: Line Chart (DASH-007 Responsive Filters) */}
       <Card style={styles.chartCard} mode="outlined">
         <Card.Content>
           <View style={styles.chartHeader}>
-            <Text variant="titleMedium">Tren Aktivitas</Text>
+            <Text variant="titleMedium" style={{ fontWeight: '600', marginBottom: 6 }}>Tren Aktivitas</Text>
             <SegmentedButtons
               value={chartContext}
               onValueChange={val => setChartContext(val as any)}
               buttons={[
-                { value: 'buku', label: 'Buku' },
-                { value: 'peminjam', label: 'Peminjam' },
-                { value: 'denda', label: 'Denda' },
+                { value: 'buku', label: 'Buku', labelStyle: styles.filterLabel },
+                { value: 'peminjam', label: 'Peminjam', labelStyle: styles.filterLabel },
+                { value: 'denda', label: 'Denda', labelStyle: styles.filterLabel },
               ]}
-              style={styles.contextButtons}
+              density="small"
+              style={styles.fullWidthButtons}
             />
           </View>
 
-          {/* Period Selector */}
+          {/* Period Selector (DASH-007) */}
           <View style={styles.periodRow}>
             <SegmentedButtons
               value={chartPeriod}
               onValueChange={val => setChartPeriod(val as any)}
               buttons={[
-                { value: 'harian', label: 'Harian' },
-                { value: 'mingguan', label: 'Mingguan' },
-                { value: 'bulanan', label: 'Bulanan' },
+                { value: 'harian', label: 'Harian', labelStyle: styles.filterLabel },
+                { value: 'mingguan', label: 'Mingguan', labelStyle: styles.filterLabel },
+                { value: 'bulanan', label: 'Bulanan', labelStyle: styles.filterLabel },
               ]}
               density="small"
-              style={styles.periodButtons}
+              style={styles.fullWidthButtons}
             />
           </View>
 
@@ -310,13 +361,39 @@ const styles = StyleSheet.create({
   },
   smallCard: {
     width: '48%',
+    minHeight: 110,
     marginBottom: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
+    justifyContent: 'space-between',
   },
   value: {
     fontWeight: 'bold',
-    marginTop: 8,
+    marginTop: 4,
+  },
+  subLabel: {
+    color: '#888888',
+    marginTop: 2,
+    fontSize: 11,
+  },
+  dotContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  activeDot: {
+    backgroundColor: '#000000',
+    width: 14,
+  },
+  inactiveDot: {
+    backgroundColor: '#D0D0D0',
   },
   wideCard: {
     marginBottom: 16,
@@ -333,22 +410,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  contextButtons: {
-    width: 240,
+    marginBottom: 8,
   },
   periodRow: {
     marginBottom: 16,
-    alignItems: 'flex-start',
   },
-  periodButtons: {
-    width: 240,
+  fullWidthButtons: {
+    width: '100%',
+  },
+  filterLabel: {
+    fontSize: 12,
+    paddingHorizontal: 2,
   },
   chartWrapper: {
     height: 200,

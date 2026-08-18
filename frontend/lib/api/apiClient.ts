@@ -313,7 +313,14 @@ export const apiClient = {
           supabase.from('peminjaman').select('id, tanggal_pinjam, jatuh_tempo, tanggal_kembali, status').eq('tenant_id', tenant_id),
         ]);
 
-        const jumlah_buku = (booksRes.data || []).filter((b: any) => b.salinan && b.salinan.length > 0).length;
+        const validBooks = (booksRes.data || []).filter((b: any) => b.salinan && b.salinan.length > 0);
+        let total_copies = 0;
+        validBooks.forEach((b: any) => {
+          total_copies += b.salinan.length;
+        });
+
+        const jumlah_buku = total_copies;
+        const jumlah_judul = validBooks.length;
         const peminjam_aktif = new Set((activeLoansRes.data || []).map((l: any) => l.anggota_id)).size;
         let buku_dipinjam = 0;
         (activeLoansRes.data || []).forEach((l: any) => {
@@ -332,6 +339,7 @@ export const apiClient = {
 
         return {
           jumlah_buku,
+          jumlah_judul,
           peminjam_aktif,
           buku_dipinjam,
           buku_terlambat,

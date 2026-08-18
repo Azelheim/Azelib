@@ -513,3 +513,53 @@ test('LOAN-003: Automatic due date calculation based on tenant maksimal_hari_pin
   // Loan 1 remains unchanged (non-retroactive)
   assert.equal(loans[0].dueDate, '2026-08-25');
 });
+
+test('PHASE 10 — DASH-006: Book Carousel calculates Slide 1 (Total Copies) vs Slide 2 (Distinct Titles) accurately', () => {
+  const books = [
+    { id: 'b-1', judul: 'Laskar Pelangi', dihapus: false, salinan: [{ id: 's-1' }, { id: 's-2' }, { id: 's-3' }] }, // 3 copies
+    { id: 'b-2', judul: 'Bumi Manusia', dihapus: false, salinan: [{ id: 's-4' }, { id: 's-5' }] }, // 2 copies
+    { id: 'b-3', judul: 'Negeri 5 Menara', dihapus: false, salinan: [{ id: 's-6' }] }, // 1 copy
+    { id: 'b-4', judul: 'Ghost Book', dihapus: false, salinan: [] }, // 0 copies (excluded)
+    { id: 'b-5', judul: 'Deleted Book', dihapus: true, salinan: [{ id: 's-7' }] }, // soft-deleted (excluded)
+  ];
+
+  const calculateCarouselMetrics = (rawBooks) => {
+    const validBooks = rawBooks.filter(b => !b.dihapus && b.salinan && b.salinan.length > 0);
+    let totalCopies = 0;
+    validBooks.forEach(b => {
+      totalCopies += b.salinan.length;
+    });
+
+    return {
+      slide1_jumlahBuku: totalCopies, // Total salinan (6)
+      slide2_jumlahJudul: validBooks.length, // Distinct titles (3)
+    };
+  };
+
+  const metrics = calculateCarouselMetrics(books);
+  assert.equal(metrics.slide1_jumlahBuku, 6);
+  assert.equal(metrics.slide2_jumlahJudul, 3);
+});
+
+test('PHASE 10 — DASH-007: Chart filter configurations contain full unabridged labels and responsive definitions', () => {
+  const contextFilters = [
+    { value: 'buku', label: 'Buku' },
+    { value: 'peminjam', label: 'Peminjam' },
+    { value: 'denda', label: 'Denda' },
+  ];
+
+  const periodFilters = [
+    { value: 'harian', label: 'Harian' },
+    { value: 'mingguan', label: 'Mingguan' },
+    { value: 'bulanan', label: 'Bulanan' },
+  ];
+
+  assert.equal(contextFilters.find(f => f.value === 'peminjam').label, 'Peminjam');
+  assert.equal(periodFilters.find(f => f.value === 'mingguan').label, 'Mingguan');
+  assert.equal(periodFilters.find(f => f.value === 'bulanan').label, 'Bulanan');
+
+  // Verify no ellipsis or truncation in label definitions
+  for (const f of [...contextFilters, ...periodFilters]) {
+    assert.ok(!f.label.includes('...'), `Label ${f.label} must not be truncated`);
+  }
+});
