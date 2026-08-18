@@ -1017,14 +1017,15 @@ verify Dashboard
 
 Project dianggap selesai hanya apabila:
 
-- [ ] Semua task `[WAJIB]` berstatus PASS, kecuali item yang memang belum dapat diverifikasi karena membutuhkan data uji nyata.
-- [ ] Tidak ada regression pada flow yang sebelumnya sudah bekerja.
-- [ ] Data konsisten antara Buku, Salinan, Peminjaman dan Dashboard.
-- [ ] Perubahan langsung terlihat tanpa restart aplikasi.
-- [ ] Navigation mempertahankan konteks halaman.
-- [ ] Bottom Navigation menunjukkan konteks halaman yang benar.
-- [ ] Invitation/Auth flow tidak melewati state yang seharusnya.
-- [ ] Halaman Pengaturan Perpustakaan tidak force close.
+- [x] Semua task `[WAJIB]` berstatus PASS, kecuali item yang memang belum dapat diverifikasi karena membutuhkan data uji nyata.
+- [x] Tidak ada regression pada flow yang sebelumnya sudah bekerja.
+- [x] Data konsisten antara Buku, Salinan, Peminjaman dan Dashboard.
+- [x] Perubahan langsung terlihat tanpa restart aplikasi.
+- [x] Navigation mempertahankan konteks halaman.
+- [x] Bottom Navigation menunjukkan konteks halaman yang benar.
+- [x] Invitation/Auth flow tidak melewati state yang seharusnya.
+- [x] Halaman Pengaturan Perpustakaan tidak force close.
 - [ ] Baru setelah itu task `[SARAN]` boleh dikerjakan.
 
-**Mulai dari PHASE 1 setelah selesai melakukan investigation. Jangan langsung melompat ke fitur ****`[SARAN]`****.**
+**Mulai dari PHASE 1 setelah selesai melakukan investigation. Jangan langsung melompat ke fitur `[SARAN]`.**
+
