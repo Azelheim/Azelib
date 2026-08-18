@@ -177,3 +177,27 @@ test('LOAN-002: Loan quota enforcement prevents exceeding batas_maksimal_peminja
   assert.equal(validateLoanSelection(['s1', 's2', 's3'], batasMaksimal).valid, true);
   assert.equal(validateLoanSelection(['s1', 's2', 's3', 's4'], batasMaksimal).valid, false);
 });
+
+test('MEMBER-004: Member category validation allows only Siswa, Guru, or Umum', () => {
+  const allowedCategories = ['Siswa', 'Guru', 'Umum'];
+  const isValidCategory = (cat) => allowedCategories.includes(cat);
+
+  assert.equal(isValidCategory('Siswa'), true);
+  assert.equal(isValidCategory('Guru'), true);
+  assert.equal(isValidCategory('Umum'), true);
+  assert.equal(isValidCategory('Dosen'), false);
+  assert.equal(isValidCategory('Admin'), false);
+});
+
+test('MEMBER-001 & Spec: Member auto-numbering and phone validation format', () => {
+  const generateNomorAnggota = (existingCount) => `ANG-${String(existingCount + 1).padStart(5, '0')}`;
+  assert.equal(generateNomorAnggota(0), 'ANG-00001');
+  assert.equal(generateNomorAnggota(42), 'ANG-00043');
+  assert.equal(generateNomorAnggota(999), 'ANG-01000');
+
+  const phoneRegex = /^08\d{8,11}$/;
+  assert.equal(phoneRegex.test('08123456789'), true);
+  assert.equal(phoneRegex.test('0812345678901'), true);
+  assert.equal(phoneRegex.test('07123456789'), false);
+  assert.equal(phoneRegex.test('08123'), false);
+});

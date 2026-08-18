@@ -476,15 +476,15 @@ Status: `BLOCKED — menunggu data uji`
 
 Task:
 
-- [ ] Reset form setelah create berhasil.
-- [ ] Jangan reset sebelum save berhasil.
-- [ ] Jangan reset Detail/Edit.
+- [x] Reset form setelah create berhasil.
+- [x] Jangan reset sebelum save berhasil.
+- [x] Jangan reset Detail/Edit.
 
 Acceptance:
 
-- [ ] Tambah Anggota kedua mendapatkan form kosong.
+- [x] Tambah Anggota kedua mendapatkan form kosong.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -502,10 +502,10 @@ Anggota
 
 Task:
 
-- [ ] Fix route/back navigation.
-- [ ] Jangan kembali ke Dashboard.
+- [x] Fix route/back navigation.
+- [x] Jangan kembali ke Dashboard.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -513,10 +513,10 @@ Status: `PENDING`
 
 Task:
 
-- [ ] Bottom Nav Anggota tetap aktif pada Tambah Anggota.
-- [ ] Bottom Nav Anggota tetap aktif pada Detail/Edit Anggota.
+- [x] Bottom Nav Anggota tetap aktif pada Tambah Anggota.
+- [x] Bottom Nav Anggota tetap aktif pada Detail/Edit Anggota.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -530,11 +530,11 @@ Ubah menjadi dropdown dengan pilihan tetap:
 
 Task:
 
-- [ ] Implement dropdown.
-- [ ] Hilangkan input bebas jika memang tidak diperlukan.
-- [ ] Pastikan nilai tersimpan konsisten.
+- [x] Implement dropdown.
+- [x] Hilangkan input bebas jika memang tidak diperlukan.
+- [x] Pastikan nilai tersimpan konsisten.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

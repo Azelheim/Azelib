@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, FlatList } from 'react-native';
-import { Text, TextInput, Button, Snackbar, Appbar, Card, ActivityIndicator } from 'react-native-paper';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Text, TextInput, Button, Snackbar, Appbar, Card, ActivityIndicator, SegmentedButtons, Menu } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../lib/context/TenantContext';
 import { Trash2 } from 'lucide-react-native';
+
+const KATEGORI_OPTIONS = [
+  { value: 'Siswa', label: 'Siswa' },
+  { value: 'Guru', label: 'Guru' },
+  { value: 'Umum', label: 'Umum' },
+];
 
 export default function DetailAnggota() {
   const { id } = useLocalSearchParams();
@@ -14,7 +20,7 @@ export default function DetailAnggota() {
 
   const [nama, setNama] = useState('');
   const [nomorAnggota, setNomorAnggota] = useState('');
-  const [kategori, setKategori] = useState('');
+  const [kategori, setKategori] = useState('Siswa');
   const [kontak, setKontak] = useState('');
   const [alamat, setAlamat] = useState('');
   const [riwayat, setRiwayat] = useState<any[]>([]);
@@ -23,11 +29,23 @@ export default function DetailAnggota() {
   const [pageLoading, setPageLoading] = useState(!isNew);
   const [snackMsg, setSnackMsg] = useState('');
 
+  const resetForm = useCallback(() => {
+    setNama('');
+    setNomorAnggota('');
+    setKategori('Siswa');
+    setKontak('');
+    setAlamat('');
+    setRiwayat([]);
+  }, []);
+
   useEffect(() => {
-    if (!isNew && id && id !== 'tambah') {
+    if (isNew) {
+      resetForm();
+      setPageLoading(false);
+    } else if (id && id !== 'tambah') {
       loadAnggota();
     }
-  }, [id]);
+  }, [id, isNew]);
 
   const loadAnggota = async () => {
     setPageLoading(true);
@@ -41,7 +59,7 @@ export default function DetailAnggota() {
       if (!error && data) {
         setNama(data.nama || '');
         setNomorAnggota(data.nomor_anggota || '');
-        setKategori(data.kategori_anggota || '');
+        setKategori(data.kategori_anggota || 'Siswa');
         setKontak(data.kontak || '');
         setAlamat(data.alamat || '');
       }
@@ -91,23 +109,26 @@ export default function DetailAnggota() {
           tenant_id: tenantId,
           nomor_anggota: noAnggota,
           nama: nama.trim(),
-          kategori_anggota: kategori.trim() || null,
+          kategori_anggota: kategori,
           kontak: kontak.trim() || null,
           alamat: alamat.trim() || null,
         });
         if (error) throw error;
+        resetForm();
         setSnackMsg('Anggota berhasil ditambahkan');
       } else {
         const { error } = await supabase.from('anggota').update({
           nama: nama.trim(),
-          kategori_anggota: kategori.trim() || null,
+          kategori_anggota: kategori,
           kontak: kontak.trim() || null,
           alamat: alamat.trim() || null,
         }).eq('id', id);
         if (error) throw error;
         setSnackMsg('Anggota berhasil diperbarui');
       }
-      setTimeout(() => router.back(), 1000);
+      
+      // Selalu kembali ke Halaman Anggota
+      router.replace('/(admin)/anggota');
     } catch (e: any) {
       console.error(e);
       setSnackMsg(e.message || 'Gagal menyimpan data');
@@ -143,7 +164,7 @@ export default function DetailAnggota() {
 
           if (error) throw error;
           setSnackMsg('Anggota berhasil dihapus');
-          setTimeout(() => router.back(), 1000);
+          router.replace('/(admin)/anggota');
         } catch (e: any) {
           setSnackMsg(e.message || 'Gagal menghapus');
         } finally {
@@ -151,6 +172,10 @@ export default function DetailAnggota() {
         }
       }},
     ]);
+  };
+
+  const handleGoBack = () => {
+    router.replace('/(admin)/anggota');
   };
 
   if (pageLoading) {
@@ -164,7 +189,7 @@ export default function DetailAnggota() {
   return (
     <View style={styles.container}>
       <Appbar.Header style={{ backgroundColor: '#fff', height: 48, elevation: 0, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
-        <Appbar.BackAction onPress={() => router.back()} />
+        <Appbar.BackAction onPress={handleGoBack} />
         <Appbar.Content title={isNew ? "Tambah Anggota" : "Detail Anggota"} titleStyle={{ fontSize: 16, fontWeight: 'bold' }} />
         {!isNew && <Appbar.Action icon={() => <Trash2 size={20} color="#D32F2F" />} onPress={handleHapus} />}
       </Appbar.Header>
@@ -186,13 +211,16 @@ export default function DetailAnggota() {
           mode="outlined"
           style={styles.input}
         />
-        <TextInput
-          label="Kategori Anggota (mis. Siswa, Guru, Umum)"
+
+        {/* Dropdown / Fixed Selector Kategori Anggota (MEMBER-004) */}
+        <Text variant="labelMedium" style={styles.label}>Kategori Anggota</Text>
+        <SegmentedButtons
           value={kategori}
-          onChangeText={setKategori}
-          mode="outlined"
-          style={styles.input}
+          onValueChange={setKategori}
+          buttons={KATEGORI_OPTIONS}
+          style={styles.segmented}
         />
+
         <TextInput
           label="Nomor HP / Kontak (08xxxxxxxxxx)"
           value={kontak}
@@ -212,7 +240,7 @@ export default function DetailAnggota() {
         />
 
         <Button mode="contained" onPress={handleSimpan} style={styles.btn} loading={loading} disabled={loading}>
-          Simpan
+          {isNew ? "Simpan Anggota" : "Perbarui Anggota"}
         </Button>
 
         {!isNew && (
@@ -247,7 +275,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   content: { padding: 16, paddingBottom: 40 },
   input: { marginBottom: 12, backgroundColor: '#FFFFFF' },
+  label: { marginBottom: 6, fontWeight: '600', color: '#444' },
+  segmented: { marginBottom: 16 },
   btn: { marginTop: 16, borderRadius: 8 },
   riwayatCard: { marginTop: 24, backgroundColor: '#FFFFFF' },
   riwayatItem: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
 });
+
