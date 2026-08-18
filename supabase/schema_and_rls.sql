@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS tenant (
     alamat                    TEXT,
     qr_code_value             VARCHAR(100) UNIQUE NOT NULL,
     batas_maksimal_peminjaman INTEGER NOT NULL DEFAULT 3,
+    maksimal_hari_pinjam      INTEGER NOT NULL DEFAULT 7,
     created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
 );

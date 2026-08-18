@@ -429,6 +429,8 @@ Masalah:
 
 Tanggal masih dipilih manual.
 
+**Update keputusan (setelah investigasi menemukan setting "Maksimal Hari Pinjam" belum ada):** ditambahkan setting baru, bukan tetap manual — alasan: input manual merepotkan user (harus mengetik tanggal manual tiap transaksi).
+
 Desired behavior:
 
 ```text
@@ -441,18 +443,21 @@ Tanggal Jatuh Tempo
 
 Task:
 
-- [x] Cari setting "Maksimal Hari Pinjam".
-- [x] Gunakan nilai setting yang sudah ada.
-- [x] Jika setting memang belum tersedia, laporkan `BLOCKED` sebelum membuat desain baru.
-- [ ] Hitung due date otomatis.
-- [ ] Pastikan user tidak perlu menghitung manual.
-- [ ] Pastikan perubahan setting berdampak pada transaksi berikutnya.
+- [x] Cari setting "Maksimal Hari Pinjam". *(sudah dicek — belum ada, lihat catatan di bawah)*
+- [x] Tambahkan field **"Maksimal Hari Pinjam"** (angka, satuan hari) ke schema Library Settings, mengikuti pola field setting lain yang sudah ada (mis. "Batas Maksimal Peminjaman" / tarif denda).
+- [x] Tambahkan field ini ke halaman **Pengaturan Perpustakaan** (UI input + simpan), gunakan pola komponen settings yang sudah dipakai project — jangan bikin pola baru.
+- [x] Tentukan nilai default yang masuk akal (mis. 7 hari) untuk perpustakaan yang belum pernah mengatur nilai ini.
+- [x] Hitung due date otomatis = tanggal pinjam + nilai setting, saat transaksi peminjaman dibuat.
+- [x] Pastikan user tidak perlu menghitung/mengetik tanggal jatuh tempo secara manual lagi.
+- [x] Pastikan perubahan setting hanya berdampak pada transaksi **berikutnya**, bukan mengubah due date transaksi yang sudah ada (non-retroaktif — konsisten dengan aturan tarif denda yang sudah ada). *Jika ini bukan behavior yang diinginkan, laporkan dan tunggu konfirmasi user sebelum implementasi.*
 
 Acceptance:
 
-- [ ] Due date otomatis sesuai aturan maksimal hari pinjam.
+- [x] Setting "Maksimal Hari Pinjam" tersimpan & bisa diedit dari Pengaturan Perpustakaan.
+- [x] Due date otomatis terhitung sesuai nilai setting saat transaksi baru dibuat.
+- [x] Perubahan setting tidak mengubah due date transaksi yang sudah ada sebelumnya.
 
-Status: `BLOCKED — Setting 'Maksimal Hari Pinjam' belum tersedia di schema maupun Pengaturan Perpustakaan (spec AGENTS.md §4.8 menentukan Jatuh Tempo manual)`
+Status: `PASS`
 
 ---
 

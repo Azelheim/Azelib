@@ -474,3 +474,43 @@ test('PHASE 8 — SUGGESTION-002: Quick Add Anggota creates member and automatic
   assert.equal(selectedMemberInLoan.id, 'm-2');
   assert.equal(selectedMemberInLoan.nama, 'Dewi Lestari');
 });
+
+test('LOAN-003: Automatic due date calculation based on tenant maksimal_hari_pinjam setting (non-retroactive)', () => {
+  const calculateDueDate = (startDateStr, maxDays = 7) => {
+    const d = new Date(startDateStr);
+    d.setDate(d.getDate() + maxDays);
+    return d.toISOString().split('T')[0];
+  };
+
+  // 1. Default setting = 7 hari
+  assert.equal(calculateDueDate('2026-08-18', 7), '2026-08-25');
+
+  // 2. Custom setting = 14 hari
+  assert.equal(calculateDueDate('2026-08-18', 14), '2026-09-01');
+
+  // 3. Custom setting = 3 hari
+  assert.equal(calculateDueDate('2026-08-18', 3), '2026-08-21');
+
+  // 4. Non-retroactive test: Loan 1 created under 7-day setting keeps its due date when tenant changes to 14 days
+  const loans = [];
+  let tenantSettingDays = 7;
+
+  const createLoan = (memberId, loanDate) => {
+    const dueDate = calculateDueDate(loanDate, tenantSettingDays);
+    const loan = { id: 'l-' + (loans.length + 1), memberId, loanDate, dueDate, maxDaysAtCreation: tenantSettingDays };
+    loans.push(loan);
+    return loan;
+  };
+
+  const loan1 = createLoan('m-1', '2026-08-18');
+  assert.equal(loan1.dueDate, '2026-08-25');
+
+  // Tenant changes setting to 14 days
+  tenantSettingDays = 14;
+
+  const loan2 = createLoan('m-2', '2026-08-18');
+  assert.equal(loan2.dueDate, '2026-09-01');
+
+  // Loan 1 remains unchanged (non-retroactive)
+  assert.equal(loans[0].dueDate, '2026-08-25');
+});

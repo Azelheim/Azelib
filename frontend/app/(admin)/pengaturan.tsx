@@ -23,6 +23,7 @@ export default function Pengaturan() {
 
   // Settings
   const [batasPinjam, setBatasPinjam] = useState('3');
+  const [maksimalHariPinjam, setMaksimalHariPinjam] = useState('7');
   const [tarifDenda, setTarifDenda] = useState('500');
   const [qrCodeValue, setQrCodeValue] = useState('');
 
@@ -45,12 +46,13 @@ export default function Pengaturan() {
     try {
       const { data: tenant, error: tErr } = await supabase
         .from('tenant')
-        .select('batas_maksimal_peminjaman, qr_code_value')
+        .select('batas_maksimal_peminjaman, maksimal_hari_pinjam, qr_code_value')
         .eq('id', tenantId)
         .single();
 
       if (!tErr && tenant) {
         setBatasPinjam(tenant.batas_maksimal_peminjaman?.toString() || '3');
+        setMaksimalHariPinjam(tenant.maksimal_hari_pinjam?.toString() || '7');
         setQrCodeValue(tenant.qr_code_value || '');
       }
 
@@ -111,6 +113,25 @@ export default function Pengaturan() {
       setSnackMsg('Batas peminjaman diperbarui');
     } catch (e: any) {
       setSnackMsg(e.message || 'Gagal menyimpan batas peminjaman');
+    }
+  };
+
+  const handleSaveMaksimalHariPinjam = async () => {
+    if (!tenantId) return;
+    const days = parseInt(maksimalHariPinjam);
+    if (isNaN(days) || days < 1) {
+      setSnackMsg('Maksimal hari pinjam minimal 1 hari');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('tenant')
+        .update({ maksimal_hari_pinjam: days, updated_at: new Date().toISOString() })
+        .eq('id', tenantId);
+      if (error) throw error;
+      setSnackMsg('Maksimal hari pinjam diperbarui');
+    } catch (e: any) {
+      setSnackMsg(e.message || 'Gagal menyimpan maksimal hari pinjam');
     }
   };
 
@@ -329,6 +350,28 @@ export default function Pengaturan() {
               <Text variant="bodyMedium" style={{ flex: 1 }}>buku per anggota</Text>
               <Button mode="contained" onPress={handleSaveBatas} style={{ borderRadius: 8 }}>Simpan</Button>
             </View>
+          </Card.Content>
+        </Card>
+
+        {/* Maksimal Hari Pinjam */}
+        <Card style={styles.card} mode="outlined">
+          <Card.Title title="Maksimal Hari Pinjam" />
+          <Card.Content>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TextInput
+                value={maksimalHariPinjam}
+                onChangeText={setMaksimalHariPinjam}
+                mode="outlined"
+                keyboardType="numeric"
+                style={{ width: 100, backgroundColor: '#FFF' }}
+                dense
+              />
+              <Text variant="bodyMedium" style={{ flex: 1 }}>hari (jatuh tempo otomatis)</Text>
+              <Button mode="contained" onPress={handleSaveMaksimalHariPinjam} style={{ borderRadius: 8 }}>Simpan</Button>
+            </View>
+            <Text variant="bodySmall" style={{ color: '#888', marginTop: 8 }}>
+              Digunakan untuk menghitung tanggal jatuh tempo otomatis saat transaksi peminjaman baru dibuat.
+            </Text>
           </Card.Content>
         </Card>
 

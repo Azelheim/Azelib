@@ -180,13 +180,14 @@ export default function Peminjaman() {
   };
 
   const [batasMaksimal, setBatasMaksimal] = useState(3);
+  const [maksimalHariPinjam, setMaksimalHariPinjam] = useState(7);
 
   const openNewModal = async () => {
     try {
       const [anggotaRes, salinanRes, tenantRes] = await Promise.all([
-        supabase.from('anggota').select('id, nama').eq('tenant_id', tenantId).eq('dihapus', false),
+        supabase.from('anggota').select('id, nama, nomor_anggota').eq('tenant_id', tenantId).eq('dihapus', false),
         supabase.from('salinan').select('id, kode_eksemplar, status, buku:buku_id(id, judul, tenant_id, dihapus)').eq('status', 'tersedia'),
-        supabase.from('tenant').select('batas_maksimal_peminjaman').eq('id', tenantId).single(),
+        supabase.from('tenant').select('batas_maksimal_peminjaman, maksimal_hari_pinjam').eq('id', tenantId).single(),
       ]);
       setAnggotaList(anggotaRes.data || []);
       const validSalinan = (salinanRes.data || []).filter((s: any) => 
@@ -196,9 +197,17 @@ export default function Peminjaman() {
       if (tenantRes.data?.batas_maksimal_peminjaman) {
         setBatasMaksimal(tenantRes.data.batas_maksimal_peminjaman);
       }
+      const days = tenantRes.data?.maksimal_hari_pinjam || 7;
+      setMaksimalHariPinjam(days);
+
+      // Hitung Jatuh Tempo Otomatis: Tanggal pinjam + Maksimal Hari Pinjam
+      const autoDueDate = new Date();
+      autoDueDate.setDate(autoDueDate.getDate() + days);
+      const autoDateStr = autoDueDate.toISOString().split('T')[0];
+
       setSelectedAnggota(null);
       setSelectedSalinan([]);
-      setJatuhTempo('');
+      setJatuhTempo(autoDateStr);
       setShowNew(true);
     } catch (e) {
       console.error(e);
@@ -378,8 +387,11 @@ export default function Peminjaman() {
               value={jatuhTempo}
               onChangeText={setJatuhTempo}
               mode="outlined"
-              style={{ marginTop: 16, marginBottom: 16, backgroundColor: '#FFF' }}
+              style={{ marginTop: 16, marginBottom: 4, backgroundColor: '#FFF' }}
             />
+            <Text variant="bodySmall" style={{ color: '#666', marginBottom: 16 }}>
+              Otomatis dihitung {maksimalHariPinjam} hari dari hari ini.
+            </Text>
 
             <Button mode="contained" onPress={handleCreatePeminjaman} loading={creating} disabled={creating} style={{ borderRadius: 8 }}>
               Buat Peminjaman
