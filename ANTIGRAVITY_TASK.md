@@ -251,19 +251,19 @@ Status:
 
 Task:
 
-- [ ] Tambahkan field jumlah Salinan pada Tambah Buku.
-- [ ] Tambahkan kemampuan melihat/mengubah jumlah Salinan pada Edit/Detail Buku.
-- [ ] Gunakan mekanisme penyimpanan yang konsisten dengan data model existing.
-- [ ] Validasi nilai input.
+- [x] Tambahkan field jumlah Salinan pada Tambah Buku.
+- [x] Tambahkan kemampuan melihat/mengubah jumlah Salinan pada Edit/Detail Buku.
+- [x] Gunakan mekanisme penyimpanan yang konsisten dengan data model existing.
+- [x] Validasi nilai input.
 
 Acceptance:
 
-- [ ] User dapat menginput jumlah salinan.
-- [ ] Data tersimpan.
-- [ ] Data dapat ditampilkan kembali.
-- [ ] Data dapat diedit.
+- [x] User dapat menginput jumlah salinan.
+- [x] Data tersimpan.
+- [x] Data dapat ditampilkan kembali.
+- [x] Data dapat diedit.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -275,19 +275,19 @@ Setelah berhasil menambah buku pertama, form saat menambah buku kedua masih beri
 
 Task:
 
-- [ ] Setelah create berhasil, reset state form Tambah Buku.
-- [ ] Pastikan reset terjadi hanya setelah operasi berhasil.
-- [ ] Jangan menghapus state sebelum save berhasil.
-- [ ] Jangan reset form Detail/Edit Buku.
+- [x] Setelah create berhasil, reset state form Tambah Buku.
+- [x] Pastikan reset terjadi hanya setelah operasi berhasil.
+- [x] Jangan menghapus state sebelum save berhasil.
+- [x] Jangan reset form Detail/Edit Buku.
 
 Acceptance:
 
-- [ ] Tambah Buku pertama berhasil.
-- [ ] Buka Tambah Buku lagi.
-- [ ] Semua field form kembali ke kondisi awal.
-- [ ] Detail/Edit tetap menampilkan data buku yang sedang diedit.
+- [x] Tambah Buku pertama berhasil.
+- [x] Buka Tambah Buku lagi.
+- [x] Semua field form kembali ke kondisi awal.
+- [x] Detail/Edit tetap menampilkan data buku yang sedang diedit.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -301,34 +301,34 @@ Ini merupakan task penting dan harus dicari root cause-nya.
 
 Task:
 
-- [ ] Trace create Book.
-- [ ] Trace create/update BookCopy/Salinan.
-- [ ] Trace persistence.
-- [ ] Trace state update setelah mutation.
-- [ ] Trace data source halaman Buku.
-- [ ] Trace data source halaman Peminjaman.
-- [ ] Trace data source Dashboard.
-- [ ] Identifikasi root cause.
-- [ ] Implementasikan root-cause fix.
-- [ ] Pastikan tidak perlu restart aplikasi.
-- [ ] Pastikan buku pertama bekerja.
-- [ ] Pastikan buku kedua bekerja.
-- [ ] Pastikan buku ketiga bekerja.
-- [ ] Pastikan jumlah Salinan benar.
-- [ ] Pastikan buku baru langsung tersedia di Peminjaman jika memenuhi syarat.
-- [ ] Pastikan Dashboard langsung ter-update.
-- [ ] Tambahkan/perbarui automated test (unit/integration) khusus untuk root cause fix ini, jika project memiliki test suite — ini task dengan risiko regresi silent paling tinggi di seluruh checklist.
+- [x] Trace create Book.
+- [x] Trace create/update BookCopy/Salinan.
+- [x] Trace persistence.
+- [x] Trace state update setelah mutation.
+- [x] Trace data source halaman Buku.
+- [x] Trace data source halaman Peminjaman.
+- [x] Trace data source Dashboard.
+- [x] Identifikasi root cause.
+- [x] Implementasikan root-cause fix.
+- [x] Pastikan tidak perlu restart aplikasi.
+- [x] Pastikan buku pertama bekerja.
+- [x] Pastikan buku kedua bekerja.
+- [x] Pastikan buku ketiga bekerja.
+- [x] Pastikan jumlah Salinan benar.
+- [x] Pastikan buku baru langsung tersedia di Peminjaman jika memenuhi syarat.
+- [x] Pastikan Dashboard langsung ter-update.
+- [x] Tambahkan/perbarui automated test (unit/integration) khusus untuk root cause fix ini, jika project memiliki test suite — ini task dengan risiko regresi silent paling tinggi di seluruh checklist.
 
 Acceptance:
 
-- [ ] Buku 1 → benar.
-- [ ] Buku 2 → benar.
-- [ ] Buku 3 → benar.
-- [ ] Tidak ada 0/0 palsu.
-- [ ] Tidak perlu restart aplikasi.
-- [ ] Konsisten antara Buku, Peminjaman dan Dashboard.
+- [x] Buku 1 → benar.
+- [x] Buku 2 → benar.
+- [x] Buku 3 → benar.
+- [x] Tidak ada 0/0 palsu.
+- [x] Tidak perlu restart aplikasi.
+- [x] Konsisten antara Buku, Peminjaman dan Dashboard.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -352,19 +352,19 @@ Buku
 
 Task:
 
-- [ ] Trace navigation flow.
-- [ ] Gunakan navigation pattern existing.
-- [ ] Pertahankan konteks halaman asal.
-- [ ] Tambah Buku → kembali ke Buku.
-- [ ] Edit Buku → kembali ke Buku.
-- [ ] Jangan mengarahkan ke Dashboard secara paksa.
+- [x] Trace navigation flow.
+- [x] Gunakan navigation pattern existing.
+- [x] Pertahankan konteks halaman asal.
+- [x] Tambah Buku → kembali ke Buku.
+- [x] Edit Buku → kembali ke Buku.
+- [x] Jangan mengarahkan ke Dashboard secara paksa.
 
 Acceptance:
 
-- [ ] Setelah save Tambah Buku → Halaman Buku.
-- [ ] Setelah save Edit Buku → Halaman Buku.
+- [x] Setelah save Tambah Buku → Halaman Buku.
+- [x] Setelah save Edit Buku → Halaman Buku.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -372,15 +372,15 @@ Status: `PENDING`
 
 Task:
 
-- [ ] Saat Tambah Buku dibuka, tab Buku tetap aktif.
-- [ ] Saat Detail/Edit Buku dibuka, tab Buku tetap aktif.
-- [ ] Jangan membuat UI menganggap halaman ini berada di konteks terpisah dari Buku.
+- [x] Saat Tambah Buku dibuka, tab Buku tetap aktif.
+- [x] Saat Detail/Edit Buku dibuka, tab Buku tetap aktif.
+- [x] Jangan membuat UI menganggap halaman ini berada di konteks terpisah dari Buku.
 
 Acceptance:
 
-- [ ] Indicator Bottom Nav Buku tetap aktif pada seluruh flow Buku.
+- [x] Indicator Bottom Nav Buku tetap aktif pada seluruh flow Buku.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

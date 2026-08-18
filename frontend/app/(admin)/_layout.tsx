@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, usePathname } from 'expo-router';
 import { IconButton, Text } from 'react-native-paper';
 import { View, Alert } from 'react-native';
 import { LayoutDashboard, Book, Repeat, Users, FileText, Settings, Sun, LogOut } from 'lucide-react-native';
@@ -8,7 +8,11 @@ import { supabase } from '../../lib/supabase';
 
 export default function AdminLayout() {
   const router = useRouter();
+  const pathname = usePathname();
   const { tenantNama, clearTenant } = useTenant();
+
+  const isBukuActive = pathname.includes('buku');
+  const isAnggotaActive = pathname.includes('anggota');
 
   const handleLogout = () => {
     Alert.alert('Keluar', 'Apakah Anda yakin ingin keluar?', [
@@ -65,7 +69,12 @@ export default function AdminLayout() {
         name="buku"
         options={{
           title: 'Buku',
-          tabBarIcon: ({ color }) => <Book size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Book size={24} color={isBukuActive ? '#000000' : color} />,
+          tabBarLabel: ({ color }) => (
+            <Text style={{ color: isBukuActive ? '#000000' : color, fontSize: 10, fontWeight: isBukuActive ? '600' : '400' }}>
+              Buku
+            </Text>
+          ),
         }}
       />
       <Tabs.Screen
@@ -86,7 +95,12 @@ export default function AdminLayout() {
         name="anggota"
         options={{
           title: 'Anggota',
-          tabBarIcon: ({ color }) => <Users size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Users size={24} color={isAnggotaActive ? '#000000' : color} />,
+          tabBarLabel: ({ color }) => (
+            <Text style={{ color: isAnggotaActive ? '#000000' : color, fontSize: 10, fontWeight: isAnggotaActive ? '600' : '400' }}>
+              Anggota
+            </Text>
+          ),
         }}
       />
       <Tabs.Screen

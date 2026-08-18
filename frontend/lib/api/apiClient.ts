@@ -164,33 +164,49 @@ export const apiClient = {
       }
     },
     salinanGenerate: async (buku_id: string, jumlah_eksemplar: number) => {
+      if (jumlah_eksemplar <= 0) return { salinan: [] };
       try {
         return await invokeFunction('buku', `/${buku_id}/salinan/generate`, { body: { jumlah_eksemplar } });
       } catch (err: any) {
-        if (err.message?.includes('Requested function was not found') || err.message?.includes('404') || err.message?.includes('Function error')) {
-          const { data: buku } = await supabase.from('buku').select('isbn, kode_lokal').eq('id', buku_id).single();
-          const prefix = buku?.isbn || buku?.kode_lokal || 'Buku';
-          
-          const { count } = await supabase.from('salinan').select('id', { count: 'exact', head: true }).eq('buku_id', buku_id);
-          const startUrut = (count || 0) + 1;
-          
-          const newSalinanList = [];
-          for (let i = 0; i < jumlah_eksemplar; i++) {
-            const nomorUrut = startUrut + i;
-            const kodeEksemplar = `${prefix}-${nomorUrut}`;
-            const { data: salinanData, error } = await supabase.from('salinan').insert({
-              buku_id,
-              nomor_urut: nomorUrut,
-              kode_eksemplar: kodeEksemplar,
-              status: 'tersedia'
-            }).select().single();
-            if (!error && salinanData) {
-              newSalinanList.push({ id: salinanData.id, kode_eksemplar: kodeEksemplar });
-            }
-          }
-          return { salinan: newSalinanList };
+        // Fallback directly to Supabase
+        const { data: buku, error: bukuError } = await supabase
+          .from('buku')
+          .select('isbn, kode_lokal')
+          .eq('id', buku_id)
+          .single();
+        if (bukuError || !buku) throw new Error('Buku tidak ditemukan');
+
+        const prefix = buku.isbn || buku.kode_lokal || 'LOK-00001';
+
+        // Get max nomor_urut for this specific book
+        const { data: maxSalinan } = await supabase
+          .from('salinan')
+          .select('nomor_urut')
+          .eq('buku_id', buku_id)
+          .order('nomor_urut', { ascending: false })
+          .limit(1);
+
+        const currentMax = (maxSalinan && maxSalinan.length > 0) ? maxSalinan[0].nomor_urut : 0;
+
+        const newSalinanList = [];
+        for (let i = 1; i <= jumlah_eksemplar; i++) {
+          const nomorUrut = currentMax + i;
+          const kodeEksemplar = `${prefix}-${nomorUrut}`;
+          newSalinanList.push({
+            buku_id,
+            nomor_urut: nomorUrut,
+            kode_eksemplar: kodeEksemplar,
+            status: 'tersedia' as const,
+          });
         }
-        throw err;
+
+        const { data: inserted, error: insertError } = await supabase
+          .from('salinan')
+          .insert(newSalinanList)
+          .select('id, kode_eksemplar');
+
+        if (insertError) throw insertError;
+        return { salinan: inserted || [] };
       }
     }
   },

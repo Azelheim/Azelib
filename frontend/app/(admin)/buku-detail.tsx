@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Text, TextInput, Button, Snackbar, Appbar, ActivityIndicator } from 'react-native-paper';
+import { Text, TextInput, Button, Snackbar, Appbar, ActivityIndicator, Card, Chip, Divider } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { apiClient } from '../../lib/api/apiClient';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../lib/context/TenantContext';
-import { Trash2, Printer } from 'lucide-react-native';
+import { Trash2, Plus, Copy } from 'lucide-react-native';
+
+interface SalinanItem {
+  id: string;
+  nomor_urut: number;
+  kode_eksemplar: string;
+  status: string;
+}
 
 export default function DetailBuku() {
   const { id } = useLocalSearchParams();
@@ -25,32 +32,66 @@ export default function DetailBuku() {
   const [jumlahHalaman, setJumlahHalaman] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [kodeLokal, setKodeLokal] = useState('');
+  const [jumlahSalinan, setJumlahSalinan] = useState('1');
+
+  // Existing salinan for Edit/Detail
+  const [salinanList, setSalinanList] = useState<SalinanItem[]>([]);
+  const [tambahSalinanCount, setTambahSalinanCount] = useState('1');
+  const [salinanLoading, setSalinanLoading] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(!isNew);
   const [snackMsg, setSnackMsg] = useState('');
 
+  const resetForm = useCallback(() => {
+    setJudul('');
+    setPenulis('');
+    setPenerbit('');
+    setTahun('');
+    setIsbn('');
+    setKodeLokal('');
+    setKategori('');
+    setRak('');
+    setSinopsis('');
+    setBahasa('');
+    setJumlahHalaman('');
+    setCoverUrl('');
+    setJumlahSalinan('1');
+    setSalinanList([]);
+  }, []);
+
   useEffect(() => {
-    if (!isNew && id && id !== 'tambah') {
+    if (isNew) {
+      resetForm();
+      setPageLoading(false);
+    } else if (id && id !== 'tambah') {
       loadBuku();
     }
-  }, [id]);
+  }, [id, isNew]);
 
   const loadBuku = async () => {
     setPageLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('buku')
-        .select(`
-          *,
-          kategori:kategori_id(nama),
-          rak:rak_id(nama)
-        `)
-        .eq('id', id)
-        .single();
+      const [bukuRes, salinanRes] = await Promise.all([
+        supabase
+          .from('buku')
+          .select(`
+            *,
+            kategori:kategori_id(nama),
+            rak:rak_id(nama)
+          `)
+          .eq('id', id)
+          .single(),
+        supabase
+          .from('salinan')
+          .select('*')
+          .eq('buku_id', id)
+          .order('nomor_urut', { ascending: true })
+      ]);
 
-      if (error) throw error;
-      if (data) {
+      if (bukuRes.error) throw bukuRes.error;
+      if (bukuRes.data) {
+        const data = bukuRes.data;
         setJudul(data.judul || '');
         setPenulis(data.penulis || '');
         setPenerbit(data.penerbit || '');
@@ -64,6 +105,8 @@ export default function DetailBuku() {
         setJumlahHalaman(data.jumlah_halaman ? data.jumlah_halaman.toString() : '');
         setCoverUrl(data.cover_url || '');
       }
+
+      setSalinanList((salinanRes.data as SalinanItem[]) || []);
     } catch (e: any) {
       console.error(e);
       setSnackMsg(e.message || 'Gagal memuat detail buku');
@@ -142,9 +185,15 @@ export default function DetailBuku() {
       setSnackMsg('Judul buku wajib diisi');
       return;
     }
-    if (!isbn.trim() && !kodeLokal.trim()) {
-      setKodeLokal(`LOK-${Date.now().toString().slice(-5)}`);
+
+    const salinanInt = parseInt(jumlahSalinan);
+    if (isNew && (isNaN(salinanInt) || salinanInt < 1)) {
+      setSnackMsg('Jumlah salinan minimal 1');
+      return;
     }
+
+    const cleanIsbn = isbn.trim() || null;
+    const cleanKodeLokal = cleanIsbn ? null : (kodeLokal.trim() || `LOK-${Date.now().toString().slice(-5)}`);
 
     setLoading(true);
     try {
@@ -157,8 +206,8 @@ export default function DetailBuku() {
         penulis: penulis.trim() || null,
         penerbit: penerbit.trim() || null,
         tahun_terbit: tahun ? parseInt(tahun) : null,
-        isbn: isbn.trim() || null,
-        kode_lokal: kodeLokal.trim() || (isbn.trim() ? null : `LOK-${Date.now().toString().slice(-5)}`),
+        isbn: cleanIsbn,
+        kode_lokal: cleanKodeLokal,
         kategori_id: kategoriId,
         rak_id: rakId,
         sinopsis: sinopsis.trim() || null,
@@ -172,8 +221,11 @@ export default function DetailBuku() {
         const { data: newBuku, error } = await supabase.from('buku').insert(payload).select().single();
         if (error) throw error;
 
-        // Otomatis buat 1 salinan
-        await apiClient.buku.salinanGenerate(newBuku.id, 1);
+        // Generate Salinan copies
+        const copyCount = Math.max(1, salinanInt || 1);
+        await apiClient.buku.salinanGenerate(newBuku.id, copyCount);
+
+        resetForm();
         setSnackMsg('Buku berhasil ditambahkan');
       } else {
         const { error } = await supabase.from('buku').update(payload).eq('id', id);
@@ -181,12 +233,40 @@ export default function DetailBuku() {
         setSnackMsg('Buku berhasil diperbarui');
       }
 
-      setTimeout(() => router.back(), 1000);
+      // Selalu navigasi kembali ke Halaman Buku
+      router.replace('/(admin)/buku');
     } catch (e: any) {
       console.error(e);
       setSnackMsg(e.message || 'Gagal menyimpan buku');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTambahSalinan = async () => {
+    const count = parseInt(tambahSalinanCount);
+    if (isNaN(count) || count < 1) {
+      setSnackMsg('Jumlah tambahan minimal 1');
+      return;
+    }
+
+    setSalinanLoading(true);
+    try {
+      await apiClient.buku.salinanGenerate(id as string, count);
+      setSnackMsg(`${count} salinan berhasil ditambahkan`);
+      setTambahSalinanCount('1');
+      // Reload salinan list
+      const { data } = await supabase
+        .from('salinan')
+        .select('*')
+        .eq('buku_id', id)
+        .order('nomor_urut', { ascending: true });
+      if (data) setSalinanList(data as SalinanItem[]);
+    } catch (e: any) {
+      console.error(e);
+      setSnackMsg(e.message || 'Gagal menambah salinan');
+    } finally {
+      setSalinanLoading(false);
     }
   };
 
@@ -217,7 +297,7 @@ export default function DetailBuku() {
 
           if (error) throw error;
           setSnackMsg('Buku berhasil dihapus');
-          setTimeout(() => router.back(), 1000);
+          router.replace('/(admin)/buku');
         } catch (e: any) {
           setSnackMsg(e.message || 'Gagal menghapus buku');
         } finally {
@@ -227,16 +307,14 @@ export default function DetailBuku() {
     ]);
   };
 
-  const handleCetakKode = async () => {
-    try {
-      setLoading(true);
-      const res = await apiClient.buku.salinanGenerate(id as string, 1);
-      setSnackMsg(`Salinan dibuat. Kode: ${res.salinan?.[0]?.kode_eksemplar || 'OK'}`);
-    } catch (e: any) {
-      setSnackMsg(e.message || 'Gagal generate salinan');
-    } finally {
-      setLoading(false);
-    }
+  const handleGoBack = () => {
+    router.replace('/(admin)/buku');
+  };
+
+  const getStatusColor = (status: string) => {
+    if (status === 'tersedia') return '#2E7D32';
+    if (status === 'dipinjam') return '#1565C0';
+    return '#D32F2F';
   };
 
   if (pageLoading) {
@@ -250,7 +328,7 @@ export default function DetailBuku() {
   return (
     <View style={styles.container}>
       <Appbar.Header style={{ backgroundColor: '#fff', height: 48, elevation: 0, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
-        <Appbar.BackAction onPress={() => router.back()} />
+        <Appbar.BackAction onPress={handleGoBack} />
         <Appbar.Content title={isNew ? "Tambah Buku" : "Detail Buku"} titleStyle={{ fontSize: 16, fontWeight: 'bold' }} />
         {!isNew && <Appbar.Action icon={() => <Trash2 size={20} color="#D32F2F" />} onPress={handleHapus} />}
       </Appbar.Header>
@@ -277,17 +355,75 @@ export default function DetailBuku() {
           <TextInput label="Rak" value={rak} onChangeText={setRak} mode="outlined" style={[styles.input, { flex: 1 }]} />
         </View>
 
+        {isNew && (
+          <TextInput
+            label="Jumlah Salinan (Eksemplar Awal)"
+            value={jumlahSalinan}
+            onChangeText={setJumlahSalinan}
+            mode="outlined"
+            keyboardType="numeric"
+            style={styles.input}
+          />
+        )}
+
         <TextInput label="Jumlah Halaman" value={jumlahHalaman} onChangeText={setJumlahHalaman} mode="outlined" style={styles.input} keyboardType="numeric" />
         <TextInput label="Sinopsis" value={sinopsis} onChangeText={setSinopsis} mode="outlined" style={styles.input} multiline numberOfLines={4} />
 
         <Button mode="contained" onPress={handleSimpan} style={styles.simpanBtn} loading={loading} disabled={loading}>
-          Simpan
+          {isNew ? "Simpan Buku" : "Perbarui Buku"}
         </Button>
 
+        {/* Section: Salinan Eksemplar (Untuk Edit / Detail) */}
         {!isNew && (
-          <Button mode="outlined" onPress={handleCetakKode} style={styles.simpanBtn} icon={() => <Printer size={18} color="#000" />} loading={loading}>
-            Cetak Kode Semua Eksemplar
-          </Button>
+          <Card style={styles.salinanCard} mode="outlined">
+            <Card.Title
+              title={`Salinan Eksemplar (${salinanList.filter(s => s.status === 'tersedia').length}/${salinanList.length} Tersedia)`}
+              titleStyle={{ fontSize: 14, fontWeight: 'bold' }}
+              left={() => <Copy size={20} color="#000" />}
+            />
+            <Card.Content>
+              {salinanList.length === 0 ? (
+                <Text style={{ color: '#888', fontStyle: 'italic', marginBottom: 12 }}>Belum ada eksemplar tercatat.</Text>
+              ) : (
+                salinanList.map(s => (
+                  <View key={s.id} style={styles.salinanRow}>
+                    <Text variant="bodyMedium" style={{ fontWeight: '500' }}>{s.kode_eksemplar}</Text>
+                    <Chip
+                      style={{ backgroundColor: getStatusColor(s.status) + '1A', height: 28 }}
+                      textStyle={{ color: getStatusColor(s.status), fontSize: 11, lineHeight: 14 }}
+                    >
+                      {s.status}
+                    </Chip>
+                  </View>
+                ))
+              )}
+
+              <Divider style={{ marginVertical: 12 }} />
+
+              <Text variant="labelMedium" style={{ fontWeight: '600', marginBottom: 8 }}>Tambah Salinan Baru</Text>
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <TextInput
+                  label="Jumlah"
+                  value={tambahSalinanCount}
+                  onChangeText={setTambahSalinanCount}
+                  mode="outlined"
+                  keyboardType="numeric"
+                  style={{ width: 80, backgroundColor: '#FFF' }}
+                  dense
+                />
+                <Button
+                  mode="contained-tonal"
+                  icon={() => <Plus size={16} color="#000" />}
+                  onPress={handleTambahSalinan}
+                  loading={salinanLoading}
+                  disabled={salinanLoading}
+                  style={{ flex: 1, borderRadius: 8 }}
+                >
+                  Tambah Eksemplar
+                </Button>
+              </View>
+            </Card.Content>
+          </Card>
         )}
       </ScrollView>
 
@@ -306,5 +442,8 @@ const styles = StyleSheet.create({
   scanRow: { flexDirection: 'row', gap: 8, marginBottom: 12, alignItems: 'center' },
   flexInput: { flex: 1, backgroundColor: '#FFFFFF' },
   scanBtn: { borderRadius: 8, height: 50, justifyContent: 'center' },
-  simpanBtn: { marginTop: 16, borderRadius: 8 }
+  simpanBtn: { marginTop: 16, borderRadius: 8 },
+  salinanCard: { marginTop: 24, backgroundColor: '#FFFFFF', borderRadius: 8 },
+  salinanRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
 });
+

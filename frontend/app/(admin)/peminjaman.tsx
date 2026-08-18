@@ -109,10 +109,13 @@ export default function Peminjaman() {
     try {
       const [anggotaRes, salinanRes] = await Promise.all([
         supabase.from('anggota').select('id, nama').eq('tenant_id', tenantId).eq('dihapus', false),
-        supabase.from('salinan').select('id, kode_eksemplar, status, buku:buku_id(judul)').eq('status', 'tersedia'),
+        supabase.from('salinan').select('id, kode_eksemplar, status, buku:buku_id(id, judul, tenant_id, dihapus)').eq('status', 'tersedia'),
       ]);
       setAnggotaList(anggotaRes.data || []);
-      setSalinanList(salinanRes.data || []);
+      const validSalinan = (salinanRes.data || []).filter((s: any) => 
+        s.buku && s.buku.tenant_id === tenantId && !s.buku.dihapus
+      );
+      setSalinanList(validSalinan);
       setSelectedAnggota(null);
       setSelectedSalinan([]);
       setJatuhTempo('');
