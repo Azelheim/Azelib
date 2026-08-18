@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { Text, Button, Portal, Modal, Snackbar } from 'react-native-paper';
+import { Text, Button, Portal, Modal, Snackbar, TextInput, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { Key, QrCode } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
+import { apiClient } from '../lib/api/apiClient';
 
 export default function Gerbang() {
   const router = useRouter();
@@ -12,32 +13,43 @@ export default function Gerbang() {
   const [permission, requestPermission] = useCameraPermissions();
   const [errorVisible, setErrorVisible] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [manualCode, setManualCode] = useState('');
 
   const handleScanPress = async () => {
     if (!permission?.granted) {
       const { status } = await requestPermission();
       if (status !== 'granted') {
-        Alert.alert("Izin Kamera", "Akses kamera dibutuhkan untuk scan QR");
+        // Fallback directly to manual entry modal if camera permission is denied
+        setShowScanner(true);
         return;
       }
     }
     setShowScanner(true);
   };
 
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (scanning) return; // prevent double scan
+  const processQrData = async (rawCode: string) => {
+    const trimmed = rawCode.trim();
+    if (!trimmed) return;
+    if (scanning) return;
     setScanning(true);
     setShowScanner(false);
     
     try {
-      // Validate QR against tenant table
-      const { data: tenant, error } = await supabase
-        .from('tenant')
-        .select('id, nama')
-        .eq('qr_code_value', data)
-        .single();
+      let tenant: any = null;
+      try {
+        tenant = await apiClient.tenant.getByQr(trimmed);
+      } catch {
+        const { data, error } = await supabase
+          .from('tenant')
+          .select('id, nama')
+          .eq('qr_code_value', trimmed)
+          .single();
+        if (!error && data) {
+          tenant = data;
+        }
+      }
 
-      if (error || !tenant) {
+      if (!tenant) {
         setErrorVisible(true);
       } else {
         router.push(`/pengunjung?tenant_id=${tenant.id}&nama=${encodeURIComponent(tenant.nama)}`);
@@ -46,7 +58,12 @@ export default function Gerbang() {
       setErrorVisible(true);
     } finally {
       setScanning(false);
+      setManualCode('');
     }
+  };
+
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    await processQrData(data);
   };
 
   return (
@@ -84,7 +101,11 @@ export default function Gerbang() {
 
       <Portal>
         <Modal visible={showScanner} onDismiss={() => setShowScanner(false)} contentContainerStyle={styles.modalContent}>
-          {showScanner && (
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 12, textAlign: 'center' }}>
+            Scan QR Code Perpustakaan
+          </Text>
+          
+          {permission?.granted && (
             <CameraView 
               style={styles.camera} 
               facing="back"
@@ -94,7 +115,35 @@ export default function Gerbang() {
               }}
             />
           )}
-          <Button style={{marginTop: 16}} mode="text" onPress={() => setShowScanner(false)}>Batal</Button>
+
+          <Divider style={{ marginVertical: 12 }} />
+
+          <Text variant="labelMedium" style={{ color: '#666', marginBottom: 6 }}>
+            Atau masukkan kode QR:
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput
+              placeholder="Contoh: QR-PERPUS-01"
+              value={manualCode}
+              onChangeText={setManualCode}
+              mode="outlined"
+              style={{ flex: 1, backgroundColor: '#FFF' }}
+              dense
+            />
+            <Button
+              mode="contained"
+              onPress={() => processQrData(manualCode)}
+              loading={scanning}
+              disabled={!manualCode.trim() || scanning}
+              style={{ alignSelf: 'center', borderRadius: 8 }}
+            >
+              Buka
+            </Button>
+          </View>
+
+          <Button style={{ marginTop: 16 }} mode="text" onPress={() => setShowScanner(false)}>
+            Batal
+          </Button>
         </Modal>
       </Portal>
 

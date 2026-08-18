@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, FlatList, SectionList } from 'react-native';
+import { View, StyleSheet, FlatList, SectionList, BackHandler } from 'react-native';
 import { Text, Searchbar, SegmentedButtons, Card, Chip, Appbar, Portal, Modal, Button, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
-
+import { apiClient } from '../lib/api/apiClient';
 import { LogOut } from 'lucide-react-native';
 
 interface BukuPubilk {
@@ -20,7 +20,7 @@ export default function Pengunjung() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const tenantId = params.tenant_id as string;
-  const namaTenant = params.nama ? decodeURIComponent(params.nama as string) : 'Katalog';
+  const namaTenant = params.nama ? decodeURIComponent(params.nama as string) : 'Perpustakaan';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [tab, setTab] = useState('semua');
@@ -29,23 +29,39 @@ export default function Pengunjung() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const onBackPress = () => {
+      handleKeluar();
+      return true;
+    };
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
     fetchBooks();
   }, [tenantId]);
 
   const fetchBooks = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('buku')
-        .select('id, judul, penulis, sinopsis, kategori:kategori_id(nama), rak:rak_id(nama), salinan(status)')
-        .eq('dihapus', false);
-      
-      if (tenantId) {
-        query = query.eq('tenant_id', tenantId);
+      let data: any = null;
+      try {
+        data = await apiClient.katalog.getBooks(tenantId);
+      } catch {
+        let query = supabase
+          .from('buku')
+          .select('id, judul, penulis, sinopsis, kategori:kategori_id(nama), rak:rak_id(nama), salinan(status)')
+          .eq('dihapus', false);
+        
+        if (tenantId) {
+          query = query.eq('tenant_id', tenantId);
+        }
+
+        const res = await query;
+        data = res.data;
       }
 
-      const { data, error } = await query;
-      if (!error && data) {
+      if (data) {
         setBooks(data as any[]);
       }
     } catch (e) {
@@ -143,8 +159,15 @@ export default function Pengunjung() {
   return (
     <View style={styles.container}>
       <Appbar.Header style={{ backgroundColor: '#fff', elevation: 2 }}>
-        <Appbar.Content title={namaTenant} subtitle="Katalog Perpustakaan" />
-        <Appbar.Action icon={() => <LogOut size={22} color="#000" />} onPress={handleKeluar} />
+        <Appbar.Content title={namaTenant} subtitle="Katalog Pengunjung" titleStyle={{ fontWeight: 'bold' }} />
+        <Button 
+          mode="text" 
+          textColor="#D32F2F" 
+          icon={() => <LogOut size={18} color="#D32F2F" />} 
+          onPress={handleKeluar}
+        >
+          Keluar
+        </Button>
       </Appbar.Header>
 
       <View style={styles.stickyHeader}>

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import { Text, Card, Button, TextInput, Snackbar, Appbar, Chip, Divider, ActivityIndicator } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/api/apiClient';
 import { useTenant } from '../../lib/context/TenantContext';
-import { LogOut } from 'lucide-react-native';
+import { LogOut, QrCode, Printer, Share2 } from 'lucide-react-native';
 
 interface MemberItem {
   id: string;
@@ -251,6 +253,133 @@ export default function Pengaturan() {
     ]);
   };
 
+  const handlePrintQR = async () => {
+    if (!qrCodeValue) return;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeValue)}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+        <style>
+          body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            text-align: center;
+            padding: 40px;
+            color: #111;
+          }
+          .card {
+            border: 2px solid #000;
+            border-radius: 16px;
+            padding: 32px 24px;
+            max-width: 420px;
+            margin: 0 auto;
+          }
+          h1 {
+            font-size: 22px;
+            margin-bottom: 4px;
+            color: #000;
+          }
+          p.subtitle {
+            font-size: 14px;
+            color: #555;
+            margin-top: 0;
+            margin-bottom: 20px;
+          }
+          .qr-container {
+            margin: 16px 0;
+          }
+          img.qr {
+            width: 220px;
+            height: 220px;
+          }
+          .code-box {
+            background-color: #f5f5f5;
+            border: 1px dashed #999;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 15px;
+            font-weight: bold;
+            margin-top: 14px;
+            letter-spacing: 1px;
+          }
+          .instructions {
+            font-size: 12px;
+            color: #666;
+            margin-top: 18px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>${tenantNama || 'Perpustakaan'}</h1>
+          <p class="subtitle">Katalog Digital Pengunjung</p>
+          <div class="qr-container">
+            <img class="qr" src="${qrImageUrl}" alt="QR Code" />
+          </div>
+          <div class="code-box">${qrCodeValue}</div>
+          <p class="instructions">Scan QR ini melalui aplikasi untuk membuka katalog koleksi buku tanpa login.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await Print.printAsync({ html });
+    } catch (e: any) {
+      try {
+        const { uri } = await Print.printToFileAsync({ html });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+        } else {
+          setSnackMsg('QR Code siap dicetak');
+        }
+      } catch (err: any) {
+        setSnackMsg(err.message || 'Gagal mencetak QR');
+      }
+    }
+  };
+
+  const handleShareQR = async () => {
+    if (!qrCodeValue) return;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeValue)}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+        <style>
+          body { font-family: sans-serif; text-align: center; padding: 40px; color: #111; }
+          .card { border: 2px solid #000; border-radius: 16px; padding: 30px; max-width: 420px; margin: 0 auto; }
+          h1 { font-size: 22px; margin-bottom: 4px; }
+          p { font-size: 13px; color: #555; }
+          .code-box { background: #f0f0f0; padding: 8px; border-radius: 6px; font-family: monospace; font-weight: bold; margin-top: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>${tenantNama || 'Perpustakaan'}</h1>
+          <p>Scan QR untuk melihat katalog buku</p>
+          <img src="${qrImageUrl}" width="220" height="220" alt="QR Code" />
+          <div class="code-box">${qrCodeValue}</div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+      } else {
+        setSnackMsg('Sharing tidak tersedia pada perangkat ini');
+      }
+    } catch (e: any) {
+      setSnackMsg(e.message || 'Gagal membagikan QR');
+    }
+  };
+
   const getRoleColor = (role: string) => {
     if (role === 'owner') return '#1565C0';
     if (role === 'admin') return '#E65100';
@@ -349,14 +478,54 @@ export default function Pengaturan() {
 
         {/* QR Code */}
         <Card style={styles.card} mode="outlined">
-          <Card.Title title="QR Code Perpustakaan" />
+          <Card.Title 
+            title="QR Code Perpustakaan" 
+            left={() => <QrCode size={22} color="#1565C0" />}
+          />
           <Card.Content>
-            <Text variant="bodyMedium" style={{ color: '#333', marginBottom: 8, fontWeight: '500' }}>
-              Kode Unik: {qrCodeValue || '-'}
-            </Text>
-            <Text variant="bodySmall" style={{ color: '#888' }}>
+            {qrCodeValue ? (
+              <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                <View style={styles.qrImageWrapper}>
+                  <Image
+                    source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeValue)}` }}
+                    style={{ width: 160, height: 160 }}
+                    resizeMode="contain"
+                  />
+                </View>
+                <Chip style={{ marginTop: 12, backgroundColor: '#F0F0F0' }} textStyle={{ fontWeight: 'bold', letterSpacing: 0.5 }}>
+                  {qrCodeValue}
+                </Chip>
+              </View>
+            ) : (
+              <Text variant="bodyMedium" style={{ color: '#888', fontStyle: 'italic', marginVertical: 8 }}>
+                QR Code belum ter-generate.
+              </Text>
+            )}
+
+            <Text variant="bodySmall" style={{ color: '#666', textAlign: 'center', marginBottom: 16 }}>
               Pengunjung dapat scan QR ini untuk langsung mengakses katalog publik perpustakaan tanpa perlu login.
             </Text>
+
+            <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}>
+              <Button
+                mode="contained"
+                icon={() => <Printer size={16} color="#FFF" />}
+                onPress={handlePrintQR}
+                disabled={!qrCodeValue}
+                style={{ flex: 1, borderRadius: 8 }}
+              >
+                Cetak QR
+              </Button>
+              <Button
+                mode="outlined"
+                icon={() => <Share2 size={16} color="#000" />}
+                onPress={handleShareQR}
+                disabled={!qrCodeValue}
+                style={{ flex: 1, borderRadius: 8 }}
+              >
+                Bagikan
+              </Button>
+            </View>
           </Card.Content>
         </Card>
 
@@ -448,5 +617,13 @@ const styles = StyleSheet.create({
   card: { marginBottom: 16, backgroundColor: '#FFFFFF' },
   memberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', flexWrap: 'wrap' },
   logoutBtn: { marginTop: 16, borderColor: '#D32F2F', borderRadius: 8 },
+  qrImageWrapper: {
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    elevation: 2,
+  },
 });
 

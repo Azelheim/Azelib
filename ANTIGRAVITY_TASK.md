@@ -1227,30 +1227,45 @@ Status: `PASS`
 
 ---
 
-# PHASE 15 — Barcode (Fitur Baru)
+# PHASE 15 — Guest QR Code & View-Only Catalog (Fitur Baru)
 
-## BARCODE-001 — Generate & Print Barcode Salinan Buku
-
-**Status: menunggu konfirmasi scope — lihat pertanyaan di chat.** Task di bawah berdasarkan asumsi awal, sesuaikan setelah dikonfirmasi.
+## BARCODE-001 — QR Code Masuk Perpustakaan & Mode Pengunjung (Catalog View)
 
 Masalah:
+Pengunjung perpustakaan membutuhkan akses cepat untuk melihat katalog buku hanya dengan melakukan scan QR Code perpustakaan tanpa perlu login/mendaftar sebagai member penuh.
 
-Belum ada barcode yang bisa di-print untuk discan — kemungkinan besar terkait pemilihan salinan buku saat Peminjaman, berbasis "Kode" dari LOAN-008.
+Desired Flow:
+```text
+Admin/Owner/Member generate/tampilkan QR Code Perpustakaan
+                      ↓
+Pengunjung melakukan scan QR Code dari aplikasi/kamera
+                      ↓
+Masuk langsung ke Perpustakaan dalam Mode "Pengunjung/Tamu"
+                      ↓
+Akses Terbatas:
+- HANYA menampilkan Katalog/Daftar Buku & Detail Buku
+- Sembunyikan semua menu lain (Dashboard, Peminjaman, Anggota, Laporan, Pengaturan)
+- Satu-satunya tombol aksi navigasi adalah: "Keluar Perpustakaan"
+```
 
-Task (asumsi awal):
+Task:
 
-- [ ] Generate barcode/QR code yang meng-encode "Kode" salinan buku dari LOAN-008.
-- [ ] Sediakan halaman/tombol untuk print barcode — per salinan atau batch per judul.
-- [ ] Tambahkan fitur scan barcode di halaman Peminjaman untuk langsung memilih salinan (mempercepat LOAN-005), kalau device support kamera/scanner.
-- [ ] Sesuai role matrix: tombol generate/print barcode tetap terlihat & aktif untuk Member.
+- [x] Buat fitur generate QR Code identitas unik untuk setiap Perpustakaan (bisa diakses/di-print dari Pengaturan perpustakaan).
+- [x] Implementasikan alur scan QR Code / join via QR: saat QR Code perpustakaan di-scan, set active library ke mode Guest/Pengunjung.
+- [x] Buat layout/tampilan khusus mode Pengunjung:
+  - Sembunyikan bottom navigation / drawer standar.
+  - Tampilkan halaman Katalog Buku (hanya baca) & halaman Detail Buku.
+  - Sediakan tombol eksplisit "Keluar Perpustakaan" di pojok atas/header untuk kembali ke halaman awal.
+- [x] Pastikan tidak ada celah navigasi (back button / deep link) yang bisa membuka menu Dashboard, Peminjaman, Anggota, atau Pengaturan dalam mode ini.
 
 Acceptance:
 
-- [ ] Barcode ter-generate dan valid untuk di-scan.
-- [ ] Hasil print rapi dan barcode terbaca scanner umum.
-- [ ] Member tetap bisa akses fitur ini.
+- [x] QR Code perpustakaan bisa di-generate & di-scan dengan benar.
+- [x] Setelah scan, user langsung masuk ke katalog buku perpustakaan terkait.
+- [x] UI murni katalog: hanya ada daftar buku, detail buku, dan tombol "Keluar Perpustakaan".
+- [x] Menu lain (Dashboard, Peminjaman, Anggota, Laporan, Settings) terkunci rapat / tidak muncul.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

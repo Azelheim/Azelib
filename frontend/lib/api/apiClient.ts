@@ -152,6 +152,17 @@ export const apiClient = {
         throw err;
       }
     },
+    getByQr: async (qr_code_value: string) => {
+      const { data, error } = await supabase
+        .from('tenant')
+        .select('id, nama, alamat, qr_code_value')
+        .eq('qr_code_value', qr_code_value)
+        .single();
+      if (error || !data) {
+        throw new Error('QR tidak dikenali, coba lagi');
+      }
+      return data;
+    },
     ownerDesignateSuccessor: async (tenant_id: string, penerus_user_id: string) => {
       try {
         return await invokeFunction('tenant', `/${tenant_id}/owner/designate-successor`, { body: { penerus_user_id } });
@@ -378,6 +389,20 @@ export const apiClient = {
   laporan: {
     export: async (tenant_id: string, jenis: string, dari_tanggal: string, sampai_tanggal: string) => {
       return invokeFunction('laporan', `/${tenant_id}/export`, { body: { jenis, dari_tanggal, sampai_tanggal } });
+    }
+  },
+  katalog: {
+    getBooks: async (tenant_id: string) => {
+      let query = supabase
+        .from('buku')
+        .select('id, judul, penulis, sinopsis, kategori:kategori_id(nama), rak:rak_id(nama), salinan(status)')
+        .eq('dihapus', false);
+      if (tenant_id) {
+        query = query.eq('tenant_id', tenant_id);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
     }
   }
 };

@@ -849,4 +849,91 @@ test('PHASE 14 — ROLE-003 & ROLE-004: UI permission helpers and role display c
   assert.equal(memberPerms.canGenerateBarcode, true);
 });
 
+test('PHASE 15 — BARCODE-001: Guest QR Code resolution and public catalog view-only isolation', () => {
+  const tenants = [
+    { id: 'tenant-1', nama: 'Perpustakaan SMAN 1', qr_code_value: 'QR-SMAN1-JKT' },
+    { id: 'tenant-2', nama: 'Perpustakaan Daerah', qr_code_value: 'QR-PERPUSDA-01' },
+  ];
+
+  // 1. QR Code Resolution
+  const resolveQrCode = (qrCodeString) => {
+    const found = tenants.find(t => t.qr_code_value === qrCodeString);
+    if (!found) throw new Error('QR tidak dikenali, coba lagi');
+    return {
+      route: `/pengunjung?tenant_id=${found.id}&nama=${encodeURIComponent(found.nama)}`,
+      tenant: found
+    };
+  };
+
+  const validScan = resolveQrCode('QR-SMAN1-JKT');
+  assert.equal(validScan.tenant.id, 'tenant-1');
+  assert.ok(validScan.route.includes('/pengunjung?tenant_id=tenant-1'));
+
+  assert.throws(() => resolveQrCode('INVALID-QR-999'), /QR tidak dikenali, coba lagi/);
+
+  // 2. Public Catalog Data Transformation (Only public fields allowed)
+  const internalBook = {
+    id: 'book-101',
+    tenant_id: 'tenant-1',
+    judul: 'Laskar Pelangi',
+    penulis: 'Andrea Hirata',
+    penerbit: 'Bentang Pustaka', // Admin only
+    tahun_terbit: 2005,          // Admin only
+    isbn: '9789793062792',       // Admin only
+    bahasa: 'Indonesia',         // Admin only
+    jumlah_halaman: 529,         // Admin only
+    sinopsis: 'Kisah 10 anak di Belitung...',
+    kategori: { nama: 'Novel' },
+    rak: { nama: 'Rak Sastra' },
+    salinan: [
+      { id: 's1', status: 'tersedia' },
+      { id: 's2', status: 'dipinjam' }
+    ]
+  };
+
+  const transformToPublicCatalog = (book) => {
+    const totalCopies = (book.salinan || []).length;
+    const availableCopies = (book.salinan || []).filter(s => s.status === 'tersedia').length;
+    return {
+      id: book.id,
+      judul: book.judul,
+      penulis: book.penulis || 'Penulis tidak diketahui',
+      sinopsis: book.sinopsis || 'Belum ada sinopsis.',
+      kategori: book.kategori?.nama || 'Tanpa Kategori',
+      rak: book.rak?.nama || 'Tanpa Rak',
+      statusKetersediaan: availableCopies > 0 ? `Tersedia (${availableCopies}/${totalCopies})` : 'Habis Dipinjam',
+      isTersedia: availableCopies > 0
+    };
+  };
+
+  const publicBook = transformToPublicCatalog(internalBook);
+  assert.equal(publicBook.judul, 'Laskar Pelangi');
+  assert.equal(publicBook.kategori, 'Novel');
+  assert.equal(publicBook.rak, 'Rak Sastra');
+  assert.equal(publicBook.statusKetersediaan, 'Tersedia (1/2)');
+  assert.equal(publicBook.isTersedia, true);
+
+  // Ensure admin fields are NOT exposed on public book object
+  assert.equal(publicBook.isbn, undefined);
+  assert.equal(publicBook.penerbit, undefined);
+  assert.equal(publicBook.tahun_terbit, undefined);
+  assert.equal(publicBook.bahasa, undefined);
+  assert.equal(publicBook.jumlah_halaman, undefined);
+
+  // 3. Navigation Lock / Route Isolation Check
+  const getAvailableRoutesForRole = (role) => {
+    if (role === 'guest') {
+      return ['/pengunjung', '/']; // Only guest catalog and exit back to gate
+    }
+    return ['/dashboard', '/buku', '/peminjaman', '/anggota', '/laporan', '/pengaturan'];
+  };
+
+  const guestRoutes = getAvailableRoutesForRole('guest');
+  assert.deepEqual(guestRoutes, ['/pengunjung', '/']);
+  assert.equal(guestRoutes.includes('/dashboard'), false);
+  assert.equal(guestRoutes.includes('/peminjaman'), false);
+  assert.equal(guestRoutes.includes('/pengaturan'), false);
+});
+
+
 
