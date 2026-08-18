@@ -444,20 +444,20 @@ Tanggal Jatuh Tempo
 Task:
 
 - [x] Cari setting "Maksimal Hari Pinjam". *(sudah dicek — belum ada, lihat catatan di bawah)*
-- [x] Tambahkan field **"Maksimal Hari Pinjam"** (angka, satuan hari) ke schema Library Settings, mengikuti pola field setting lain yang sudah ada (mis. "Batas Maksimal Peminjaman" / tarif denda).
-- [x] Tambahkan field ini ke halaman **Pengaturan Perpustakaan** (UI input + simpan), gunakan pola komponen settings yang sudah dipakai project — jangan bikin pola baru.
-- [x] Tentukan nilai default yang masuk akal (mis. 7 hari) untuk perpustakaan yang belum pernah mengatur nilai ini.
-- [x] Hitung due date otomatis = tanggal pinjam + nilai setting, saat transaksi peminjaman dibuat.
-- [x] Pastikan user tidak perlu menghitung/mengetik tanggal jatuh tempo secara manual lagi.
-- [x] Pastikan perubahan setting hanya berdampak pada transaksi **berikutnya**, bukan mengubah due date transaksi yang sudah ada (non-retroaktif — konsisten dengan aturan tarif denda yang sudah ada). *Jika ini bukan behavior yang diinginkan, laporkan dan tunggu konfirmasi user sebelum implementasi.*
+- [ ] Tambahkan field **"Maksimal Hari Pinjam"** (angka, satuan hari) ke schema Library Settings, mengikuti pola field setting lain yang sudah ada (mis. "Batas Maksimal Peminjaman" / tarif denda).
+- [ ] Tambahkan field ini ke halaman **Pengaturan Perpustakaan** (UI input + simpan), gunakan pola komponen settings yang sudah dipakai project — jangan bikin pola baru.
+- [ ] Tentukan nilai default yang masuk akal (mis. 7 hari) untuk perpustakaan yang belum pernah mengatur nilai ini.
+- [ ] Hitung due date otomatis = tanggal pinjam + nilai setting, saat transaksi peminjaman dibuat.
+- [ ] Pastikan user tidak perlu menghitung/mengetik tanggal jatuh tempo secara manual lagi.
+- [ ] Pastikan perubahan setting hanya berdampak pada transaksi **berikutnya**, bukan mengubah due date transaksi yang sudah ada (non-retroaktif — konsisten dengan aturan tarif denda yang sudah ada). *Jika ini bukan behavior yang diinginkan, laporkan dan tunggu konfirmasi user sebelum implementasi.*
 
 Acceptance:
 
-- [x] Setting "Maksimal Hari Pinjam" tersimpan & bisa diedit dari Pengaturan Perpustakaan.
-- [x] Due date otomatis terhitung sesuai nilai setting saat transaksi baru dibuat.
-- [x] Perubahan setting tidak mengubah due date transaksi yang sudah ada sebelumnya.
+- [ ] Setting "Maksimal Hari Pinjam" tersimpan & bisa diedit dari Pengaturan Perpustakaan.
+- [ ] Due date otomatis terhitung sesuai nilai setting saat transaksi baru dibuat.
+- [ ] Perubahan setting tidak mengubah due date transaksi yang sudah ada sebelumnya.
 
-Status: `PASS`
+Status: `PENDING`
 
 ---
 
@@ -877,6 +877,406 @@ Task:
 - [x] Jangan membuat duplicate member.
 
 Status: `PASS`
+
+---
+
+# INVESTIGATION TAMBAHAN — UPDATE ROUND 2
+
+Sebelum mulai PHASE 9, jalankan protokol 0.1 (Context Recovery), lalu investigasi khusus untuk update round 2 ini:
+
+- [x] Cek ulang implementasi LIB-002 (sebelumnya PASS) — apakah logic "skip ke perpustakaan langsung" itu memang scoped ke kasus tertentu, atau berlaku untuk semua user termasuk yang sudah punya perpustakaan. Ini menentukan apakah LIB-004 adalah regresi atau requirement baru yang belum pernah ter-cover. *(Hasil: LIB-004 adalah requirement update)*
+- [x] Cek struktur data role/permission yang ada sekarang — apakah baru ada Owner vs Member (boolean), atau sudah lebih granular. Ini menentukan scope ROLE-001. *(Hasil: ENUM member_role sudah punya owner/admin/staff di DB & types)*
+- [x] Cek apakah field "Rak" sudah ada di schema Buku (opsional) atau perlu ditambahkan dari nol. *(Hasil: tabel rak dan kolom rak_id di buku sudah ada)*
+- [x] Cek data buku yang sudah ada sekarang — berapa banyak yang belum punya nilai Rak (relevan untuk migrasi di BOOK-006). *(Hasil: buku lama dengan rak null akan ditangani via fallback visual "Belum Ditentukan")*
+
+---
+
+# PHASE 9 — Setelah Login (Library Selection Flow)
+
+## LIB-004 — Selalu ke Halaman Pemilihan Setelah Login
+
+Masalah:
+
+Setelah login, jika user sudah memiliki perpustakaan (owner maupun member), aplikasi langsung masuk ke perpustakaan tersebut — tidak disinggahkan dulu ke halaman pemilihan perpustakaan / cek undangan / buat perpustakaan baru.
+
+Desired behavior:
+
+```text
+Login berhasil
+      ↓
+SELALU ke halaman pemilihan
+(pilih perpustakaan / cek undangan / buat baru)
+      ↓
+User memilih salah satu
+      ↓
+Masuk ke perpustakaan yang dipilih
+```
+
+Ini berlaku untuk SEMUA user, termasuk yang cuma punya 1 perpustakaan — jangan auto-skip halaman pemilihan meski cuma ada 1 opsi.
+
+Task:
+
+- [x] Bandingkan dengan hasil investigasi LIB-002 — apakah ini regresi dari fix sebelumnya atau requirement yang memang belum ter-cover.
+- [x] Pastikan setelah login, route pertama yang dituju SELALU halaman pemilihan/hub, bukan langsung ke perpustakaan.
+- [x] Halaman pemilihan menampilkan: daftar perpustakaan yang sudah dimiliki (kalau ada), undangan pending (kalau ada), dan opsi buat perpustakaan baru.
+- [x] Verifikasi ulang flow LIB-001, LIB-002, LIB-003 (yang sebelumnya PASS) — pastikan perubahan ini tidak merusak fix force-close dan invitation flow yang sudah beres.
+
+Acceptance:
+
+- [x] User dengan 1 perpustakaan → tetap disinggahkan ke halaman pemilihan dulu, bukan auto-masuk.
+- [x] User dengan beberapa perpustakaan → semua muncul di halaman pemilihan.
+- [x] User dengan undangan pending → undangan tetap muncul di halaman ini.
+- [x] User tanpa perpustakaan sama sekali → tetap bisa buat baru dari halaman ini (flow lama, LIB-001).
+
+Status: `PASS`
+
+---
+
+# PHASE 10 — Dashboard (Update Round 2)
+
+## DASH-006 — Card Jumlah Buku & Judul Jadi Carousel
+
+Masalah:
+
+Card jumlah buku ingin dibuat bisa digeser (swipeable, seperti carousel iklan) dengan dot indicator di bawah.
+
+**Catatan asumsi:** deskripsi asli menyebut dua metrik ("jumlah buku" dan "jumlah judul") dengan definisi yang sama persis — kemungkinan salah ketik. Diasumsikan:
+- Slide 1 — **Jumlah Buku** = total semua salinan (copies) di seluruh judul.
+- Slide 2 — **Jumlah Judul** = total judul buku unik (distinct titles).
+
+Kalau maksudnya beda, koreksi definisi ini sebelum mulai kerja.
+
+Task:
+
+- [ ] Ubah card menjadi carousel 2 slide (swipeable, horizontal).
+- [ ] Tambahkan dot indicator di bagian bawah card menunjukkan slide aktif.
+- [ ] Slide 1: total salinan buku (definisi lama, tidak berubah).
+- [ ] Slide 2: total judul buku unik (data baru, hitung distinct judul).
+- [ ] Style carousel & dot indicator mengikuti design system yang sudah ada (AGENTS.md §2.1).
+
+Acceptance:
+
+- [ ] Card bisa digeser antara 2 slide.
+- [ ] Dot indicator berubah sesuai slide aktif.
+- [ ] Angka di kedua slide akurat dan konsisten dengan data Buku.
+
+Status: `PENDING`
+
+---
+
+## DASH-007 — Teks Filter Chart Terpotong
+
+Masalah:
+
+Teks filter pada chart (misal "Peminjam", "Mingguan") terpotong.
+
+Task:
+
+- [ ] Perlebar area filter/label secukupnya agar teks tidak terpotong.
+- [ ] Pastikan layout tetap rapi di berbagai ukuran layar — jangan sampai memperlebar bikin elemen lain terdesak/overflow.
+- [ ] Kalau ruang tetap terbatas di layar kecil, pertimbangkan text wrap atau font-size responsif — jangan truncate dengan "..." kecuali benar-benar tidak ada pilihan lain.
+
+Acceptance:
+
+- [ ] Semua label filter chart terbaca penuh tanpa terpotong di ukuran layar umum, termasuk layar kecil.
+- [ ] Layout chart tetap rapi, tidak ada elemen tumpang tindih.
+
+Status: `PENDING`
+
+---
+
+# PHASE 11 — Buku (Update Round 2)
+
+## BOOK-006 — Field Rak Wajib Diisi
+
+Masalah:
+
+Field "Rak" pada form Tambah/Edit Buku perlu dijadikan wajib — akan dipakai sebagai filter di halaman Peminjaman (lihat LOAN-006).
+
+Task:
+
+- [ ] Cek dulu apakah field Rak sudah ada di schema — kalau belum, tambahkan.
+- [ ] Tambahkan validasi wajib diisi di form Tambah Buku dan Edit Buku.
+- [ ] **Migrasi data lama:** untuk buku yang sudah ada dan belum punya nilai Rak, set default value sementara (misal "Belum Ditentukan") — jangan sampai app crash atau buku lama hilang dari list karena field ini kosong. Tampilkan indikator visual (badge/warning) di halaman Buku untuk buku dengan Rak masih default.
+- [ ] Style field Rak mengikuti pola input lain yang sudah ada di form.
+
+Acceptance:
+
+- [ ] Tidak bisa submit form Tambah/Edit Buku tanpa isi Rak.
+- [ ] Buku lama yang belum punya Rak tetap muncul normal (tidak hilang/crash), dengan nilai default yang jelas.
+
+Status: `PENDING`
+
+---
+
+# PHASE 12 — Peminjaman (Update Round 2)
+
+## LOAN-005 — Pemilihan Buku 2 Tingkat (Judul → Salinan)
+
+Masalah:
+
+Saat tambah peminjaman, pemilihan buku langsung menampilkan semua salinan sekaligus.
+
+Desired behavior:
+
+```text
+Buka pemilihan buku
+      ↓
+Tampil daftar JUDUL buku
+      ↓
+Klik salah satu judul
+      ↓
+Tampil daftar SALINAN judul tsb (yang tersedia)
+      ↓
+Pilih salinan
+```
+
+Task:
+
+- [ ] Ubah UI pemilihan buku jadi 2 tingkat: list judul dulu, salinan setelah judul diklik.
+- [ ] Di tingkat salinan, hanya tampilkan salinan yang statusnya tersedia (belum dipinjam).
+- [ ] Pastikan search/filter judul (kalau ada) tetap berfungsi di tingkat pertama.
+
+Acceptance:
+
+- [ ] Tingkat pertama hanya menampilkan judul, bukan salinan.
+- [ ] Klik judul → tampil salinan yang tersedia untuk judul itu.
+- [ ] Tidak ada regresi pada proses peminjaman setelah salinan dipilih (LOAN-001/002 round 1).
+
+Status: `PENDING`
+
+---
+
+## LOAN-006 — Filter Buku Berdasarkan Rak
+
+Masalah:
+
+Saat memilih buku untuk dipinjam, ingin ada filter berdasarkan Rak.
+
+*Depends on: BOOK-006 (field Rak wajib diisi).*
+
+Task:
+
+- [ ] Tambahkan filter Rak di halaman/dialog pemilihan buku (dropdown daftar Rak yang ada).
+- [ ] Filter bekerja di tingkat judul (hasil LOAN-005) — hanya tampilkan judul yang punya salinan tersedia di Rak terpilih.
+- [ ] Pastikan filter bisa di-reset/lihat semua Rak.
+
+Acceptance:
+
+- [ ] Memilih Rak tertentu → hanya judul dari Rak itu yang muncul.
+- [ ] Reset filter → semua judul muncul lagi.
+
+Status: `PENDING`
+
+---
+
+## LOAN-007 — Date Picker untuk Tanggal Peminjaman
+
+Masalah:
+
+Pemilihan tanggal masih manual/susah diketik.
+
+Task:
+
+- [ ] Ganti input tanggal manual dengan komponen date picker (cek dulu apakah sudah ada komponen date picker lain yang dipakai di project, reuse kalau ada — jangan tambah library baru kalau tidak perlu).
+- [ ] Terapkan di semua field tanggal pada dialog Tambah/Edit Peminjaman.
+
+Acceptance:
+
+- [ ] User memilih tanggal lewat date picker, tidak perlu mengetik manual.
+- [ ] Format tanggal tersimpan konsisten dengan data lain.
+
+Status: `PENDING`
+
+---
+
+## LOAN-008 — Format Tampilan Kode Salinan Buku
+
+Masalah:
+
+Salinan buku saat ini menampilkan ID mentah (database id). Ingin diganti jadi nomor urut dengan format `[Kode: 0001]`, `[Kode: 0002]`, dst — jumlah digit fleksibel mengikuti kebutuhan (bukan hardcode 4 digit selalu).
+
+**Catatan asumsi (mohon dikonfirmasi — lihat pertanyaan di chat):** penomoran diasumsikan **per judul buku** (tiap judul mulai dari `0001` sendiri-sendiri), bukan nomor urut global lintas semua buku.
+
+Task:
+
+- [ ] Buat field/derived value "Kode" untuk tiap salinan — nomor urut sesuai urutan penambahan salinan.
+- [ ] Tentukan jumlah digit padding berdasarkan total salinan judul tsb (bukan hardcode 4 digit) — misal salinan cuma puluhan → 2 digit (`01`, `02`); sampai ratusan → 3 digit; dst. Minimum 2 digit disarankan.
+- [ ] Tampilkan sebagai `Kode: XXXX` di semua tempat yang sebelumnya menampilkan ID mentah (Detail Buku, pemilihan salinan di LOAN-005, dll).
+- [ ] ID asli tetap dipakai secara internal (database), "Kode" murni tampilan.
+- [ ] Ini menjadi basis untuk BARCODE-001 — pastikan "Kode" konsisten dan tidak berubah-ubah setiap refresh.
+
+Acceptance:
+
+- [ ] Semua tampilan salinan buku pakai format `Kode: XXXX`, bukan ID database mentah.
+- [ ] Jumlah digit menyesuaikan jumlah salinan, tidak hardcode.
+- [ ] Kode konsisten (tidak berubah) untuk salinan yang sama di berbagai halaman.
+
+Status: `PENDING`
+
+---
+
+# PHASE 13 — Laporan (Update Round 2)
+
+## REPORT-003 — Date Picker untuk Filter Tanggal Laporan
+
+Masalah:
+
+Sama seperti LOAN-007 — pemilihan tanggal susah diketik manual.
+
+Task:
+
+- [ ] Gunakan komponen date picker yang sama dengan LOAN-007 (reuse, jangan bikin komponen terpisah kalau tidak perlu).
+- [ ] Terapkan di semua filter tanggal pada halaman Laporan.
+
+Acceptance:
+
+- [ ] User memilih tanggal filter laporan lewat date picker, bukan ketik manual.
+
+Status: `PENDING`
+
+---
+
+# PHASE 14 — Role & Permission (Fitur Baru)
+
+Permission matrix yang diinginkan:
+
+| Aksi | Owner | Admin | Member |
+|---|---|---|---|
+| Akses penuh (tambah/edit/hapus Buku, Peminjaman, Anggota) | Ya | Ya | Tidak (view-only) |
+| Undang member baru | Ya | Ya | Tidak |
+| Keluarkan (remove) member | Ya | Ya | Tidak |
+| Keluarkan (remove) admin | Ya | Tidak | Tidak |
+| Keluarkan (remove) owner | Tidak | Tidak | Tidak |
+| Tambah/promote admin baru | Ya | Tidak | Tidak |
+| Export laporan | Ya | Ya | Ya |
+| Generate/print barcode | Ya | Ya | Ya |
+
+Fitur ini cross-cutting — menyentuh hampir semua halaman. Kerjakan paling akhir, setelah semua fix UI di atas stabil.
+
+## ROLE-001 — Schema & Data Model Role
+
+Task:
+
+- [ ] Cek struktur role yang ada sekarang (hasil investigasi) — kemungkinan besar baru ada Owner/Member.
+- [ ] Tambahkan nilai role baru "Admin" di antara Owner dan Member.
+- [ ] Pastikan migrasi data existing: semua member yang ada sekarang tetap berstatus Member (tidak otomatis jadi Admin).
+
+Acceptance:
+
+- [ ] Role tersimpan sebagai salah satu dari: Owner, Admin, Member.
+- [ ] Data member lama tidak berubah rolenya secara tidak sengaja setelah migrasi.
+
+Status: `PENDING`
+
+---
+
+## ROLE-002 — Backend/API Authorization
+
+Task:
+
+- [ ] Untuk setiap endpoint/fungsi mutasi data (Buku, Peminjaman, Anggota, Pengaturan Perpustakaan), tambahkan pengecekan role sesuai matrix di atas.
+- [ ] Endpoint invite member: hanya Owner & Admin.
+- [ ] Endpoint remove member: hanya Owner & Admin; Admin tidak boleh remove Owner (validasi di level backend, bukan cuma UI).
+- [ ] Endpoint promote ke Admin: hanya Owner.
+- [ ] Semua aturan ini WAJIB dicek juga di backend/API, bukan cuma UI, supaya tidak bisa dilewati lewat request langsung.
+
+Acceptance:
+
+- [ ] Request mutasi dari role yang tidak berwenang ditolak di level backend.
+- [ ] Admin yang mencoba remove Owner via API langsung → ditolak.
+
+Status: `PENDING`
+
+---
+
+## ROLE-003 — UI Enforcement
+
+Task:
+
+- [ ] Member: sembunyikan/disable semua tombol tambah/edit/hapus di halaman Buku, Peminjaman, Anggota, Pengaturan — tampilkan sebagai view-only.
+- [ ] Member: tetap tampilkan & aktifkan tombol export laporan dan generate barcode.
+- [ ] Admin: semua tombol aktif kecuali "keluarkan Owner" dan "tambah/promote Admin".
+- [ ] Owner: semua tombol aktif tanpa pengecualian.
+- [ ] Pastikan perubahan role langsung ter-refresh di UI tanpa perlu logout/restart.
+
+Acceptance:
+
+- [ ] UI Member benar-benar view-only + export laporan + barcode saja.
+- [ ] UI Admin tidak bisa remove Owner atau promote Admin baru.
+- [ ] UI Owner punya akses penuh.
+
+Status: `PENDING`
+
+---
+
+## ROLE-004 — Invite & Remove Member Flow
+
+Task:
+
+- [ ] Update flow undang member (dari LIB-001/003) agar hanya bisa dilakukan Owner & Admin.
+- [ ] Update flow remove member agar hanya bisa dilakukan Owner & Admin, dengan Owner tidak bisa jadi target remove sama sekali.
+- [ ] Tambahkan UI untuk Owner promote Member jadi Admin — hanya Owner yang lihat opsi ini.
+
+Acceptance:
+
+- [ ] Alur invite/remove tetap berjalan seperti LIB-001/003 sebelumnya, ditambah pengecekan role di atas.
+- [ ] Tidak ada regresi pada flow invitation yang sudah PASS sebelumnya.
+
+Status: `PENDING`
+
+---
+
+# PHASE 15 — Barcode (Fitur Baru)
+
+## BARCODE-001 — Generate & Print Barcode Salinan Buku
+
+**Status: menunggu konfirmasi scope — lihat pertanyaan di chat.** Task di bawah berdasarkan asumsi awal, sesuaikan setelah dikonfirmasi.
+
+Masalah:
+
+Belum ada barcode yang bisa di-print untuk discan — kemungkinan besar terkait pemilihan salinan buku saat Peminjaman, berbasis "Kode" dari LOAN-008.
+
+Task (asumsi awal):
+
+- [ ] Generate barcode/QR code yang meng-encode "Kode" salinan buku dari LOAN-008.
+- [ ] Sediakan halaman/tombol untuk print barcode — per salinan atau batch per judul.
+- [ ] Tambahkan fitur scan barcode di halaman Peminjaman untuk langsung memilih salinan (mempercepat LOAN-005), kalau device support kamera/scanner.
+- [ ] Sesuai role matrix: tombol generate/print barcode tetap terlihat & aktif untuk Member.
+
+Acceptance:
+
+- [ ] Barcode ter-generate dan valid untuk di-scan.
+- [ ] Hasil print rapi dan barcode terbaca scanner umum.
+- [ ] Member tetap bisa akses fitur ini.
+
+Status: `PENDING`
+
+---
+
+# PHASE 16 — Regression Test Round 2
+
+Setelah PHASE 9–15 selesai, jalankan regression menyeluruh — flow lama PHASE 7 (Flow 1–5) DITAMBAH flow baru berikut:
+
+### Flow 6 — Login & Pemilihan Perpustakaan
+1. Login sebagai user dengan 1 perpustakaan → harus berhenti dulu di halaman pemilihan.
+2. Login sebagai user dengan beberapa perpustakaan → semua muncul di halaman pemilihan.
+3. Login sebagai user dengan undangan pending → undangan muncul, bisa diterima/tolak.
+
+### Flow 7 — Peminjaman End-to-End (Setelah Update)
+1. Tambah peminjaman → pilih judul → pilih salinan (LOAN-005).
+2. Filter berdasarkan Rak → hasil sesuai (LOAN-006).
+3. Pilih tanggal lewat date picker (LOAN-007).
+4. Salinan tampil sebagai `Kode: XXXX`, bukan ID mentah (LOAN-008).
+5. Setelah peminjaman tersimpan, Dashboard & halaman Buku ter-update tanpa restart (regresi BOOK-003/LOAN-002 round 1 — pastikan masih PASS).
+
+### Flow 8 — Role & Permission
+1. Login sebagai Member → coba akses tambah/edit/hapus di semua halaman → harus terblokir di UI DAN via API langsung.
+2. Login sebagai Admin → coba remove Owner → ditolak. Coba remove Member biasa → berhasil.
+3. Login sebagai Owner → promote Member jadi Admin → berhasil, role langsung ter-refresh tanpa restart.
+4. Member → export laporan & generate barcode → tetap berhasil meski view-only untuk fitur lain.
+
+Status: `PENDING`
 
 ---
 

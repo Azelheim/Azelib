@@ -218,47 +218,46 @@ test('REPORT-001 & REPORT-002: Period validation and report date filtering', () 
   assert.equal(validateReportPeriod('invalid-date', '2026-01-31').valid, false);
 });
 
-test('LIB-002: Routing after login evaluates all 5 conditions correctly', () => {
-  const determinePostLoginRoute = (memberships, invitations = []) => {
-    if (!memberships || memberships.length === 0) {
-      if (invitations.length > 0) return { route: '/tenant-setup', mode: 'join' };
-      return { route: '/tenant-setup', mode: 'options' };
-    }
-    if (memberships.length === 1) {
-      return { route: '/(admin)/dashboard', selectedTenantId: memberships[0].tenant_id, role: memberships[0].role };
-    }
-    return { route: '/tenant-setup', mode: 'select', count: memberships.length };
+test('LIB-004 (Supercedes LIB-002): Post-login routing unconditionally routes all users to /tenant-setup hub', () => {
+  const determinePostLoginRoute = () => {
+    // LIB-004: Semua user setelah login SELALU diarahkan ke halaman pemilihan / hub (/tenant-setup)
+    return { route: '/tenant-setup' };
   };
 
-  // A. User belum punya library
-  const condA = determinePostLoginRoute([]);
-  assert.equal(condA.route, '/tenant-setup');
-  assert.equal(condA.mode, 'options');
+  const evaluateTenantSetupViewMode = (memberships, invitations = []) => {
+    if (memberships && memberships.length > 0) {
+      return { mode: 'select', libraryCount: memberships.length };
+    }
+    if (invitations && invitations.length > 0) {
+      return { mode: 'join', invitationCount: invitations.length };
+    }
+    return { mode: 'options' };
+  };
 
-  // B. User punya library sebagai owner (1 library)
-  const condB = determinePostLoginRoute([{ tenant_id: 't-1', role: 'owner' }]);
-  assert.equal(condB.route, '/(admin)/dashboard');
-  assert.equal(condB.selectedTenantId, 't-1');
-  assert.equal(condB.role, 'owner');
+  // 1. All users route to /tenant-setup
+  assert.equal(determinePostLoginRoute().route, '/tenant-setup');
 
-  // C. User punya invitation belum diterima (0 memberships, 1 invitation)
-  const condC = determinePostLoginRoute([], [{ tenant_id: 't-inv', role_ditawarkan: 'staff' }]);
-  assert.equal(condC.route, '/tenant-setup');
-  assert.equal(condC.mode, 'join');
+  // 2. User with exactly 1 library -> stays on /tenant-setup in 'select' mode (not auto-skipped)
+  const singleLib = evaluateTenantSetupViewMode([{ tenant_id: 't-1', role: 'owner' }]);
+  assert.equal(singleLib.mode, 'select');
+  assert.equal(singleLib.libraryCount, 1);
 
-  // D. User sudah menjadi member (1 library staff)
-  const condD = determinePostLoginRoute([{ tenant_id: 't-2', role: 'staff' }]);
-  assert.equal(condD.route, '/(admin)/dashboard');
-  assert.equal(condD.role, 'staff');
-
-  // E. User memiliki lebih dari satu library (>1 libraries)
-  const condE = determinePostLoginRoute([
+  // 3. User with multiple libraries -> 'select' mode showing all libraries
+  const multiLib = evaluateTenantSetupViewMode([
     { tenant_id: 't-1', role: 'owner' },
     { tenant_id: 't-2', role: 'admin' },
   ]);
-  assert.equal(condE.route, '/tenant-setup');
-  assert.equal(condE.mode, 'select');
-  assert.equal(condE.count, 2);
+  assert.equal(multiLib.mode, 'select');
+  assert.equal(multiLib.libraryCount, 2);
+
+  // 4. User without library but with pending invitation -> 'join' mode
+  const invOnly = evaluateTenantSetupViewMode([], [{ tenant_id: 't-inv', role: 'staff' }]);
+  assert.equal(invOnly.mode, 'join');
+  assert.equal(invOnly.invitationCount, 1);
+
+  // 5. User without library and no invitation -> 'options' mode
+  const newAccount = evaluateTenantSetupViewMode([], []);
+  assert.equal(newAccount.mode, 'options');
 });
 
 test('LIB-003: Member display parser handles null app_user and missing fields safely without crashing', () => {
