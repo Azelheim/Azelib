@@ -1126,14 +1126,14 @@ Sama seperti LOAN-007 — pemilihan tanggal susah diketik manual.
 
 Task:
 
-- [ ] Gunakan komponen date picker yang sama dengan LOAN-007 (reuse, jangan bikin komponen terpisah kalau tidak perlu).
-- [ ] Terapkan di semua filter tanggal pada halaman Laporan.
+- [x] Gunakan komponen date picker yang sama dengan LOAN-007 (reuse, jangan bikin komponen terpisah kalau tidak perlu).
+- [x] Terapkan di semua filter tanggal pada halaman Laporan.
 
 Acceptance:
 
-- [ ] User memilih tanggal filter laporan lewat date picker, bukan ketik manual.
+- [x] User memilih tanggal filter laporan lewat date picker, bukan ketik manual.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 

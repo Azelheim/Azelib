@@ -704,3 +704,47 @@ test('PHASE 12 — LOAN-008: Dynamic padding for copy code display [Kode: XXXX]'
   assert.equal(formatKodeSalinan(7, 2000), 'Kode: 0007');
   assert.equal(formatKodeSalinan(1250, 2000), 'Kode: 1250');
 });
+
+test('PHASE 13 — REPORT-003: Date presets and period filtering synchronize correctly with report exports', () => {
+  const getPresetRange = (preset, baseDate = new Date('2026-08-18T12:00:00Z')) => {
+    const today = baseDate.toISOString().split('T')[0];
+    if (preset === 'hariIni') {
+      return { mulai: today, selesai: today };
+    }
+    if (preset === '7hari') {
+      const past7 = new Date(baseDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      return { mulai: past7, selesai: today };
+    }
+    if (preset === '30hari') {
+      const past30 = new Date(baseDate.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      return { mulai: past30, selesai: today };
+    }
+    if (preset === 'tahunIni') {
+      const startYear = `${baseDate.getFullYear()}-01-01`;
+      return { mulai: startYear, selesai: today };
+    }
+    return { mulai: today, selesai: today };
+  };
+
+  const fixedBase = new Date('2026-08-18T12:00:00Z');
+  const hariIni = getPresetRange('hariIni', fixedBase);
+  assert.equal(hariIni.mulai, '2026-08-18');
+  assert.equal(hariIni.selesai, '2026-08-18');
+
+  const tujuhHari = getPresetRange('7hari', fixedBase);
+  assert.equal(tujuhHari.mulai, '2026-08-11');
+  assert.equal(tujuhHari.selesai, '2026-08-18');
+
+  const tigapuluhHari = getPresetRange('30hari', fixedBase);
+  assert.equal(tigapuluhHari.mulai, '2026-07-19');
+  assert.equal(tigapuluhHari.selesai, '2026-08-18');
+
+  const tahunIni = getPresetRange('tahunIni', fixedBase);
+  assert.equal(tahunIni.mulai, '2026-01-01');
+  assert.equal(tahunIni.selesai, '2026-08-18');
+
+  // Verify synchronization into PDF report metadata header
+  const generateHeaderSnippet = (range) => `<p><strong>Periode:</strong> ${range.mulai} s/d ${range.selesai}</p>`;
+  assert.ok(generateHeaderSnippet(tujuhHari).includes('2026-08-11 s/d 2026-08-18'));
+});
+

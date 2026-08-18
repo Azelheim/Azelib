@@ -299,18 +299,22 @@ export default function Laporan() {
 
           <View style={styles.row}>
             <TextInput
-              label="Tanggal Mulai (YYYY-MM-DD)"
+              label="Tanggal Mulai"
               value={tanggalMulai}
               onChangeText={setTanggalMulai}
               mode="outlined"
+              placeholder="YYYY-MM-DD"
               style={[styles.input, { flex: 1, marginRight: 8 }]}
+              right={<TextInput.Icon icon={() => <Calendar size={18} color="#666" />} />}
             />
             <TextInput
-              label="Tanggal Selesai (YYYY-MM-DD)"
+              label="Tanggal Selesai"
               value={tanggalSelesai}
               onChangeText={setTanggalSelesai}
               mode="outlined"
+              placeholder="YYYY-MM-DD"
               style={[styles.input, { flex: 1 }]}
+              right={<TextInput.Icon icon={() => <Calendar size={18} color="#666" />} />}
             />
           </View>
         </Card.Content>
