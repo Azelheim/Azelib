@@ -1,0 +1,1030 @@
+# ANTIGRAVITY\_TASK.md
+
+## Tujuan
+
+Lakukan perbaikan aplikasi perpustakaan berbasis **Expo + React** sesuai task di bawah ini.
+
+Prioritas pengerjaan:
+
+**[WAJIB] → verifikasi → regression check → baru [SARAN]**
+
+Jangan mengerjakan task `[SARAN]` sebelum seluruh task `[WAJIB]` selesai dan berstatus **PASS**.
+
+---
+
+# 0. ATURAN PENTING UNTUK AGENT
+
+1. **Inspect codebase terlebih dahulu sebelum mengubah kode.**
+2. Jangan langsung memperbaiki gejala. Cari dan perbaiki **root cause**.
+3. Gunakan arsitektur, state management, data layer, navigation dan pola komponen yang **sudah digunakan project**.
+4. Jangan menambahkan library baru kecuali memang diperlukan dan ada alasan teknis yang jelas.
+5. Jangan menggunakan:
+   - hardcoded angka untuk membuat UI terlihat benar;
+   - `setTimeout` sebagai solusi sinkronisasi;
+   - force reload/restart aplikasi sebagai solusi;
+   - fake refresh;
+   - duplicate state yang hanya dibuat untuk menutupi bug;
+   - workaround sementara tanpa root-cause fix.
+6. Jangan mengubah database/schema/API secara sembrono. Inspect dependensi antar-entity/data flow terlebih dahulu.
+7. Setiap perubahan harus tetap kompatibel dengan Expo + React dan struktur project saat ini.
+8. Setelah fix, verifikasi bahwa data tetap benar **tanpa restart aplikasi**.
+9. Jangan mencentang task hanya karena kode sudah diubah. Task hanya boleh `[x]` setelah berhasil diverifikasi.
+10. Jika tidak bisa diverifikasi, gunakan status:
+
+- `PASS`
+- `FAIL`
+- `BLOCKED`
+
+11. Jangan menganggap sesuatu selesai hanya karena aplikasi berhasil build.
+12. Setelah setiap fase selesai, lakukan regression check pada modul yang berhubungan.
+13. Lakukan **commit git** setelah setiap task berstatus `PASS` (minimal per phase), dengan commit message yang mereferensikan Task ID (contoh: `fix(book): BOOK-003 root cause sync`). Jangan mencampur banyak task berbeda dalam satu commit tanpa penanda jelas — supaya mudah di-bisect/revert kalau ada regresi di tengah proses.
+14. Jika project memiliki test suite (unit/integration), tambahkan atau perbarui test yang mencakup root cause fix — terutama untuk task dengan risiko regresi silent tinggi (lihat BOOK-003). Jika project belum punya test suite, cukup catat di laporan bahwa verifikasi dilakukan murni manual.
+15. Jika sebuah task sudah dicoba diperbaiki dengan beberapa pendekatan berbeda yang wajar namun tetap gagal, tandai sebagai `FAIL` disertai analisis root cause dan pendekatan yang sudah dicoba. Jangan mencoba variasi tanpa henti (hindari infinite loop percobaan).
+16. Setelah sebuah phase selesai dan berstatus PASS, disarankan memulai phase berikutnya sebagai sesi/context baru (fresh start) supaya seluruh aturan di Bagian 0 tetap konsisten dipatuhi sepanjang proses, terutama untuk phase-phase belakangan. Jalankan protokol Bagian 0.1 (Context Recovery) di awal sesi baru tersebut.
+
+---
+
+# 0.1 CONTEXT RECOVERY — WAJIB DI AWAL SETIAP SESI/PHASE BARU
+
+Sebelum menyentuh kode apapun di sesi ini, **jangan percaya ingatan dari chat history**. Re-derive state dari artefak nyata:
+
+1. Jalankan `git log` (beberapa commit terakhir) untuk melihat task/phase apa saja yang benar-benar sudah di-commit.
+2. Baca ulang status checklist di `ANTIGRAVITY_TASK.md` (bagian mana yang `PASS`/`FAIL`/`BLOCKED`/`PENDING`) — jangan asumsikan dari laporan sebelumnya di chat.
+3. Jalankan regression test yang relevan (dari Phase 7, atau test dari task terkait) sebagai **baseline check** — pastikan state sekarang masih sesuai yang terakhir di-`PASS`-kan, SEBELUM mulai task baru apapun.
+4. Jika baseline gagal (ada yang regresi dari commit `PASS` terakhir): **STOP**. Jangan lanjut menambah task baru di atas fondasi yang goyah. Jalankan `git diff` dari commit `PASS` terakhir, laporkan temuan, dan tunggu keputusan user (keep atau revert) sebelum lanjut.
+5. Jika ditemukan tanda **context drift** — misalnya mendesain ulang sesuatu yang sudah diputuskan/di-fix sebelumnya, mengklaim sebuah task selesai padahal git/checklist menunjukkan belum, atau menanyakan hal yang jawabannya sudah ada di file ini — **STOP** dan laporkan, jangan lanjutkan otomatis.
+6. Hanya setelah baseline `PASS` dan tidak ada tanda drift, lanjut ke task/phase berikutnya.
+
+---
+
+# 1. INVESTIGATION WAJIB
+
+Sebelum coding, inspect minimal:
+
+- struktur project;
+- Expo configuration;
+- routing/navigation;
+- state management;
+- data access/repository/API layer;
+- model/entity/data schema yang berkaitan dengan:
+  - Library
+  - Book
+  - BookCopy/Salinan
+  - Loan/Peminjaman
+  - Member/Anggota
+  - Category
+  - Dashboard
+  - Library Settings
+  - Invitation/Auth
+- cara data di-fetch;
+- cara mutation/save dilakukan;
+- cara state/cache/query diperbarui setelah mutation;
+- cara Dashboard melakukan aggregation;
+- cara halaman Buku mendapatkan jumlah salinan;
+- cara halaman Peminjaman mendapatkan buku yang tersedia;
+- cara session/library aktif ditentukan setelah login;
+- cara navigation stack/back navigation bekerja.
+
+## Fokus investigasi
+
+Perhatikan hubungan berikut:
+
+```text
+Tambah/Edit Buku
+      ↓
+Book
+      ↓
+BookCopy / Salinan
+      ↓
+Peminjaman
+      ↓
+Dashboard aggregation
+```
+
+Bug yang terlihat di beberapa halaman mungkin mempunyai satu root cause yang sama.
+
+Khususnya investigasi gejala berikut:
+
+```text
+Buku baru:
+- Dashboard dapat mendeteksi/akumulasi setelah restart
+- halaman Buku dapat menampilkan 0/0
+- halaman Peminjaman tidak mendeteksi buku
+```
+
+Cari tahu apakah masalah berasal dari:
+
+- persistence;
+- mutation;
+- state;
+- cache;
+- query invalidation;
+- subscription/listener;
+- derived state;
+- memoization;
+- navigation lifecycle;
+- atau kombinasi beberapa hal.
+
+Jangan membuat fix terpisah pada setiap halaman sebelum mengetahui apakah root cause-nya sama.
+
+---
+
+# 2. PRIORITAS [WAJIB]
+
+---
+
+## PHASE 1 — DASHBOARD
+
+### DASH-001 — Hitungan Buku
+
+Masalah:
+
+Buku dengan salinan `0/0` masih dihitung sebagai `1`.
+
+Task:
+
+- [x] Investigasi source perhitungan total buku.
+- [x] Tentukan definisi buku vs salinan berdasarkan model/data yang sudah digunakan project.
+- [x] Fix kalkulasi agar record `0/0` tidak menghasilkan hitungan yang salah.
+- [x] Jangan hardcode hasil.
+- [x] Verifikasi setelah:
+  - [x] tidak ada buku;
+  - [x] satu buku dengan salinan valid;
+  - [x] buku dengan `0/0`;
+  - [x] beberapa buku.
+
+Acceptance:
+
+- [x] Angka Dashboard konsisten dengan data sebenarnya.
+- [x] Tidak berubah hanya setelah restart.
+
+Status: `PASS`
+
+---
+
+### DASH-002 — Chart Dashboard
+
+Masalah:
+
+Chart tidak menampilkan data yang sesuai. Periode harian/mingguan/bulanan tidak tercantum dengan benar.
+
+Task:
+
+- [x] Trace source data chart.
+- [x] Pastikan chart menggunakan data transaksi nyata.
+- [x] Pastikan filter/periode harian bekerja.
+- [x] Pastikan filter/periode mingguan bekerja.
+- [x] Pastikan filter/periode bulanan bekerja.
+- [x] Pastikan label/periode pada chart sesuai data yang ditampilkan.
+- [x] Pastikan tidak menggunakan dummy/fake data.
+- [x] Pastikan empty state ditangani dengan benar.
+
+Acceptance:
+
+- [x] Data chart berasal dari data aplikasi sebenarnya.
+- [x] Periode yang dipilih menghasilkan data periode tersebut.
+- [x] Chart tidak kosong ketika memang ada data.
+
+Status: `PASS`
+
+---
+
+### DASH-003 — Peminjam
+
+Masalah:
+
+Peminjam tidak terhitung di Dashboard padahal sudah ada peminjaman.
+
+Task:
+
+- [x] Trace aggregation jumlah peminjam.
+- [x] Pastikan query/filter menggunakan data peminjaman aktif yang benar.
+- [x] Fix state synchronization setelah transaksi baru.
+- [x] Verifikasi tanpa restart aplikasi.
+
+Acceptance:
+
+- [x] Setelah peminjaman berhasil, jumlah Peminjam Dashboard langsung berubah sesuai data.
+- [x] Navigasi antar halaman tidak menghilangkan data.
+
+Status: `PASS`
+
+---
+
+### DASH-004 — Buku Dipinjam
+
+Task:
+
+- [x] Trace aggregation buku yang sedang dipinjam.
+- [x] Fix perhitungan.
+- [x] Pastikan transaksi baru langsung masuk ke aggregation.
+- [x] Verifikasi tanpa restart aplikasi.
+
+Acceptance:
+
+- [x] Buku Dipinjam Dashboard langsung mencerminkan transaksi terbaru.
+
+Status: `PASS`
+
+---
+
+### DASH-005 — Buku Terlambat
+
+Saat ini belum ada data buku terlambat sehingga belum bisa diverifikasi.
+
+Task:
+
+- [x] Inspect logic existing untuk menentukan overdue.
+- [x] Pastikan logic menggunakan due date sebenarnya.
+- [ ] Jangan mengubah behavior tanpa kebutuhan.
+- [ ] Setelah tersedia data uji overdue, lakukan verification.
+
+Status:
+
+`BLOCKED — menunggu data uji buku terlambat`
+
+---
+
+# PHASE 2 — BUKU / SALINAN
+
+## BOOK-001 — Input Jumlah Salinan
+
+Task:
+
+- [ ] Tambahkan field jumlah Salinan pada Tambah Buku.
+- [ ] Tambahkan kemampuan melihat/mengubah jumlah Salinan pada Edit/Detail Buku.
+- [ ] Gunakan mekanisme penyimpanan yang konsisten dengan data model existing.
+- [ ] Validasi nilai input.
+
+Acceptance:
+
+- [ ] User dapat menginput jumlah salinan.
+- [ ] Data tersimpan.
+- [ ] Data dapat ditampilkan kembali.
+- [ ] Data dapat diedit.
+
+Status: `PENDING`
+
+---
+
+## BOOK-002 — Reset Form Tambah Buku
+
+Masalah:
+
+Setelah berhasil menambah buku pertama, form saat menambah buku kedua masih berisi data sebelumnya.
+
+Task:
+
+- [ ] Setelah create berhasil, reset state form Tambah Buku.
+- [ ] Pastikan reset terjadi hanya setelah operasi berhasil.
+- [ ] Jangan menghapus state sebelum save berhasil.
+- [ ] Jangan reset form Detail/Edit Buku.
+
+Acceptance:
+
+- [ ] Tambah Buku pertama berhasil.
+- [ ] Buka Tambah Buku lagi.
+- [ ] Semua field form kembali ke kondisi awal.
+- [ ] Detail/Edit tetap menampilkan data buku yang sedang diedit.
+
+Status: `PENDING`
+
+---
+
+## BOOK-003 — Sinkronisasi Salinan
+
+Masalah:
+
+Buku kedua, ketiga, dan seterusnya dapat terbentuk tetapi salinannya tetap `0/0`, tidak terdeteksi di Peminjaman, sementara Dashboard baru mendeteksi/akumulasi setelah restart.
+
+Ini merupakan task penting dan harus dicari root cause-nya.
+
+Task:
+
+- [ ] Trace create Book.
+- [ ] Trace create/update BookCopy/Salinan.
+- [ ] Trace persistence.
+- [ ] Trace state update setelah mutation.
+- [ ] Trace data source halaman Buku.
+- [ ] Trace data source halaman Peminjaman.
+- [ ] Trace data source Dashboard.
+- [ ] Identifikasi root cause.
+- [ ] Implementasikan root-cause fix.
+- [ ] Pastikan tidak perlu restart aplikasi.
+- [ ] Pastikan buku pertama bekerja.
+- [ ] Pastikan buku kedua bekerja.
+- [ ] Pastikan buku ketiga bekerja.
+- [ ] Pastikan jumlah Salinan benar.
+- [ ] Pastikan buku baru langsung tersedia di Peminjaman jika memenuhi syarat.
+- [ ] Pastikan Dashboard langsung ter-update.
+- [ ] Tambahkan/perbarui automated test (unit/integration) khusus untuk root cause fix ini, jika project memiliki test suite — ini task dengan risiko regresi silent paling tinggi di seluruh checklist.
+
+Acceptance:
+
+- [ ] Buku 1 → benar.
+- [ ] Buku 2 → benar.
+- [ ] Buku 3 → benar.
+- [ ] Tidak ada 0/0 palsu.
+- [ ] Tidak perlu restart aplikasi.
+- [ ] Konsisten antara Buku, Peminjaman dan Dashboard.
+
+Status: `PENDING`
+
+---
+
+## BOOK-004 — Navigasi Tambah/Edit Buku
+
+Masalah:
+
+Setelah tambah/edit buku, user selalu kembali ke Dashboard.
+
+Desired behavior:
+
+```text
+Dashboard
+   ↓
+Buku
+   ↓
+Tambah/Edit Buku
+   ↓
+Buku
+```
+
+Task:
+
+- [ ] Trace navigation flow.
+- [ ] Gunakan navigation pattern existing.
+- [ ] Pertahankan konteks halaman asal.
+- [ ] Tambah Buku → kembali ke Buku.
+- [ ] Edit Buku → kembali ke Buku.
+- [ ] Jangan mengarahkan ke Dashboard secara paksa.
+
+Acceptance:
+
+- [ ] Setelah save Tambah Buku → Halaman Buku.
+- [ ] Setelah save Edit Buku → Halaman Buku.
+
+Status: `PENDING`
+
+---
+
+## BOOK-005 — Bottom Navigation Buku
+
+Task:
+
+- [ ] Saat Tambah Buku dibuka, tab Buku tetap aktif.
+- [ ] Saat Detail/Edit Buku dibuka, tab Buku tetap aktif.
+- [ ] Jangan membuat UI menganggap halaman ini berada di konteks terpisah dari Buku.
+
+Acceptance:
+
+- [ ] Indicator Bottom Nav Buku tetap aktif pada seluruh flow Buku.
+
+Status: `PENDING`
+
+---
+
+# PHASE 3 — PEMINJAMAN
+
+## LOAN-001 — Dashboard Setelah Peminjaman
+
+Task:
+
+- [ ] Trace mutation peminjaman.
+- [ ] Pastikan Dashboard memperoleh data terbaru.
+- [ ] Fix synchronization/query invalidation/subscription sesuai arsitektur existing.
+- [ ] Tidak boleh membutuhkan restart.
+
+Acceptance:
+
+- [ ] Setelah peminjaman berhasil:
+  - [ ] Peminjam Dashboard diperbarui.
+  - [ ] Buku Dipinjam Dashboard diperbarui.
+
+Status: `PENDING`
+
+---
+
+## LOAN-002 — Buku Kedua/Ketiga
+
+Task:
+
+- [ ] Pastikan buku kedua dapat dipilih untuk peminjaman.
+- [ ] Pastikan buku ketiga dapat dipilih.
+- [ ] Pastikan hanya buku dengan stok/salinan valid yang tersedia.
+- [ ] Pastikan masalah ini sudah diperbaiki pada root cause BOOK-003 bila memang sama.
+
+Acceptance:
+
+- [ ] Buku baru tidak harus menunggu restart aplikasi.
+- [ ] Daftar Peminjaman konsisten dengan halaman Buku dan Dashboard.
+
+Status: `PENDING`
+
+---
+
+## LOAN-003 — Due Date Otomatis
+
+Masalah:
+
+Tanggal masih dipilih manual.
+
+Desired behavior:
+
+```text
+Tanggal pinjam
++
+Maksimal Hari Pinjam
+=
+Tanggal Jatuh Tempo
+```
+
+Task:
+
+- [ ] Cari setting "Maksimal Hari Pinjam".
+- [ ] Gunakan nilai setting yang sudah ada.
+- [ ] Jika setting memang belum tersedia, laporkan `BLOCKED` sebelum membuat desain baru.
+- [ ] Hitung due date otomatis.
+- [ ] Pastikan user tidak perlu menghitung manual.
+- [ ] Pastikan perubahan setting berdampak pada transaksi berikutnya.
+
+Acceptance:
+
+- [ ] Due date otomatis sesuai aturan maksimal hari pinjam.
+
+Status: `PENDING`
+
+---
+
+## LOAN-004 — Overdue
+
+Saat ini belum ada data terlambat.
+
+Task:
+
+- [ ] Review logic overdue existing.
+- [ ] Pastikan due date digunakan.
+- [ ] Jangan mengklaim PASS tanpa data uji nyata.
+
+Status: `BLOCKED — menunggu data uji`
+
+---
+
+# PHASE 4 — ANGGOTA
+
+## MEMBER-001 — Reset Form
+
+Task:
+
+- [ ] Reset form setelah create berhasil.
+- [ ] Jangan reset sebelum save berhasil.
+- [ ] Jangan reset Detail/Edit.
+
+Acceptance:
+
+- [ ] Tambah Anggota kedua mendapatkan form kosong.
+
+Status: `PENDING`
+
+---
+
+## MEMBER-002 — Navigasi
+
+Desired:
+
+```text
+Anggota
+   ↓
+Tambah/Edit Anggota
+   ↓
+Anggota
+```
+
+Task:
+
+- [ ] Fix route/back navigation.
+- [ ] Jangan kembali ke Dashboard.
+
+Status: `PENDING`
+
+---
+
+## MEMBER-003 — Bottom Navigation
+
+Task:
+
+- [ ] Bottom Nav Anggota tetap aktif pada Tambah Anggota.
+- [ ] Bottom Nav Anggota tetap aktif pada Detail/Edit Anggota.
+
+Status: `PENDING`
+
+---
+
+## MEMBER-004 — Kategori Anggota
+
+Ubah menjadi dropdown dengan pilihan tetap:
+
+- `Siswa`
+- `Guru`
+- `Umum`
+
+Task:
+
+- [ ] Implement dropdown.
+- [ ] Hilangkan input bebas jika memang tidak diperlukan.
+- [ ] Pastikan nilai tersimpan konsisten.
+
+Status: `PENDING`
+
+---
+
+# PHASE 5 — LAPORAN
+
+## REPORT-001 — Export PDF
+
+Masalah:
+
+Export tidak boleh langsung menyimpan/share tanpa keputusan user.
+
+Desired flow:
+
+```text
+Export PDF
+    ↓
+Dialog
+    ├── Simpan
+    │     ↓
+    │   pilih lokasi
+    │
+    └── Share
+          ↓
+        Share Sheet
+```
+
+Task:
+
+- [ ] Setelah PDF berhasil dibuat, tampilkan pilihan kepada user.
+- [ ] Jangan auto-save.
+- [ ] Jangan auto-share.
+- [ ] Untuk Save, gunakan file picker/mechanism storage yang sudah sesuai dengan Expo/project.
+- [ ] Untuk Share, gunakan mekanisme sharing yang sesuai dengan project.
+- [ ] Pastikan user secara eksplisit menentukan tindakan.
+
+Acceptance:
+
+- [ ] User bisa memilih Simpan.
+- [ ] User bisa memilih Share.
+- [ ] Tidak ada auto-save/auto-share.
+
+Status: `PENDING`
+
+---
+
+## REPORT-002 — Date Picker
+
+Task:
+
+- [ ] Tambahkan date picker.
+- [ ] Gunakan untuk menentukan periode laporan.
+- [ ] Pastikan filter memengaruhi data yang akan diekspor.
+- [ ] Pastikan tanggal awal/akhir ditangani dengan benar.
+
+Acceptance:
+
+- [ ] User dapat menentukan periode laporan.
+- [ ] Data hasil export sesuai periode tersebut.
+
+Status: `PENDING`
+
+---
+
+# PHASE 6 — LIBRARY / AUTH / INVITATION
+
+## LIB-001 — Invitation
+
+Masalah:
+
+Member otomatis masuk ke perpustakaan setelah ditambahkan tanpa menerima undangan.
+
+Desired flow:
+
+```text
+Owner/Admin menambahkan member
+        ↓
+Invitation dibuat
+        ↓
+Member melihat undangan
+        ↓
+Member menerima undangan
+        ↓
+Member menjadi anggota library
+```
+
+Task:
+
+- [ ] Trace invitation creation.
+- [ ] Trace membership creation.
+- [ ] Pastikan membership tidak langsung aktif jika requirement existing mengharuskan acceptance.
+- [ ] Pastikan acceptance menjadi trigger yang benar.
+- [ ] Jangan membuat duplicate membership.
+
+Acceptance:
+
+- [ ] Member belum menjadi anggota aktif sebelum menerima undangan.
+- [ ] Setelah menerima undangan, membership terbentuk/aktif dengan benar.
+
+Status: `PENDING`
+
+---
+
+## LIB-002 — Routing Setelah Login
+
+Masalah:
+
+User yang sudah memiliki hubungan dengan library langsung masuk library sehingga melewati flow yang seharusnya.
+
+Task:
+
+- [ ] Trace session restore.
+- [ ] Trace active library.
+- [ ] Trace membership.
+- [ ] Trace invitation.
+- [ ] Trace owner/library creation state.
+- [ ] Tentukan route berdasarkan kondisi data yang memang sudah digunakan project.
+
+Minimal kondisi yang harus diuji:
+
+```text
+A. User belum punya library
+B. User punya library sebagai owner
+C. User punya invitation belum diterima
+D. User sudah menjadi member
+E. User memiliki lebih dari satu library
+```
+
+Acceptance:
+
+- [ ] Routing tidak melewati halaman yang seharusnya.
+- [ ] User tidak diarahkan ke library yang salah.
+- [ ] Session restore tidak menghasilkan route yang salah.
+
+Status: `PENDING`
+
+---
+
+## LIB-003 — Force Close Halaman Pengaturan Perpustakaan
+
+Masalah:
+
+Setelah ada member dan member berhasil login, halaman Perpustakaan dapat force close untuk member maupun owner.
+
+Task:
+
+- [ ] Reproduce masalah.
+- [ ] Inspect console/log/error.
+- [ ] Trace null/undefined data.
+- [ ] Trace relasi membership/library.
+- [ ] Trace parsing data.
+- [ ] Trace conditional rendering.
+- [ ] Fix root cause.
+- [ ] Jangan menutupi exception hanya dengan catch kosong.
+
+Acceptance:
+
+- [ ] Owner membuka halaman Perpustakaan → tidak force close.
+- [ ] Member membuka halaman Perpustakaan → tidak force close.
+- [ ] Kondisi library tanpa member tetap aman.
+- [ ] Kondisi library dengan member tetap aman.
+
+Status: `PENDING`
+
+---
+
+# PHASE 7 — REGRESSION TEST WAJIB
+
+Setelah semua `[WAJIB]` selesai, lakukan end-to-end regression.
+
+## Flow 1 — Book
+
+```text
+Login
+→ Library
+→ Buku
+→ Tambah Buku pertama
+→ Save
+→ kembali ke Buku
+→ tambah Buku kedua
+→ Save
+→ tambah Buku ketiga
+→ Save
+```
+
+Verify:
+
+- [ ] Form baru selalu clear.
+- [ ] Salinan benar.
+- [ ] Tidak ada 0/0 palsu.
+- [ ] Buku langsung muncul.
+- [ ] Tidak perlu restart.
+- [ ] Bottom Nav Buku aktif.
+
+---
+
+## Flow 2 — Loan
+
+```text
+Buku tersedia
+→ Peminjaman
+→ pilih anggota
+→ pilih buku 1
+→ save
+→ tambah peminjaman lagi
+→ pilih buku 2
+→ save
+```
+
+Verify:
+
+- [ ] Buku 2 terdeteksi.
+- [ ] Dashboard langsung berubah.
+- [ ] Due date otomatis.
+- [ ] Tidak perlu restart.
+
+---
+
+## Flow 3 — Member
+
+```text
+Anggota
+→ Tambah Anggota
+→ Save
+→ Tambah Anggota lagi
+→ Save
+→ Edit Anggota
+→ Save
+```
+
+Verify:
+
+- [ ] Form create clear.
+- [ ] Edit tetap mempertahankan data.
+- [ ] Navigasi kembali ke Anggota.
+- [ ] Bottom Nav Anggota aktif.
+- [ ] Kategori hanya Siswa/Guru/Umum.
+
+---
+
+## Flow 4 — Report
+
+```text
+Laporan
+→ pilih periode
+→ export PDF
+```
+
+Verify:
+
+- [ ] Date picker bekerja.
+- [ ] Data sesuai periode.
+- [ ] User mendapatkan pilihan Save atau Share.
+- [ ] Tidak ada auto-save/auto-share.
+
+---
+
+## Flow 5 — Invitation/Auth
+
+Test minimal:
+
+```text
+Owner
+Member belum menerima invitation
+Member menerima invitation
+Member login
+Owner login
+```
+
+Verify:
+
+- [ ] Invitation flow benar.
+- [ ] Routing login benar.
+- [ ] Tidak ada bypass.
+- [ ] Tidak ada force close.
+- [ ] Owner dan Member sama-sama dapat membuka halaman Perpustakaan.
+
+---
+
+# PHASE 8 — [SARAN]
+
+**JANGAN MENGERJAKAN PHASE INI SEBELUM SELURUH WAJIB PASS.**
+
+---
+
+## SUGGESTION-001 — Searchable + Creatable Category
+
+Desired behavior:
+
+```text
+Kategori
+[ ketik ]
+
+→ tampilkan kategori yang cocok
+
+Jika tidak ditemukan:
+→ + Tambah kategori "{input}"
+```
+
+Saat buku berhasil disimpan:
+
+- [ ] Jika kategori sudah ada → gunakan kategori existing.
+- [ ] Jika belum ada → buat kategori baru.
+- [ ] Hindari duplikasi case-insensitive.
+- [ ] Trim whitespace.
+- [ ] Jangan membuat kategori hanya karena user mengetik.
+- [ ] Kategori baru dibuat setelah buku berhasil disimpan.
+
+Status: `PENDING`
+
+---
+
+## SUGGESTION-002 — Quick Add Anggota
+
+Pada dialog Peminjaman:
+
+```text
+Pilih Anggota
+       ↓
++ Tambah Anggota Baru
+       ↓
+Quick Modal
+       ↓
+Simpan
+       ↓
+Auto-select anggota baru
+       ↓
+lanjutkan peminjaman
+```
+
+Task:
+
+- [ ] Tambahkan quick action.
+- [ ] Jangan memutus alur peminjaman.
+- [ ] Setelah anggota dibuat, otomatis pilih anggota tersebut.
+- [ ] Jangan membuat duplicate member.
+
+Status: `PENDING`
+
+---
+
+# 9. ATURAN STATUS CHECKLIST
+
+Gunakan status berikut:
+
+### PASS
+
+Task sudah diimplementasikan dan berhasil diverifikasi.
+
+### FAIL
+
+Task sudah dicoba tetapi masih gagal atau regression masih terjadi. (Lihat aturan #15 di Bagian 0 — tandai FAIL setelah beberapa percobaan wajar, jangan looping tanpa henti.)
+
+### BLOCKED
+
+Tidak dapat diverifikasi atau dikerjakan karena dependency/data/informasi yang memang belum tersedia.
+
+**Jangan mengubah ****`BLOCKED`**** menjadi ****`PASS`**** tanpa verification.**
+
+---
+
+# 10. ATURAN LAPORAN KE USER
+
+Setelah setiap fase selesai, berikan laporan **ringkas**.
+
+Format:
+
+```text
+PHASE: Dashboard
+STATUS: PASS / FAIL / BLOCKED
+
+Selesai:
+- DASH-001 PASS
+- DASH-002 PASS
+- DASH-003 FAIL
+- DASH-004 PASS
+- DASH-005 BLOCKED
+
+Root cause:
+- <ringkasan singkat>
+
+Perubahan:
+- <ringkasan singkat>
+
+Verifikasi:
+- <hasil test singkat>
+
+Regression:
+- PASS / FAIL
+
+Commit:
+- <hash/pesan commit fase ini>
+```
+
+Jangan memberikan laporan panjang.
+
+---
+
+# 11. FINAL REPORT
+
+Setelah seluruh proses selesai, tampilkan hanya ringkasan penting:
+
+```text
+FINAL STATUS
+============
+
+WAJIB
+[x] Dashboard
+[x] Buku
+[x] Peminjaman
+[x] Anggota
+[x] Laporan
+[x] Library/Auth
+
+SARAN
+[x] Searchable Category
+[x] Quick Add Anggota
+
+BLOCKED
+- <jika ada>
+
+FAIL
+- <jika ada>
+
+ROOT CAUSE UTAMA
+- <ringkasan>
+
+VERIFICATION
+- Build: PASS/FAIL
+- Tests: PASS/FAIL
+- Manual regression: PASS/FAIL
+```
+
+Jangan mengklaim seluruh task selesai apabila masih ada `FAIL` atau `BLOCKED`.
+
+---
+
+# 12. PRIORITAS IMPLEMENTASI
+
+Urutan kerja:
+
+```text
+0. Investigation
+        ↓
+1. Dashboard
+        ↓
+2. Buku + Salinan
+        ↓
+3. Peminjaman
+        ↓
+4. Anggota
+        ↓
+5. Laporan
+        ↓
+6. Library/Auth
+        ↓
+7. Regression Test
+        ↓
+8. Saran
+```
+
+Namun untuk bug yang memiliki root cause bersama, **boleh memperbaiki root cause di layer yang lebih rendah terlebih dahulu**, lalu verifikasi seluruh modul yang terdampak.
+
+Contoh:
+
+```text
+BookCopy state bug
+      ↓
+fix data synchronization
+      ↓
+verify Buku
+      ↓
+verify Peminjaman
+      ↓
+verify Dashboard
+```
+
+---
+
+# 13. KONDISI SELESAI
+
+Project dianggap selesai hanya apabila:
+
+- [ ] Semua task `[WAJIB]` berstatus PASS, kecuali item yang memang belum dapat diverifikasi karena membutuhkan data uji nyata.
+- [ ] Tidak ada regression pada flow yang sebelumnya sudah bekerja.
+- [ ] Data konsisten antara Buku, Salinan, Peminjaman dan Dashboard.
+- [ ] Perubahan langsung terlihat tanpa restart aplikasi.
+- [ ] Navigation mempertahankan konteks halaman.
+- [ ] Bottom Navigation menunjukkan konteks halaman yang benar.
+- [ ] Invitation/Auth flow tidak melewati state yang seharusnya.
+- [ ] Halaman Pengaturan Perpustakaan tidak force close.
+- [ ] Baru setelah itu task `[SARAN]` boleh dikerjakan.
+
+**Mulai dari PHASE 1 setelah selesai melakukan investigation. Jangan langsung melompat ke fitur ****`[SARAN]`****.**

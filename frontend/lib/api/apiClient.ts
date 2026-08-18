@@ -275,17 +275,37 @@ export const apiClient = {
         return await invokeFunction('dashboard', `/${tenant_id}/summary`, { method: 'GET' });
       } catch {
         const today = new Date().toISOString().split('T')[0];
-        const [bukuRes, pinjamRes, terlambatRes] = await Promise.all([
-          supabase.from('buku').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant_id).eq('dihapus', false),
-          supabase.from('peminjaman').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant_id).eq('status', 'aktif'),
+        const [booksRes, activeLoansRes, terlambatRes, tarifRes, allLoansRes] = await Promise.all([
+          supabase.from('buku').select('id, salinan(id)').eq('tenant_id', tenant_id).eq('dihapus', false),
+          supabase.from('peminjaman').select('id, anggota_id, peminjaman_detail(salinan_id)').eq('tenant_id', tenant_id).eq('status', 'aktif'),
           supabase.from('peminjaman').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant_id).eq('status', 'aktif').lt('jatuh_tempo', today),
+          supabase.from('tarif_denda_history').select('nominal_per_hari').eq('tenant_id', tenant_id).order('berlaku_mulai_tanggal', { ascending: false }).limit(1).single(),
+          supabase.from('peminjaman').select('id, tanggal_pinjam, jatuh_tempo, tanggal_kembali, status').eq('tenant_id', tenant_id),
         ]);
+
+        const jumlah_buku = (booksRes.data || []).filter((b: any) => b.salinan && b.salinan.length > 0).length;
+        const peminjam_aktif = new Set((activeLoansRes.data || []).map((l: any) => l.anggota_id)).size;
+        let buku_dipinjam = 0;
+        (activeLoansRes.data || []).forEach((l: any) => {
+          buku_dipinjam += (l.peminjaman_detail || []).length;
+        });
+        const buku_terlambat = terlambatRes.count || 0;
+
+        const tarif = tarifRes.data?.nominal_per_hari || 500;
+        let total_denda_periode = 0;
+        (allLoansRes.data || []).forEach((loan: any) => {
+          if (loan.status === 'aktif' && loan.jatuh_tempo < today) {
+            const daysLate = Math.max(0, Math.floor((new Date(today).getTime() - new Date(loan.jatuh_tempo).getTime()) / (1000 * 60 * 60 * 24)));
+            total_denda_periode += daysLate * Number(tarif);
+          }
+        });
+
         return {
-          jumlah_buku: bukuRes.count || 0,
-          peminjam_aktif: pinjamRes.count || 0,
-          buku_dipinjam: pinjamRes.count || 0,
-          buku_terlambat: terlambatRes.count || 0,
-          total_denda_periode: 0,
+          jumlah_buku,
+          peminjam_aktif,
+          buku_dipinjam,
+          buku_terlambat,
+          total_denda_periode,
         };
       }
     }

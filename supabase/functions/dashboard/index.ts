@@ -25,10 +25,11 @@ Deno.serve(async (req) => {
 
       const todayStr = new Date().toISOString().split('T')[0]
 
-      // jumlah_buku (undeleted)
-      const { count: jumlah_buku } = await supabaseAdmin.from('buku')
-        .select('*', { count: 'exact', head: true })
+      // jumlah_buku (undeleted and having at least 1 copy)
+      const { data: booksWithCopies } = await supabaseAdmin.from('buku')
+        .select('id, salinan(id)')
         .eq('tenant_id', tenantId).eq('dihapus', false)
+      const jumlah_buku = (booksWithCopies || []).filter((b: any) => b.salinan && b.salinan.length > 0).length
 
       // peminjam_aktif (distinct members with active loans)
       const { data: activeLoans } = await supabaseAdmin.from('peminjaman')
