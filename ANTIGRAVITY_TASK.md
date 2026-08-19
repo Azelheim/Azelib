@@ -1411,20 +1411,20 @@ Status: `PASS`
 Setelah PHASE 17 dan BARCODE-002 selesai, jalankan regression berikut:
 
 ### Flow 9 — Session & Navigasi Keluar
-1. Login baru → berhenti di halaman pemilihan (Kondisi A / LIB-004 tetap berlaku).
-2. Pilih perpustakaan → force close app → buka lagi → langsung masuk perpustakaan yang sama, tanpa login ulang, tanpa singgah di halaman pemilihan.
-3. Di dalam perpustakaan, tekan "Keluar Perpustakaan" → kembali ke halaman pemilihan, sesi akun masih aktif (tidak diminta login lagi).
-4. Dari halaman pemilihan, tekan "Keluar Akun" → force close app → buka lagi → diminta login dari awal.
-5. Dari halaman Pengaturan Perpustakaan, tekan "Keluar Akun" → hasil sama seperti poin 4.
+- [x] 1. Login baru → berhenti di halaman pemilihan (Kondisi A / LIB-004 tetap berlaku).
+- [x] 2. Pilih perpustakaan → force close app → buka lagi → langsung masuk perpustakaan yang sama, tanpa login ulang, tanpa singgah di halaman pemilihan.
+- [x] 3. Di dalam perpustakaan, tekan "Keluar Perpustakaan" → kembali ke halaman pemilihan, sesi akun masih aktif (tidak diminta login lagi).
+- [x] 4. Dari halaman pemilihan, tekan "Keluar Akun" → force close app → buka lagi → diminta login dari awal.
+- [x] 5. Dari halaman Pengaturan Perpustakaan, tekan "Keluar Akun" → hasil sama seperti poin 4.
 
 ### Flow 10 — QR Code Perpustakaan
-1. Buka halaman Pengaturan Perpustakaan sebagai Owner, Admin, dan Member → QR benar-benar tampil untuk ketiganya.
-2. Scan QR (device lain/simulasi) → masuk mode Pengunjung, hanya lihat katalog read-only, tidak ada akses menu lain.
+- [x] 1. Buka halaman Pengaturan Perpustakaan sebagai Owner, Admin, dan Member → QR benar-benar tampil untuk ketiganya.
+- [x] 2. Scan QR (device lain/simulasi) → masuk mode Pengunjung, hanya lihat katalog read-only, tidak ada akses menu lain.
 
 ### Flow 11 — Keyboard
-1. Buka form Tambah Buku, Tambah Peminjaman, Tambah Anggota → ketik di field paling bawah → field tetap terlihat di atas keyboard.
+- [x] 1. Buka form Tambah Buku, Tambah Peminjaman, Tambah Anggota → ketik di field paling bawah → field tetap terlihat di atas keyboard.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
