@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/api/apiClient';
 import { useTenant } from '../../lib/context/TenantContext';
+import { QRCodeSvg, getQrSvgHtml } from '../../lib/qr/QRCodeSvg';
 import { LogOut, QrCode, Printer, Share2 } from 'lucide-react-native';
 
 interface MemberItem {
@@ -55,7 +56,18 @@ export default function Pengaturan() {
       if (!tErr && tenant) {
         setBatasPinjam(tenant.batas_maksimal_peminjaman?.toString() || '3');
         setMaksimalHariPinjam(tenant.maksimal_hari_pinjam?.toString() || '7');
-        setQrCodeValue(tenant.qr_code_value || '');
+        let codeVal = tenant.qr_code_value;
+        if (!codeVal) {
+          const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+          codeVal = `QR-${cleanName || 'PERPUS'}-${tenantId.slice(0, 6).toUpperCase()}`;
+          if (userRole === 'owner' || userRole === 'admin') {
+            await supabase.from('tenant').update({ qr_code_value: codeVal }).eq('id', tenantId);
+          }
+        }
+        setQrCodeValue(codeVal);
+      } else {
+        const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+        setQrCodeValue(`QR-${cleanName || 'PERPUS'}-${tenantId.slice(0, 6).toUpperCase()}`);
       }
 
       const { data: tarif, error: tarifErr } = await supabase
@@ -71,6 +83,8 @@ export default function Pengaturan() {
       }
     } catch (e) {
       console.error('Error loadSettings:', e);
+      const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+      setQrCodeValue(`QR-${cleanName || 'PERPUS'}-${tenantId.slice(0, 6).toUpperCase()}`);
     }
   };
 
@@ -255,7 +269,7 @@ export default function Pengaturan() {
 
   const handlePrintQR = async () => {
     if (!qrCodeValue) return;
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeValue)}`;
+    const qrSvgString = getQrSvgHtml(qrCodeValue, 240);
     const html = `
       <!DOCTYPE html>
       <html>
@@ -287,11 +301,10 @@ export default function Pengaturan() {
             margin-bottom: 20px;
           }
           .qr-container {
-            margin: 16px 0;
-          }
-          img.qr {
-            width: 220px;
-            height: 220px;
+            margin: 16px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
           }
           .code-box {
             background-color: #f5f5f5;
@@ -316,7 +329,7 @@ export default function Pengaturan() {
           <h1>${tenantNama || 'Perpustakaan'}</h1>
           <p class="subtitle">Katalog Digital Pengunjung</p>
           <div class="qr-container">
-            <img class="qr" src="${qrImageUrl}" alt="QR Code" />
+            ${qrSvgString}
           </div>
           <div class="code-box">${qrCodeValue}</div>
           <p class="instructions">Scan QR ini melalui aplikasi untuk membuka katalog koleksi buku tanpa login.</p>
@@ -343,7 +356,7 @@ export default function Pengaturan() {
 
   const handleShareQR = async () => {
     if (!qrCodeValue) return;
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeValue)}`;
+    const qrSvgString = getQrSvgHtml(qrCodeValue, 240);
     const html = `
       <!DOCTYPE html>
       <html>
@@ -354,6 +367,7 @@ export default function Pengaturan() {
           .card { border: 2px solid #000; border-radius: 16px; padding: 30px; max-width: 420px; margin: 0 auto; }
           h1 { font-size: 22px; margin-bottom: 4px; }
           p { font-size: 13px; color: #555; }
+          .qr-container { margin: 16px auto; display: flex; justify-content: center; }
           .code-box { background: #f0f0f0; padding: 8px; border-radius: 6px; font-family: monospace; font-weight: bold; margin-top: 12px; }
         </style>
       </head>
@@ -361,7 +375,9 @@ export default function Pengaturan() {
         <div class="card">
           <h1>${tenantNama || 'Perpustakaan'}</h1>
           <p>Scan QR untuk melihat katalog buku</p>
-          <img src="${qrImageUrl}" width="220" height="220" alt="QR Code" />
+          <div class="qr-container">
+            ${qrSvgString}
+          </div>
           <div class="code-box">${qrCodeValue}</div>
         </div>
       </body>
@@ -486,20 +502,19 @@ export default function Pengaturan() {
             {qrCodeValue ? (
               <View style={{ alignItems: 'center', marginVertical: 12 }}>
                 <View style={styles.qrImageWrapper}>
-                  <Image
-                    source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeValue)}` }}
-                    style={{ width: 160, height: 160 }}
-                    resizeMode="contain"
-                  />
+                  <QRCodeSvg value={qrCodeValue} size={180} />
                 </View>
                 <Chip style={{ marginTop: 12, backgroundColor: '#F0F0F0' }} textStyle={{ fontWeight: 'bold', letterSpacing: 0.5 }}>
                   {qrCodeValue}
                 </Chip>
               </View>
             ) : (
-              <Text variant="bodyMedium" style={{ color: '#888', fontStyle: 'italic', marginVertical: 8 }}>
-                QR Code belum ter-generate.
-              </Text>
+              <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+                <ActivityIndicator size="small" />
+                <Text variant="bodySmall" style={{ color: '#888', marginTop: 8 }}>
+                  Memuat QR Code...
+                </Text>
+              </View>
             )}
 
             <Text variant="bodySmall" style={{ color: '#666', textAlign: 'center', marginBottom: 16 }}>

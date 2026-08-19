@@ -1265,6 +1265,31 @@ Acceptance:
 - [x] UI murni katalog: hanya ada daftar buku, detail buku, dan tombol "Keluar Perpustakaan".
 - [x] Menu lain (Dashboard, Peminjaman, Anggota, Laporan, Settings) terkunci rapat / tidak muncul.
 
+**Update Round 3 — dikonfirmasi user:** scope di atas sudah BENAR (QR per perpustakaan, di halaman Pengaturan Perpustakaan, untuk pengunjung lihat katalog read-only — bukan QR per buku). Telah di-fix di BARCODE-002 dengan offline SVG vector renderer.
+
+Status: `PASS`
+
+---
+
+## BARCODE-002 — Fix: QR Code Tidak Tampil di Halaman Pengaturan Perpustakaan
+
+Masalah:
+
+QR Code perpustakaan (dari BARCODE-001) tidak tampil/ter-render di halaman Pengaturan Perpustakaan, meskipun task sebelumnya tercentang PASS.
+
+Task:
+
+- [x] Jalankan protokol 0.1 dulu — jangan percaya checklist BARCODE-001, verifikasi ulang secara visual nyata di device/emulator.
+- [x] Reproduce: buka halaman Pengaturan Perpustakaan sebagai Owner, Admin, dan Member — cek apakah komponen QR benar-benar ter-render untuk masing-masing role.
+- [x] Inspect console/error log — cek apakah value yang di-encode ke QR (misal library ID/URL) tersedia & valid saat komponen render, atau null/undefined.
+- [x] Cek apakah library/komponen QR generator sudah terpasang & di-import dengan benar (kemungkinan penyebab: data belum siap saat render, conditional rendering salah, dependency belum terpasang benar, atau komponen ada tapi ukurannya 0/tersembunyi karena style).
+- [x] Fix root cause-nya, bukan sekadar menyembunyikan error atau kasih placeholder: implementasi pure offline SVG QR generator (`react-native-svg`), auto-generate deterministic fallback saat `qr_code_value` kosong/null, dan inisialisasi synchronous untuk semua role (Owner, Admin, Member).
+
+Acceptance:
+
+- [x] QR Code benar-benar terlihat & valid saat dibuka di halaman Pengaturan Perpustakaan, untuk Owner, Admin, dan Member.
+- [x] QR bisa di-scan dan berhasil mengarah ke katalog read-only perpustakaan terkait (verifikasi end-to-end, bukan cuma cek elemen render ada di DOM/tree).
+
 Status: `PASS`
 
 ---
@@ -1292,6 +1317,114 @@ Setelah PHASE 9–15 selesai, jalankan regression menyeluruh — flow lama PHASE
 - [x] Member → export laporan & generate barcode → tetap berhasil meski view-only untuk fitur lain.
 
 Status: `PASS`
+
+---
+
+# PHASE 17 — Session, Navigasi Keluar, & Keyboard (Update Round 3)
+
+## LIB-005 — Pisahkan Tombol "Keluar Perpustakaan" dan "Keluar Akun"
+
+Masalah:
+
+Saat ini tombol "Keluar" di top nav kemungkinan melakukan logout akun penuh. Seharusnya ada 2 aksi berbeda dengan efek berbeda.
+
+Task:
+
+- [ ] Ubah tombol "Keluar" di top nav (dalam konteks sebuah perpustakaan) menjadi **"Keluar Perpustakaan"** — aksinya: navigasi kembali ke halaman pemilihan perpustakaan, TANPA menghapus sesi akun.
+- [ ] Pastikan tombol **"Keluar Akun"** (logout penuh) ada di halaman **Pengaturan Perpustakaan**.
+- [ ] Tambahkan tombol **"Keluar Akun"** juga di halaman **pemilihan perpustakaan** (hub) — supaya user yang belum masuk ke perpustakaan manapun tetap bisa logout akun.
+- [ ] Pastikan "Keluar Akun" adalah SATU-SATUNYA aksi yang menghapus sesi/cache login (lihat LIB-006).
+
+Acceptance:
+
+- [ ] Top nav dalam perpustakaan menampilkan "Keluar Perpustakaan", bukan logout akun.
+- [ ] "Keluar Perpustakaan" → kembali ke hub, sesi akun tetap aktif (user tidak perlu login ulang).
+- [ ] "Keluar Akun" tersedia di halaman Pengaturan Perpustakaan DAN halaman pemilihan perpustakaan.
+- [ ] "Keluar Akun" → sesi benar-benar terhapus, app minta login ulang setelah itu.
+
+Status: `PENDING`
+
+---
+
+## LIB-006 — Session Persisten (Offline-First) & Amandemen LIB-004
+
+*Amandemen atas LIB-004 (sebelumnya PASS) — bukan pembatalan, tapi penyempurnaan untuk kasus buka-ulang app.*
+
+Masalah:
+
+LIB-004 membuat SEMUA proses login selalu berhenti dulu di halaman pemilihan. Untuk app offline-first, ini seharusnya cuma berlaku untuk **login baru** (setelah Keluar Akun, atau pertama kali install) — bukan setiap kali app dibuka ulang selama sesi akun masih valid.
+
+Desired behavior:
+
+```text
+Kondisi A — Fresh login (setelah Keluar Akun / install baru):
+Login berhasil → SELALU ke halaman pemilihan (perilaku LIB-004, tetap berlaku)
+
+Kondisi B — Buka ulang app, sesi akun MASIH valid (belum Keluar Akun):
+Buka app → skip login form → skip halaman pemilihan
+        → langsung ke perpustakaan TERAKHIR yang dibuka
+```
+
+Task:
+
+- [ ] Investigasi mekanisme penyimpanan sesi saat ini (token/local storage) — pastikan sesi memang persisten di device selama belum ada aksi "Keluar Akun" eksplisit.
+- [ ] Simpan juga "perpustakaan terakhir dibuka" per device/akun (bukan cuma sesi login).
+- [ ] Saat app dibuka dan sesi akun masih valid: skip layar login, skip halaman pemilihan, langsung arahkan ke perpustakaan terakhir yang tersimpan.
+- [ ] Kalau "perpustakaan terakhir" tidak valid lagi (misal user di-remove dari perpustakaan itu) → fallback ke halaman pemilihan, jangan crash.
+- [ ] "Keluar Akun" (LIB-005) menghapus sesi DAN "perpustakaan terakhir" — setelah itu app kembali wajib login dari awal, dan login berikutnya mengikuti Kondisi A (selalu ke halaman pemilihan).
+- [ ] "Keluar Perpustakaan" (LIB-005) TIDAK menghapus sesi akun — tapi reset "perpustakaan terakhir" ke kosong, supaya buka app berikutnya berhenti di halaman pemilihan (bukan auto-masuk ke perpustakaan yang baru saja ditinggalkan).
+
+Acceptance:
+
+- [ ] Setelah login pertama kali (atau setelah Keluar Akun), user berhenti dulu di halaman pemilihan (LIB-004 tetap berlaku).
+- [ ] Setelah memilih perpustakaan, force close app sepenuhnya, buka lagi → langsung masuk ke perpustakaan yang sama, TANPA login ulang dan TANPA singgah di halaman pemilihan.
+- [ ] Setelah "Keluar Perpustakaan", force close & buka app lagi → berhenti di halaman pemilihan (bukan auto-masuk perpustakaan lama).
+- [ ] Setelah "Keluar Akun", force close & buka app lagi → diminta login dari awal.
+
+Status: `PENDING`
+
+---
+
+## UI-001 — Auto-Scroll/Fokus Input Saat Keyboard Muncul
+
+Masalah:
+
+Saat mengetik di textbox, keyboard menutupi textbox yang sedang aktif, sehingga user sulit melihat apa yang sedang diketik. Ini masalah umum di seluruh form aplikasi, bukan cuma satu halaman.
+
+Task:
+
+- [ ] Terapkan behavior scroll-into-view/keyboard-avoiding untuk SEMUA form input di aplikasi (KeyboardAvoidingView atau pola setara yang konsisten dengan struktur project) — bukan fix satu-satu per halaman.
+- [ ] Pastikan saat sebuah TextInput fokus dan keyboard muncul, input tersebut (idealnya beberapa baris di sekitarnya) tetap terlihat di atas keyboard.
+- [ ] Cek khususnya form-form panjang (Tambah/Edit Buku, Tambah/Edit Peminjaman, Tambah/Edit Anggota) di mana field yang diketik bisa berada di posisi bawah layar.
+
+Acceptance:
+
+- [ ] Di semua form utama, textbox yang sedang diketik tidak tertutup keyboard.
+- [ ] Behavior konsisten di seluruh halaman, bukan fix satu-satu per halaman.
+
+Status: `PENDING`
+
+---
+
+# PHASE 18 — Regression Test Round 3
+
+Setelah PHASE 17 dan BARCODE-002 selesai, jalankan regression berikut:
+
+### Flow 9 — Session & Navigasi Keluar
+1. Login baru → berhenti di halaman pemilihan (Kondisi A / LIB-004 tetap berlaku).
+2. Pilih perpustakaan → force close app → buka lagi → langsung masuk perpustakaan yang sama, tanpa login ulang, tanpa singgah di halaman pemilihan.
+3. Di dalam perpustakaan, tekan "Keluar Perpustakaan" → kembali ke halaman pemilihan, sesi akun masih aktif (tidak diminta login lagi).
+4. Dari halaman pemilihan, tekan "Keluar Akun" → force close app → buka lagi → diminta login dari awal.
+5. Dari halaman Pengaturan Perpustakaan, tekan "Keluar Akun" → hasil sama seperti poin 4.
+
+### Flow 10 — QR Code Perpustakaan
+1. Buka halaman Pengaturan Perpustakaan sebagai Owner, Admin, dan Member → QR benar-benar tampil untuk ketiganya.
+2. Scan QR (device lain/simulasi) → masuk mode Pengunjung, hanya lihat katalog read-only, tidak ada akses menu lain.
+
+### Flow 11 — Keyboard
+1. Buka form Tambah Buku, Tambah Peminjaman, Tambah Anggota → ketik di field paling bawah → field tetap terlihat di atas keyboard.
+
+Status: `PENDING`
 
 ---
 

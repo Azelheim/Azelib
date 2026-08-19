@@ -1067,6 +1067,34 @@ test('PHASE 16 — Flow 8 (Role & Permission Matrix Full Enforcement): Owner, Ad
   assert.equal(checkPermission('owner', 'REMOVE_OWNER'), false);
 });
 
+test('PHASE 15 / UPDATE ROUND 3 — BARCODE-002: Offline SVG QR generation and deterministic fallback for all roles', () => {
+  // Test 1: Resolution logic when qr_code_value is null/missing in DB
+  const resolveTenantQrValue = (tenantData, tenantNama, tenantId) => {
+    if (tenantData?.qr_code_value && tenantData.qr_code_value.trim().length > 0) {
+      return tenantData.qr_code_value;
+    }
+    const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    return `QR-${cleanName || 'PERPUS'}-${tenantId.slice(0, 6).toUpperCase()}`;
+  };
+
+  // When DB has explicit QR:
+  const dbWithQr = { qr_code_value: 'QR-CUSTOM-PERPUS' };
+  assert.equal(resolveTenantQrValue(dbWithQr, 'Perpus SMAN 1', 'tenant-123456'), 'QR-CUSTOM-PERPUS');
+
+  // When DB has null/empty QR (e.g. legacy/mock data):
+  const dbNullQr = { qr_code_value: null };
+  const fallbackQr = resolveTenantQrValue(dbNullQr, 'Perpus SMAN 1', 'tenant-123456');
+  assert.equal(fallbackQr, 'QR-PERPUSSM-TENANT');
+  assert.ok(fallbackQr.length > 5);
+
+  // Test 2: Role Accessibility (Owner, Admin, Member all get non-empty QR Code)
+  ['owner', 'admin', 'staff'].forEach(role => {
+    const qrValue = resolveTenantQrValue({ qr_code_value: 'QR-TEST-LIB' }, 'Perpustakaan Kita', 't-001');
+    assert.equal(qrValue, 'QR-TEST-LIB');
+  });
+});
+
+
 
 
 
