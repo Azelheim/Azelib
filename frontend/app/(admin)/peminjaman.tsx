@@ -347,7 +347,7 @@ export default function Peminjaman() {
 
       <Portal>
         <Modal visible={showNew} onDismiss={() => setShowNew(false)} contentContainerStyle={styles.modalContent}>
-          <ScrollView>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
             <Text variant="titleLarge" style={{ fontWeight: 'bold', marginBottom: 16 }}>Peminjaman Baru</Text>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -494,7 +494,7 @@ export default function Peminjaman() {
       {/* Modal: Quick Add Anggota */}
       <Portal>
         <Modal visible={showQuickAnggota} onDismiss={() => setShowQuickAnggota(false)} contentContainerStyle={styles.modalContent}>
-          <ScrollView>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
             <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16 }}>Tambah Anggota Baru</Text>
             
             <TextInput

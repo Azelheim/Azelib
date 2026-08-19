@@ -1,19 +1,51 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Text, Button, Portal, Modal, Snackbar, TextInput, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { Key, QrCode } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
 import { apiClient } from '../lib/api/apiClient';
+import { useTenant } from '../lib/context/TenantContext';
+import { getLastActiveTenant } from '../lib/session';
 
 export default function Gerbang() {
   const router = useRouter();
+  const { setActiveTenant } = useTenant();
+  const [checkingSession, setCheckingSession] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [errorVisible, setErrorVisible] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [manualCode, setManualCode] = useState('');
+
+  useEffect(() => {
+    checkActiveSession();
+  }, []);
+
+  const checkActiveSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // Kondisi B: Sesi akun MASIH valid (belum Keluar Akun)
+        const lastTenant = await getLastActiveTenant();
+        if (lastTenant?.id) {
+          // Buka app -> skip login form -> skip halaman pemilihan -> langsung ke perpustakaan terakhir
+          setActiveTenant(lastTenant.id, lastTenant.nama, lastTenant.role);
+          router.replace('/(admin)/dashboard');
+          return;
+        } else {
+          // Sesi aktif tapi tidak ada perpustakaan terakhir (misal setelah Keluar Perpustakaan)
+          router.replace('/tenant-setup');
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Error checking active session:', e);
+    } finally {
+      setCheckingSession(false);
+    }
+  };
 
   const handleScanPress = async () => {
     if (!permission?.granted) {
@@ -65,6 +97,14 @@ export default function Gerbang() {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     await processQrData(data);
   };
+
+  if (checkingSession) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

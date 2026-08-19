@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { TextInput, Button, Text, Snackbar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -93,10 +93,10 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text variant="headlineMedium" style={styles.title}>{isRegistering ? 'Buat Akun' : 'Masuk'}</Text>
         
         <TextInput
@@ -138,7 +138,7 @@ export default function Login() {
           </Button>
           {!isRegistering && <Button mode="text" onPress={handleForgotPassword} disabled={loading}>Lupa Password</Button>}
         </View>
-      </View>
+      </ScrollView>
 
       <Snackbar
         visible={!!generalError}

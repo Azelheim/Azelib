@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { Text, TextInput, Button, Snackbar, Appbar, Card, ActivityIndicator, SegmentedButtons, Menu } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -195,7 +195,11 @@ export default function DetailAnggota() {
         {!isNew && !isViewOnly && <Appbar.Action icon={() => <Trash2 size={20} color="#D32F2F" />} onPress={handleHapus} />}
       </Appbar.Header>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 }]} keyboardShouldPersistTaps="handled">
         {!isNew && (
           <TextInput
             label="Nomor Anggota"
@@ -269,6 +273,7 @@ export default function DetailAnggota() {
           </Card>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Snackbar visible={!!snackMsg} onDismiss={() => setSnackMsg('')} duration={3000}>
         {snackMsg}

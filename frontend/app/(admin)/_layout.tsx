@@ -4,7 +4,7 @@ import { IconButton, Text } from 'react-native-paper';
 import { View, Alert } from 'react-native';
 import { LayoutDashboard, Book, Repeat, Users, FileText, Settings, Sun, LogOut } from 'lucide-react-native';
 import { useTenant } from '../../lib/context/TenantContext';
-import { supabase } from '../../lib/supabase';
+import { clearLastActiveTenant } from '../../lib/session';
 
 export default function AdminLayout() {
   const router = useRouter();
@@ -14,13 +14,13 @@ export default function AdminLayout() {
   const isBukuActive = pathname.includes('buku');
   const isAnggotaActive = pathname.includes('anggota');
 
-  const handleLogout = () => {
-    Alert.alert('Keluar', 'Apakah Anda yakin ingin keluar?', [
+  const handleKeluarPerpustakaan = () => {
+    Alert.alert('Keluar Perpustakaan', 'Kembali ke halaman pemilihan perpustakaan?', [
       { text: 'Batal', style: 'cancel' },
       { text: 'Keluar', style: 'destructive', onPress: async () => {
-        await supabase.auth.signOut();
+        await clearLastActiveTenant();
         clearTenant();
-        router.replace('/');
+        router.replace('/tenant-setup');
       }},
     ]);
   };
@@ -45,7 +45,11 @@ export default function AdminLayout() {
           <View style={{ flexDirection: 'row', paddingRight: 8 }}>
             <IconButton icon={() => <Sun size={22} color="#000" />} onPress={() => Alert.alert('Info', 'Fitur tema belum tersedia untuk MVP')} />
             <IconButton icon={() => <Settings size={22} color="#000" />} onPress={() => router.push('/(admin)/pengaturan')} />
-            <IconButton icon={() => <LogOut size={22} color="#D32F2F" />} onPress={handleLogout} />
+            <IconButton 
+              icon={() => <LogOut size={22} color="#D32F2F" />} 
+              onPress={handleKeluarPerpustakaan} 
+              accessibilityLabel="Keluar Perpustakaan"
+            />
           </View>
         ),
         tabBarStyle: {

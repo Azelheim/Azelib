@@ -1094,6 +1094,95 @@ test('PHASE 15 / UPDATE ROUND 3 — BARCODE-002: Offline SVG QR generation and d
   });
 });
 
+test('PHASE 17 — LIB-005: Separate actions for Keluar Perpustakaan vs Keluar Akun', () => {
+  // Model state simulator
+  let sessionState = {
+    accountSession: { user: { id: 'user-1', email: 'owner@azelib.com' } },
+    activeTenant: { id: 't-1', nama: 'Perpus Utama', role: 'owner' },
+    savedLastTenant: { id: 't-1', nama: 'Perpus Utama', role: 'owner' },
+  };
+
+  // Action 1: Keluar Perpustakaan (from top nav)
+  const keluarPerpustakaan = (state) => {
+    return {
+      ...state,
+      activeTenant: null,
+      savedLastTenant: null, // resets saved last library
+      // accountSession is PRESERVED!
+    };
+  };
+
+  const afterKeluarPerpus = keluarPerpustakaan(sessionState);
+  assert.equal(afterKeluarPerpus.activeTenant, null);
+  assert.equal(afterKeluarPerpus.savedLastTenant, null);
+  assert.notEqual(afterKeluarPerpus.accountSession, null);
+  assert.equal(afterKeluarPerpus.accountSession.user.id, 'user-1');
+
+  // Action 2: Keluar Akun (from Settings or Selection Hub)
+  const keluarAkun = (state) => {
+    return {
+      accountSession: null,
+      activeTenant: null,
+      savedLastTenant: null,
+    };
+  };
+
+  const afterKeluarAkun = keluarAkun(sessionState);
+  assert.equal(afterKeluarAkun.accountSession, null);
+  assert.equal(afterKeluarAkun.activeTenant, null);
+  assert.equal(afterKeluarAkun.savedLastTenant, null);
+});
+
+test('PHASE 17 — LIB-006: Session persistence and post-login vs reopen routing matrix', () => {
+  // Route resolver helper matching index.tsx and login.tsx logic
+  const resolveStartupRoute = ({ session, lastTenant, isFreshLogin }) => {
+    // Kondisi A: Fresh Login (setelah Keluar Akun / login form)
+    if (isFreshLogin) {
+      return '/tenant-setup';
+    }
+
+    // Kondisi B: Buka ulang app dengan session aktif
+    if (session?.user) {
+      if (lastTenant?.id) {
+        return '/(admin)/dashboard';
+      }
+      return '/tenant-setup';
+    }
+
+    // Not authenticated
+    return '/';
+  };
+
+  // 1. Fresh login always routes to hub (/tenant-setup)
+  const freshLogin = resolveStartupRoute({ session: { user: { id: 'u1' } }, lastTenant: null, isFreshLogin: true });
+  assert.equal(freshLogin, '/tenant-setup');
+
+  // 2. Reopening app with active session and saved last library -> goes directly to dashboard
+  const appReopenWithLibrary = resolveStartupRoute({
+    session: { user: { id: 'u1' } },
+    lastTenant: { id: 't1', nama: 'Perpustakaan SMAN 1', role: 'owner' },
+    isFreshLogin: false,
+  });
+  assert.equal(appReopenWithLibrary, '/(admin)/dashboard');
+
+  // 3. Reopening app after "Keluar Perpustakaan" -> stops at selection hub (/tenant-setup)
+  const appReopenAfterKeluarPerpus = resolveStartupRoute({
+    session: { user: { id: 'u1' } },
+    lastTenant: null,
+    isFreshLogin: false,
+  });
+  assert.equal(appReopenAfterKeluarPerpus, '/tenant-setup');
+
+  // 4. Reopening app after "Keluar Akun" -> stays at Gerbang (/)
+  const appReopenLoggedOut = resolveStartupRoute({
+    session: null,
+    lastTenant: null,
+    isFreshLogin: false,
+  });
+  assert.equal(appReopenLoggedOut, '/');
+});
+
+
 
 
 

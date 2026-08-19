@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { Text, TextInput, Button, Snackbar, Appbar, ActivityIndicator, Card, Chip, Divider } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { apiClient } from '../../lib/api/apiClient';
@@ -364,7 +364,11 @@ export default function DetailBuku() {
         {!isNew && !isViewOnly && <Appbar.Action icon={() => <Trash2 size={20} color="#D32F2F" />} onPress={handleHapus} />}
       </Appbar.Header>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 }]} keyboardShouldPersistTaps="handled">
         {isNew && (
           <View style={styles.scanRow}>
             <TextInput label="ISBN (Opsional)" value={isbn} onChangeText={setIsbn} mode="outlined" style={styles.flexInput} />
@@ -551,6 +555,7 @@ export default function DetailBuku() {
           </Card>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Snackbar visible={!!snackMsg} onDismiss={() => setSnackMsg('')} duration={3000}>
         {snackMsg}

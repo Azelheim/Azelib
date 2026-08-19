@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { Text, Card, Button, TextInput, Snackbar, Appbar, Chip, Divider, ActivityIndicator } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import * as Print from 'expo-print';
@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/api/apiClient';
 import { useTenant } from '../../lib/context/TenantContext';
+import { logoutAccount } from '../../lib/session';
 import { QRCodeSvg, getQrSvgHtml } from '../../lib/qr/QRCodeSvg';
 import { LogOut, QrCode, Printer, Share2 } from 'lucide-react-native';
 
@@ -256,13 +257,13 @@ export default function Pengaturan() {
     ]);
   };
 
-  const handleLogout = () => {
-    Alert.alert('Keluar', 'Apakah Anda yakin ingin keluar?', [
+  const handleKeluarAkun = () => {
+    Alert.alert('Keluar Akun', 'Apakah Anda yakin ingin keluar dari akun Anda?', [
       { text: 'Batal', style: 'cancel' },
       { text: 'Keluar', style: 'destructive', onPress: async () => {
-        await supabase.auth.signOut();
+        await logoutAccount();
         clearTenant();
-        router.replace('/');
+        router.replace('/login');
       }},
     ]);
   };
@@ -417,8 +418,12 @@ export default function Pengaturan() {
         <Appbar.Content title="Pengaturan Perpustakaan" titleStyle={{ fontSize: 16, fontWeight: 'bold' }} />
       </Appbar.Header>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Member Section */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {/* Member Section */}
         <Card style={styles.card} mode="outlined">
           <Card.Title title="Daftar Pengelola Perpustakaan" />
           <Card.Content>
@@ -614,10 +619,11 @@ export default function Pengaturan() {
         </Card>
 
         {/* Keluar */}
-        <Button mode="outlined" onPress={handleLogout} textColor="#D32F2F" style={styles.logoutBtn} icon={() => <LogOut size={18} color="#D32F2F" />}>
-          Keluar dari Akun
+        <Button mode="outlined" onPress={handleKeluarAkun} textColor="#D32F2F" style={styles.logoutBtn} icon={() => <LogOut size={18} color="#D32F2F" />}>
+          Keluar Akun
         </Button>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Snackbar visible={!!snackMsg} onDismiss={() => setSnackMsg('')} duration={3000}>
         {snackMsg}

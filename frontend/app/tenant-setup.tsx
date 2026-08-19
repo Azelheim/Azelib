@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet, FlatList, Alert, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { Text, Button, TextInput, Card, ActivityIndicator, Snackbar, Chip, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { apiClient } from '../lib/api/apiClient';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../lib/context/TenantContext';
-import { Building2, Plus, Mail, ArrowRight } from 'lucide-react-native';
+import { saveLastActiveTenant, logoutAccount } from '../lib/session';
+import { Building2, Plus, Mail, ArrowRight, LogOut } from 'lucide-react-native';
 
 interface LibraryItem {
   tenant_id: string;
@@ -15,7 +16,7 @@ interface LibraryItem {
 
 export default function TenantSetup() {
   const router = useRouter();
-  const { setActiveTenant } = useTenant();
+  const { setActiveTenant, clearTenant } = useTenant();
   const [viewMode, setViewMode] = useState<'select' | 'options' | 'create' | 'join'>('options');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -73,6 +74,7 @@ export default function TenantSetup() {
     setLoading(true);
     try {
       const result = await apiClient.tenant.create(nama, alamat);
+      await saveLastActiveTenant({ id: result.tenant_id, nama, role: 'owner' });
       setActiveTenant(result.tenant_id, nama, 'owner');
       router.replace('/(admin)/dashboard');
     } catch (e: any) {
@@ -96,7 +98,8 @@ export default function TenantSetup() {
     }
   };
 
-  const handleSelectLibrary = (tenantId: string, namaTenant: string, role: string) => {
+  const handleSelectLibrary = async (tenantId: string, namaTenant: string, role: string) => {
+    await saveLastActiveTenant({ id: tenantId, nama: namaTenant, role });
     setActiveTenant(tenantId, namaTenant, role);
     router.replace('/(admin)/dashboard');
   };
@@ -104,6 +107,7 @@ export default function TenantSetup() {
   const handleJoin = async (tenantId: string, namaTenant: string, role: string) => {
     setLoading(true);
     try {
+      await saveLastActiveTenant({ id: tenantId, nama: namaTenant, role });
       setActiveTenant(tenantId, namaTenant, role);
       router.replace('/(admin)/dashboard');
     } catch (e: any) {
@@ -112,6 +116,17 @@ export default function TenantSetup() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleKeluarAkun = () => {
+    Alert.alert('Keluar Akun', 'Apakah Anda yakin ingin keluar dari akun Anda?', [
+      { text: 'Batal', style: 'cancel' },
+      { text: 'Keluar', style: 'destructive', onPress: async () => {
+        await logoutAccount();
+        clearTenant();
+        router.replace('/login');
+      }},
+    ]);
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -181,6 +196,15 @@ export default function TenantSetup() {
         >
           Cek Undangan Lain
         </Button>
+        <Button
+          mode="text"
+          textColor="#D32F2F"
+          icon={() => <LogOut size={16} color="#D32F2F" />}
+          onPress={handleKeluarAkun}
+          style={{ marginTop: 8 }}
+        >
+          Keluar Akun
+        </Button>
       </View>
     </View>
   );
@@ -195,12 +219,21 @@ export default function TenantSetup() {
       <Button mode="outlined" onPress={() => { setViewMode('join'); loadInvitations(); }} style={styles.button}>
         Gabung Undangan
       </Button>
+      <Button
+        mode="text"
+        textColor="#D32F2F"
+        icon={() => <LogOut size={16} color="#D32F2F" />}
+        onPress={handleKeluarAkun}
+        style={{ marginTop: 16 }}
+      >
+        Keluar Akun
+      </Button>
     </View>
   );
 
   // 3. Create Mode
   const renderCreate = () => (
-    <View style={styles.formContainer}>
+    <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled">
       <Text variant="titleLarge" style={styles.subtitle}>Buat Perpustakaan Baru</Text>
       <TextInput
         label="Nama Perpustakaan"
@@ -236,12 +269,12 @@ export default function TenantSetup() {
           Buat
         </Button>
       </View>
-    </View>
+    </ScrollView>
   );
 
   // 4. Join Mode
   const renderJoin = () => (
-    <View style={styles.formContainer}>
+    <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled">
       <Text variant="titleLarge" style={styles.subtitle}>Undangan Bergabung</Text>
       {loading ? (
         <ActivityIndicator size="large" style={{ marginTop: 32 }} />
@@ -251,6 +284,7 @@ export default function TenantSetup() {
         <FlatList
           data={invitations}
           keyExtractor={(item) => item.tenant_id}
+          scrollEnabled={false}
           renderItem={({ item }) => (
             <Card
               style={styles.card}
@@ -273,11 +307,14 @@ export default function TenantSetup() {
       >
         Kembali
       </Button>
-    </View>
+    </ScrollView>
   );
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.container}
+    >
       {viewMode === 'select' && renderSelect()}
       {viewMode === 'options' && renderOptions()}
       {viewMode === 'create' && renderCreate()}
@@ -289,7 +326,7 @@ export default function TenantSetup() {
       >
         {snackMsg}
       </Snackbar>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
