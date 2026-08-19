@@ -1361,19 +1361,19 @@ Saat ini tombol "Keluar" di top nav kemungkinan melakukan logout akun penuh. Seh
 
 Task:
 
-- [ ] Ubah tombol "Keluar" di top nav (dalam konteks sebuah perpustakaan) menjadi **"Keluar Perpustakaan"** — aksinya: navigasi kembali ke halaman pemilihan perpustakaan, TANPA menghapus sesi akun.
-- [ ] Pastikan tombol **"Keluar Akun"** (logout penuh) ada di halaman **Pengaturan Perpustakaan**.
-- [ ] Tambahkan tombol **"Keluar Akun"** juga di halaman **pemilihan perpustakaan** (hub) — supaya user yang belum masuk ke perpustakaan manapun tetap bisa logout akun.
-- [ ] Pastikan "Keluar Akun" adalah SATU-SATUNYA aksi yang menghapus sesi/cache login (lihat LIB-006).
+- [x] Ubah tombol "Keluar" di top nav (dalam konteks sebuah perpustakaan) menjadi **"Keluar Perpustakaan"** — aksinya: navigasi kembali ke halaman pemilihan perpustakaan, TANPA menghapus sesi akun.
+- [x] Pastikan tombol **"Keluar Akun"** (logout penuh) ada di halaman **Pengaturan Perpustakaan**.
+- [x] Tambahkan tombol **"Keluar Akun"** juga di halaman **pemilihan perpustakaan** (hub) — supaya user yang belum masuk ke perpustakaan manapun tetap bisa logout akun.
+- [x] Pastikan "Keluar Akun" adalah SATU-SATUNYA aksi yang menghapus sesi/cache login (lihat LIB-006).
 
 Acceptance:
 
-- [ ] Top nav dalam perpustakaan menampilkan "Keluar Perpustakaan", bukan logout akun.
-- [ ] "Keluar Perpustakaan" → kembali ke hub, sesi akun tetap aktif (user tidak perlu login ulang).
-- [ ] "Keluar Akun" tersedia di halaman Pengaturan Perpustakaan DAN halaman pemilihan perpustakaan.
-- [ ] "Keluar Akun" → sesi benar-benar terhapus, app minta login ulang setelah itu.
+- [x] Top nav dalam perpustakaan menampilkan "Keluar Perpustakaan", bukan logout akun.
+- [x] "Keluar Perpustakaan" → kembali ke hub, sesi akun tetap aktif (user tidak perlu login ulang).
+- [x] "Keluar Akun" tersedia di halaman Pengaturan Perpustakaan DAN halaman pemilihan perpustakaan.
+- [x] "Keluar Akun" → sesi benar-benar terhapus, app minta login ulang setelah itu.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -1398,21 +1398,21 @@ Buka app → skip login form → skip halaman pemilihan
 
 Task:
 
-- [ ] Investigasi mekanisme penyimpanan sesi saat ini (token/local storage) — pastikan sesi memang persisten di device selama belum ada aksi "Keluar Akun" eksplisit.
-- [ ] Simpan juga "perpustakaan terakhir dibuka" per device/akun (bukan cuma sesi login).
-- [ ] Saat app dibuka dan sesi akun masih valid: skip layar login, skip halaman pemilihan, langsung arahkan ke perpustakaan terakhir yang tersimpan.
-- [ ] Kalau "perpustakaan terakhir" tidak valid lagi (misal user di-remove dari perpustakaan itu) → fallback ke halaman pemilihan, jangan crash.
-- [ ] "Keluar Akun" (LIB-005) menghapus sesi DAN "perpustakaan terakhir" — setelah itu app kembali wajib login dari awal, dan login berikutnya mengikuti Kondisi A (selalu ke halaman pemilihan).
-- [ ] "Keluar Perpustakaan" (LIB-005) TIDAK menghapus sesi akun — tapi reset "perpustakaan terakhir" ke kosong, supaya buka app berikutnya berhenti di halaman pemilihan (bukan auto-masuk ke perpustakaan yang baru saja ditinggalkan).
+- [x] Investigasi mekanisme penyimpanan sesi saat ini (token/local storage) — pastikan sesi memang persisten di device selama belum ada aksi "Keluar Akun" eksplisit.
+- [x] Simpan juga "perpustakaan terakhir dibuka" per device/akun (bukan cuma sesi login).
+- [x] Saat app dibuka dan sesi akun masih valid: skip layar login, skip halaman pemilihan, langsung arahkan ke perpustakaan terakhir yang tersimpan.
+- [x] Kalau "perpustakaan terakhir" tidak valid lagi (misal user di-remove dari perpustakaan itu) → fallback ke halaman pemilihan, jangan crash.
+- [x] "Keluar Akun" (LIB-005) menghapus sesi DAN "perpustakaan terakhir" — setelah itu app kembali wajib login dari awal, dan login berikutnya mengikuti Kondisi A (selalu ke halaman pemilihan).
+- [x] "Keluar Perpustakaan" (LIB-005) TIDAK menghapus sesi akun — tapi reset "perpustakaan terakhir" ke kosong, supaya buka app berikutnya berhenti di halaman pemilihan (bukan auto-masuk ke perpustakaan yang baru saja ditinggalkan).
 
 Acceptance:
 
-- [ ] Setelah login pertama kali (atau setelah Keluar Akun), user berhenti dulu di halaman pemilihan (LIB-004 tetap berlaku).
-- [ ] Setelah memilih perpustakaan, force close app sepenuhnya, buka lagi → langsung masuk ke perpustakaan yang sama, TANPA login ulang dan TANPA singgah di halaman pemilihan.
-- [ ] Setelah "Keluar Perpustakaan", force close & buka app lagi → berhenti di halaman pemilihan (bukan auto-masuk perpustakaan lama).
-- [ ] Setelah "Keluar Akun", force close & buka app lagi → diminta login dari awal.
+- [x] Setelah login pertama kali (atau setelah Keluar Akun), user berhenti dulu di halaman pemilihan (LIB-004 tetap berlaku).
+- [x] Setelah memilih perpustakaan, force close app sepenuhnya, buka lagi → langsung masuk ke perpustakaan yang sama, TANPA login ulang dan TANPA singgah di halaman pemilihan.
+- [x] Setelah "Keluar Perpustakaan", force close & buka app lagi → berhenti di halaman pemilihan (bukan auto-masuk perpustakaan lama).
+- [x] Setelah "Keluar Akun", force close & buka app lagi → diminta login dari awal.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
@@ -1424,16 +1424,16 @@ Saat mengetik di textbox, keyboard menutupi textbox yang sedang aktif, sehingga 
 
 Task:
 
-- [ ] Terapkan behavior scroll-into-view/keyboard-avoiding untuk SEMUA form input di aplikasi (KeyboardAvoidingView atau pola setara yang konsisten dengan struktur project) — bukan fix satu-satu per halaman.
-- [ ] Pastikan saat sebuah TextInput fokus dan keyboard muncul, input tersebut (idealnya beberapa baris di sekitarnya) tetap terlihat di atas keyboard.
-- [ ] Cek khususnya form-form panjang (Tambah/Edit Buku, Tambah/Edit Peminjaman, Tambah/Edit Anggota) di mana field yang diketik bisa berada di posisi bawah layar.
+- [x] Terapkan behavior scroll-into-view/keyboard-avoiding untuk SEMUA form input di aplikasi (KeyboardAvoidingView atau pola setara yang konsisten dengan struktur project) — bukan fix satu-satu per halaman.
+- [x] Pastikan saat sebuah TextInput fokus dan keyboard muncul, input tersebut (idealnya beberapa baris di sekitarnya) tetap terlihat di atas keyboard.
+- [x] Cek khususnya form-form panjang (Tambah/Edit Buku, Tambah/Edit Peminjaman, Tambah/Edit Anggota) di mana field yang diketik bisa berada di posisi bawah layar.
 
 Acceptance:
 
-- [ ] Di semua form utama, textbox yang sedang diketik tidak tertutup keyboard.
-- [ ] Behavior konsisten di seluruh halaman, bukan fix satu-satu per halaman.
+- [x] Di semua form utama, textbox yang sedang diketik tidak tertutup keyboard.
+- [x] Behavior konsisten di seluruh halaman, bukan fix satu-satu per halaman.
 
-Status: `PENDING`
+Status: `PASS`
 
 ---
 
