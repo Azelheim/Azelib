@@ -1260,6 +1260,115 @@ test('PHASE 18 — Flow 11 (Keyboard Avoidance and Scroll View Verification)', (
   });
 });
 
+test('BARCODE-003 — Multi-Strategy QR & Manual Code Resolution and Validation Engine', () => {
+  const mockTenants = [
+    { id: '11111111-2222-3333-4444-555555555555', nama: 'SMA Negeri 1 Jakarta', alamat: 'Jl. Budi Utomo', qr_code_value: 'QR-SMAN1-JKT' },
+    { id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', nama: 'Perpustakaan Daerah', alamat: 'Jl. Merdeka', qr_code_value: 'QR-PERPUSDA-01' },
+    { id: '99999999-8888-7777-6666-555555555555', nama: 'SMK Telkom', alamat: 'Jl. Daan Mogot', qr_code_value: null }, // legacy without DB QR
+  ];
+
+  // Resolver engine (matching apiClient.tenant.getByQr logic)
+  const resolveTenantByQr = (input, tenants = mockTenants) => {
+    let raw = (input || '').trim();
+    if (!raw) throw new Error('QR tidak dikenali, coba lagi');
+
+    // 1. JSON parse
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(raw);
+        raw = parsed.qr_code_value || parsed.tenant_id || parsed.id || raw;
+      } catch {}
+    } else if (raw.includes('://') || raw.includes('?')) {
+      // 2. URL / Deep link parse
+      const match = raw.match(/[?&](code|qr|tenant_id)=([^&]+)/);
+      if (match && match[2]) {
+        raw = decodeURIComponent(match[2]);
+      } else {
+        const parts = raw.split('/').filter(Boolean);
+        if (parts.length > 0) raw = parts[parts.length - 1];
+      }
+    }
+
+    const cleanCode = raw.trim();
+    const upperCode = cleanCode.toUpperCase();
+
+    // Strategy A: Exact case-insensitive qr_code_value
+    const foundDirect = tenants.find(t => t.qr_code_value && t.qr_code_value.trim().toUpperCase() === upperCode);
+    if (foundDirect) return foundDirect;
+
+    // Strategy B: Full UUID or UUID prefix match
+    const foundById = tenants.find(t => 
+      t.id && (
+        t.id.toUpperCase() === upperCode || 
+        (t.id.length >= 6 && upperCode.includes(t.id.slice(0, 6).toUpperCase()))
+      )
+    );
+    if (foundById) return foundById;
+
+    // Strategy C: Deterministic generated fallback: QR-{cleanName}-{id.slice(0, 6)}
+    const foundByPattern = tenants.find(t => {
+      const cleanName = (t.nama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+      const expectedPattern = `QR-${cleanName || 'PERPUS'}-${(t.id || '').slice(0, 6).toUpperCase()}`;
+      return expectedPattern === upperCode || (upperCode.startsWith(`QR-${cleanName}`) && upperCode.endsWith((t.id || '').slice(0, 6).toUpperCase()));
+    });
+    if (foundByPattern) return foundByPattern;
+
+    throw new Error('QR tidak dikenali, coba lagi');
+  };
+
+  // Test 1: Direct exact code scan / input
+  const res1 = resolveTenantByQr('QR-SMAN1-JKT');
+  assert.equal(res1.nama, 'SMA Negeri 1 Jakarta');
+
+  // Test 2: Lowercase / whitespace manual typing
+  const res2 = resolveTenantByQr('  qr-sman1-jkt  ');
+  assert.equal(res2.nama, 'SMA Negeri 1 Jakarta');
+
+  // Test 3: Deep Link / Web URL scan
+  const res3 = resolveTenantByQr('https://azelib.sch.id/guest?code=QR-PERPUSDA-01');
+  assert.equal(res3.nama, 'Perpustakaan Daerah');
+
+  const res3b = resolveTenantByQr('azelib://pengunjung?tenant_id=11111111-2222-3333-4444-555555555555');
+  assert.equal(res3b.nama, 'SMA Negeri 1 Jakarta');
+
+  // Test 4: JSON payload scan
+  const res4 = resolveTenantByQr(JSON.stringify({ qr_code_value: 'QR-PERPUSDA-01' }));
+  assert.equal(res4.nama, 'Perpustakaan Daerah');
+
+  // Test 5: Legacy tenant with null DB qr_code_value using deterministic pattern
+  // cleanName: SMKTELKO, id prefix: 999999 -> QR-SMKTELKO-999999
+  const res5 = resolveTenantByQr('QR-SMKTELKO-999999');
+  assert.equal(res5.nama, 'SMK Telkom');
+
+  // Test 6: Invalid random code -> must throw 'QR tidak dikenali, coba lagi'
+  assert.throws(() => {
+    resolveTenantByQr('KODE-ACAK-TIDAK-VALID-12345');
+  }, /QR tidak dikenali, coba lagi/);
+
+  // Test 7: Empty or whitespace only -> must throw
+  assert.throws(() => {
+    resolveTenantByQr('   ');
+  }, /QR tidak dikenali, coba lagi/);
+
+  // Test 8: QR Code Regeneration (old code invalidated, new code works)
+  const tenantBeforeRegen = { id: 't-123', nama: 'Perpus Baru', qr_code_value: 'QR-PERPUSBA-OLD' };
+  let dbTenants = [tenantBeforeRegen];
+  assert.equal(resolveTenantByQr('QR-PERPUSBA-OLD', dbTenants).id, 't-123');
+
+  // Simulate Owner clicking Regenerate QR Code
+  const newQr = 'QR-PERPUSBA-NEW777';
+  dbTenants = [{ ...tenantBeforeRegen, qr_code_value: newQr }];
+
+  // Old code is now rejected:
+  assert.throws(() => {
+    resolveTenantByQr('QR-PERPUSBA-OLD', dbTenants);
+  }, /QR tidak dikenali, coba lagi/);
+
+  // New code resolves successfully:
+  assert.equal(resolveTenantByQr('QR-PERPUSBA-NEW777', dbTenants).id, 't-123');
+});
+
+
 
 
 

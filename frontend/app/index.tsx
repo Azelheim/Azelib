@@ -60,33 +60,21 @@ export default function Gerbang() {
   };
 
   const processQrData = async (rawCode: string) => {
-    const trimmed = rawCode.trim();
+    const trimmed = (rawCode || '').trim();
     if (!trimmed) return;
     if (scanning) return;
     setScanning(true);
     setShowScanner(false);
     
     try {
-      let tenant: any = null;
-      try {
-        tenant = await apiClient.tenant.getByQr(trimmed);
-      } catch {
-        const { data, error } = await supabase
-          .from('tenant')
-          .select('id, nama')
-          .eq('qr_code_value', trimmed)
-          .single();
-        if (!error && data) {
-          tenant = data;
-        }
-      }
-
-      if (!tenant) {
+      const tenant = await apiClient.tenant.getByQr(trimmed);
+      if (!tenant || !tenant.id) {
         setErrorVisible(true);
       } else {
-        router.push(`/pengunjung?tenant_id=${tenant.id}&nama=${encodeURIComponent(tenant.nama)}`);
+        router.push(`/pengunjung?tenant_id=${tenant.id}&nama=${encodeURIComponent(tenant.nama || 'Perpustakaan')}`);
       }
-    } catch {
+    } catch (e) {
+      console.error('Error validating QR code:', e);
       setErrorVisible(true);
     } finally {
       setScanning(false);
@@ -94,8 +82,11 @@ export default function Gerbang() {
     }
   };
 
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    await processQrData(data);
+  const handleBarCodeScanned = async (result: any) => {
+    const data = typeof result === 'string' ? result : (result?.data || result?.raw || '');
+    if (data) {
+      await processQrData(data);
+    }
   };
 
   if (checkingSession) {

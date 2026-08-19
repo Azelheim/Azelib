@@ -9,7 +9,7 @@ import { apiClient } from '../../lib/api/apiClient';
 import { useTenant } from '../../lib/context/TenantContext';
 import { logoutAccount } from '../../lib/session';
 import { QRCodeSvg, getQrSvgHtml } from '../../lib/qr/QRCodeSvg';
-import { LogOut, QrCode, Printer, Share2 } from 'lucide-react-native';
+import { LogOut, QrCode, Printer, Share2, RefreshCw } from 'lucide-react-native';
 
 interface MemberItem {
   id: string;
@@ -397,6 +397,24 @@ export default function Pengaturan() {
     }
   };
 
+  const handleRegenerateQR = async () => {
+    if (!tenantId || (userRole !== 'owner' && userRole !== 'admin')) return;
+    const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    const newCode = `QR-${cleanName || 'PERPUS'}-${Date.now().toString(36).toUpperCase()}`;
+    try {
+      const { error } = await supabase
+        .from('tenant')
+        .update({ qr_code_value: newCode, updated_at: new Date().toISOString() })
+        .eq('id', tenantId);
+      if (error) throw error;
+      setQrCodeValue(newCode);
+      setSnackMsg('QR Code perpustakaan berhasil diperbarui');
+    } catch (e: any) {
+      console.error('Error regenerate QR:', e);
+      setSnackMsg(e.message || 'Gagal memperbarui QR Code');
+    }
+  };
+
   const getRoleColor = (role: string) => {
     if (role === 'owner') return '#1565C0';
     if (role === 'admin') return '#E65100';
@@ -546,6 +564,19 @@ export default function Pengaturan() {
                 Bagikan
               </Button>
             </View>
+
+            {!isViewOnly && (
+              <Button
+                mode="text"
+                compact
+                icon={() => <RefreshCw size={14} color="#666" />}
+                textColor="#666"
+                onPress={handleRegenerateQR}
+                style={{ marginTop: 8, alignSelf: 'center' }}
+              >
+                Regenerasi QR Code Baru
+              </Button>
+            )}
           </Card.Content>
         </Card>
 

@@ -153,15 +153,97 @@ export const apiClient = {
       }
     },
     getByQr: async (qr_code_value: string) => {
-      const { data, error } = await supabase
-        .from('tenant')
-        .select('id, nama, alamat, qr_code_value')
-        .eq('qr_code_value', qr_code_value)
-        .single();
-      if (error || !data) {
+      let raw = (qr_code_value || '').trim();
+      if (!raw) {
         throw new Error('QR tidak dikenali, coba lagi');
       }
-      return data;
+
+      // 1. Extract payload from JSON or Deep Link / URL if present
+      if (raw.startsWith('{') && raw.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(raw);
+          raw = parsed.qr_code_value || parsed.tenant_id || parsed.id || raw;
+        } catch {}
+      } else if (raw.includes('://') || raw.includes('?')) {
+        try {
+          const url = new URL(raw);
+          const codeParam = url.searchParams.get('code') || url.searchParams.get('qr') || url.searchParams.get('tenant_id');
+          if (codeParam) {
+            raw = codeParam;
+          } else {
+            const segments = url.pathname.split('/').filter(Boolean);
+            if (segments.length > 0) raw = segments[segments.length - 1];
+          }
+        } catch {
+          const match = raw.match(/[?&](code|qr|tenant_id)=([^&]+)/);
+          if (match && match[2]) {
+            raw = decodeURIComponent(match[2]);
+          }
+        }
+      }
+
+      const cleanCode = raw.trim();
+      const upperCode = cleanCode.toUpperCase();
+
+      // 2. Query Supabase with multiple matching strategies
+      try {
+        // Strategy A: Exact qr_code_value match (case-insensitive)
+        const { data: byQr, error: errQr } = await supabase
+          .from('tenant')
+          .select('id, nama, alamat, qr_code_value')
+          .ilike('qr_code_value', cleanCode);
+
+        if (!errQr && byQr && byQr.length > 0) {
+          return byQr[0];
+        }
+
+        // Strategy B: Match by UUID if input is valid UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(cleanCode)) {
+          const { data: byId, error: errId } = await supabase
+            .from('tenant')
+            .select('id, nama, alamat, qr_code_value')
+            .eq('id', cleanCode)
+            .single();
+          if (!errId && byId) return byId;
+        }
+
+        // Strategy C: Fetch all tenants to check in-memory deterministic fallback patterns
+        const { data: allTenants, error: allErr } = await supabase
+          .from('tenant')
+          .select('id, nama, alamat, qr_code_value');
+
+        if (!allErr && Array.isArray(allTenants)) {
+          // Direct case-insensitive match
+          const foundDirect = allTenants.find(t => 
+            t.qr_code_value && t.qr_code_value.trim().toUpperCase() === upperCode
+          );
+          if (foundDirect) return foundDirect;
+
+          // Match by full or partial ID (e.g. UUID prefix)
+          const foundById = allTenants.find(t => 
+            t.id && (
+              t.id.toUpperCase() === upperCode || 
+              (t.id.length >= 6 && upperCode.includes(t.id.slice(0, 6).toUpperCase())) ||
+              (t.id.length >= 8 && upperCode.includes(t.id.slice(0, 8).toUpperCase()))
+            )
+          );
+          if (foundById) return foundById;
+
+          // Deterministic pattern: QR-{cleanName}-{id.slice(0, 6)}
+          const foundByPattern = allTenants.find(t => {
+            const cleanName = (t.nama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+            const expectedPattern = `QR-${cleanName || 'PERPUS'}-${(t.id || '').slice(0, 6).toUpperCase()}`;
+            return expectedPattern === upperCode || (upperCode.startsWith(`QR-${cleanName}`) && upperCode.endsWith((t.id || '').slice(0, 6).toUpperCase()));
+          });
+          if (foundByPattern) return foundByPattern;
+        }
+      } catch (e) {
+        console.error('Error in getByQr:', e);
+      }
+
+      // If no strategy matched, throw standardized error
+      throw new Error('QR tidak dikenali, coba lagi');
     },
     ownerDesignateSuccessor: async (tenant_id: string, penerus_user_id: string) => {
       try {
