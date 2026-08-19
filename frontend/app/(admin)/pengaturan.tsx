@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { Text, Card, Button, TextInput, Snackbar, Appbar, Chip, Divider, ActivityIndicator } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { supabase } from '../../lib/supabase';
@@ -36,13 +36,46 @@ export default function Pengaturan() {
   const [inviteRole, setInviteRole] = useState('staff');
   const [inviteLoading, setInviteLoading] = useState(false);
 
+  // Auto-refresh settings and members whenever Pengaturan screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      if (tenantId) {
+        loadSettings();
+        loadMembers();
+      } else {
+        setLoading(false);
+      }
+    }, [tenantId])
+  );
+
+  // Realtime subscription: updates QR code & settings across devices without restart
   useEffect(() => {
-    if (tenantId) {
-      loadSettings();
-      loadMembers();
-    } else {
-      setLoading(false);
-    }
+    if (!tenantId) return;
+
+    const channel = supabase
+      .channel(`tenant-settings-${tenantId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tenant', filter: `id=eq.${tenantId}` },
+        (payload: any) => {
+          if (payload?.new) {
+            if (payload.new.qr_code_value) {
+              setQrCodeValue(payload.new.qr_code_value);
+            }
+            if (payload.new.batas_maksimal_peminjaman !== undefined && payload.new.batas_maksimal_peminjaman !== null) {
+              setBatasPinjam(payload.new.batas_maksimal_peminjaman.toString());
+            }
+            if (payload.new.maksimal_hari_pinjam !== undefined && payload.new.maksimal_hari_pinjam !== null) {
+              setMaksimalHariPinjam(payload.new.maksimal_hari_pinjam.toString());
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [tenantId]);
 
   const loadSettings = async () => {

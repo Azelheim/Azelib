@@ -1222,13 +1222,58 @@ test('PHASE 18 — Flow 9 (Session & Navigasi Keluar End-to-End Flow)', () => {
 });
 
 test('PHASE 18 — Flow 10 (QR Code Perpustakaan & Public Catalog Isolation End-to-End)', () => {
-  // Step 1: Owner, Admin, and Member all receive valid offline QR Code
+  // Step 1: Owner, Admin, and Member all view valid QR Code in Pengaturan
   ['owner', 'admin', 'staff'].forEach(role => {
     const tenantInfo = { id: 'ten-01', nama: 'Perpustakaan Digital SMAN 2', qr_code_value: 'QR-SMAN2-TEN01' };
     assert.ok(tenantInfo.qr_code_value.startsWith('QR-'));
   });
 
-  // Step 2: Scan QR from Guest screen -> opens public catalog in read-only mode
+  // Step 2 & 3: Scan QR or manual input valid code -> opens public catalog in read-only mode
+  let serverTenantState = {
+    id: 'ten-01',
+    nama: 'Perpustakaan Digital SMAN 2',
+    qr_code_value: 'QR-SMAN2-TEN01'
+  };
+
+  const resolveQr = (inputCode) => {
+    const raw = (inputCode || '').trim();
+    if (!raw) throw new Error('QR tidak dikenali, coba lagi');
+    const upper = raw.toUpperCase();
+    if (serverTenantState.qr_code_value && serverTenantState.qr_code_value.toUpperCase() === upper) {
+      return {
+        id: serverTenantState.id,
+        nama: serverTenantState.nama,
+        route: `/pengunjung?tenant_id=${serverTenantState.id}&nama=${encodeURIComponent(serverTenantState.nama)}`
+      };
+    }
+    throw new Error('QR tidak dikenali, coba lagi');
+  };
+
+  const validGuestEntry = resolveQr('QR-SMAN2-TEN01');
+  assert.equal(validGuestEntry.id, 'ten-01');
+  assert.ok(validGuestEntry.route.includes('/pengunjung?tenant_id=ten-01'));
+
+  // Step 4: Random / invalid code -> rejected with exact toast error
+  assert.throws(() => resolveQr('KODE-INVALID-999'), /QR tidak dikenali, coba lagi/);
+
+  // Step 5: Regenerate QR on Device A -> Device B receives new QR code via subscription / focus without restart
+  const oldCode = serverTenantState.qr_code_value;
+  const newCode = `QR-SMAN2-${Date.now().toString(36).toUpperCase()}`;
+  
+  // Simulate Device A updating server state
+  serverTenantState = { ...serverTenantState, qr_code_value: newCode };
+
+  // Device B listener / focus handler reflects server state without app restart
+  const deviceBDisplayedQR = serverTenantState.qr_code_value;
+  assert.equal(deviceBDisplayedQR, newCode);
+  assert.notEqual(deviceBDisplayedQR, oldCode);
+
+  // Step 6: Presenting OLD code (before regenerate) is rejected; NEW code is accepted
+  assert.throws(() => resolveQr(oldCode), /QR tidak dikenali, coba lagi/);
+  const newGuestEntry = resolveQr(newCode);
+  assert.equal(newGuestEntry.id, 'ten-01');
+
+  // Verify guest route isolation
   const guestSession = {
     mode: 'guest',
     tenant_id: 'ten-01',

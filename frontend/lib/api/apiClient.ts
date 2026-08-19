@@ -185,9 +185,9 @@ export const apiClient = {
       const cleanCode = raw.trim();
       const upperCode = cleanCode.toUpperCase();
 
-      // 2. Query Supabase with multiple matching strategies
+      // 2. Query Supabase with single source of truth (active qr_code_value)
       try {
-        // Strategy A: Exact qr_code_value match (case-insensitive)
+        // Strategy A: Exact qr_code_value match (case-insensitive) in database
         const { data: byQr, error: errQr } = await supabase
           .from('tenant')
           .select('id, nama, alamat, qr_code_value')
@@ -208,35 +208,26 @@ export const apiClient = {
           if (!errId && byId) return byId;
         }
 
-        // Strategy C: Fetch all tenants to check in-memory deterministic fallback patterns
+        // Strategy C: Fetch all tenants to check in-memory match & legacy fallback
         const { data: allTenants, error: allErr } = await supabase
           .from('tenant')
           .select('id, nama, alamat, qr_code_value');
 
         if (!allErr && Array.isArray(allTenants)) {
-          // Direct case-insensitive match
+          // Direct match against active server qr_code_value
           const foundDirect = allTenants.find(t => 
             t.qr_code_value && t.qr_code_value.trim().toUpperCase() === upperCode
           );
           if (foundDirect) return foundDirect;
 
-          // Match by full or partial ID (e.g. UUID prefix)
-          const foundById = allTenants.find(t => 
-            t.id && (
-              t.id.toUpperCase() === upperCode || 
-              (t.id.length >= 6 && upperCode.includes(t.id.slice(0, 6).toUpperCase())) ||
-              (t.id.length >= 8 && upperCode.includes(t.id.slice(0, 8).toUpperCase()))
-            )
-          );
-          if (foundById) return foundById;
-
-          // Deterministic pattern: QR-{cleanName}-{id.slice(0, 6)}
-          const foundByPattern = allTenants.find(t => {
+          // Legacy fallback ONLY for tenants with NO active qr_code_value set in DB
+          const foundLegacy = allTenants.find(t => {
+            if (t.qr_code_value) return false; // If tenant has active qr_code_value, old/legacy codes must be rejected
             const cleanName = (t.nama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
             const expectedPattern = `QR-${cleanName || 'PERPUS'}-${(t.id || '').slice(0, 6).toUpperCase()}`;
-            return expectedPattern === upperCode || (upperCode.startsWith(`QR-${cleanName}`) && upperCode.endsWith((t.id || '').slice(0, 6).toUpperCase()));
+            return expectedPattern === upperCode;
           });
-          if (foundByPattern) return foundByPattern;
+          if (foundLegacy) return foundLegacy;
         }
       } catch (e) {
         console.error('Error in getByQr:', e);

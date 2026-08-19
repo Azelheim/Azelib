@@ -136,11 +136,11 @@ export default function Gerbang() {
             Scan QR Code Perpustakaan
           </Text>
           
-          {permission?.granted && (
+          {permission?.granted && showScanner && (
             <CameraView 
               style={styles.camera} 
               facing="back"
-              onBarcodeScanned={handleBarCodeScanned}
+              onBarcodeScanned={scanning ? undefined : handleBarCodeScanned}
               barcodeScannerSettings={{
                 barcodeTypes: ["qr"],
               }}
