@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import { Text, Button, Portal, Modal, Snackbar, TextInput, Divider } from 'react-native-paper';
+import { View, StyleSheet, ActivityIndicator, ScrollView, Platform } from 'react-native';
+import { Text, Button, Portal, Modal, Snackbar, TextInput } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { Key, QrCode } from 'lucide-react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Key, BookOpen } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { apiClient } from '../lib/api/apiClient';
 import { useTenant } from '../lib/context/TenantContext';
@@ -13,11 +12,10 @@ export default function Gerbang() {
   const router = useRouter();
   const { setActiveTenant } = useTenant();
   const [checkingSession, setCheckingSession] = useState(true);
-  const [showScanner, setShowScanner] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
+  const [showTokenModal, setShowTokenModal] = useState(false);
   const [errorVisible, setErrorVisible] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [manualCode, setManualCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [tokenInput, setTokenInput] = useState('');
 
   useEffect(() => {
     checkActiveSession();
@@ -47,57 +45,30 @@ export default function Gerbang() {
     }
   };
 
-  const handleScanPress = async () => {
-    if (!permission?.granted) {
-      const { status } = await requestPermission();
-      if (status !== 'granted') {
-        // Fallback directly to manual entry modal if camera permission is denied
-        setShowScanner(true);
-        return;
-      }
-    }
-    setShowScanner(true);
-  };
-
-  const processQrData = async (rawCode: string) => {
-    const trimmed = (rawCode || '').trim();
-    console.log('[BARCODE-007][CAMERA-PROCESS-QR] processQrData called with rawCode:', rawCode, 'trimmed:', trimmed, 'currently scanning:', scanning);
+  const handleTokenSubmit = async () => {
+    const trimmed = (tokenInput || '').trim();
+    console.log('[TOKEN-005][SUBMIT] Submitting token input:', trimmed);
     if (!trimmed) return;
-    if (scanning) {
-      console.log('[BARCODE-007][CAMERA-SKIP] Already processing a scan, ignoring event.');
-      return;
-    }
-    setScanning(true);
-    setShowScanner(false);
-    
+    if (loading) return;
+
+    setLoading(true);
+    setErrorVisible(false);
+
     try {
-      console.log('[BARCODE-007][CAMERA-VALIDATE-CALL] Calling apiClient.tenant.getByQr with:', trimmed);
-      const tenant = await apiClient.tenant.getByQr(trimmed);
-      console.log('[BARCODE-007][CAMERA-VALIDATE-SUCCESS] Validated tenant returned:', tenant);
+      const tenant = await apiClient.tenant.getByToken(trimmed);
+      console.log('[TOKEN-005][VALIDATE-SUCCESS] Matched tenant:', tenant);
       if (!tenant || !tenant.id) {
-        console.warn('[BARCODE-007][CAMERA-INVALID] Tenant result missing or empty ID');
         setErrorVisible(true);
       } else {
-        console.log('[BARCODE-007][CAMERA-NAVIGATING] Routing to /pengunjung with tenant_id:', tenant.id);
+        setShowTokenModal(false);
+        setTokenInput('');
         router.push(`/pengunjung?tenant_id=${tenant.id}&nama=${encodeURIComponent(tenant.nama || 'Perpustakaan')}`);
       }
     } catch (e: any) {
-      console.error('[BARCODE-007][CAMERA-VALIDATE-ERROR] QR validation failed with error:', e?.message || e);
+      console.error('[TOKEN-005][VALIDATE-ERROR] Token error:', e?.message || e);
       setErrorVisible(true);
     } finally {
-      setScanning(false);
-      setManualCode('');
-    }
-  };
-
-  const handleBarCodeScanned = async (result: any) => {
-    console.log('[BARCODE-007][CAMERA-SCAN-EVENT-TRIGGERED] Camera scanned event payload:', JSON.stringify(result));
-    const data = typeof result === 'string' ? result : (result?.data || result?.raw || '');
-    console.log('[BARCODE-007][CAMERA-SCAN-DATA-EXTRACTED] Extracted barcode data:', data);
-    if (data) {
-      await processQrData(data);
-    } else {
-      console.warn('[BARCODE-007][CAMERA-SCAN-EMPTY] Scanned event contained no string data:', result);
+      setLoading(false);
     }
   };
 
@@ -133,61 +104,60 @@ export default function Gerbang() {
 
           <Button 
             mode="outlined" 
-            icon={() => <QrCode size={20} color="#000" />} 
-            onPress={handleScanPress}
+            icon={() => <BookOpen size={20} color="#000" />} 
+            onPress={() => setShowTokenModal(true)}
             style={styles.button}
           >
-            Scan Perpustakaan
+            Mode Pengunjung
           </Button>
         </View>
       </View>
 
       <Portal>
-        <Modal visible={showScanner} onDismiss={() => setShowScanner(false)} contentContainerStyle={styles.modalContent}>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, paddingBottom: 16 }}>
-            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 12, textAlign: 'center' }}>
-              Scan QR Code Perpustakaan
+        <Modal 
+          visible={showTokenModal} 
+          onDismiss={() => { if (!loading) setShowTokenModal(false); }} 
+          contentContainerStyle={styles.modalContent}
+        >
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 8 }}>
+            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
+              Mode Pengunjung
             </Text>
-            
-            {permission?.granted && showScanner && (
-              <CameraView 
-                style={styles.camera} 
-                facing="back"
-                onBarcodeScanned={scanning ? undefined : handleBarCodeScanned}
-                barcodeScannerSettings={{
-                  barcodeTypes: ["qr"],
-                }}
-              />
-            )}
-
-            <Divider style={{ marginVertical: 12 }} />
-
-            <Text variant="labelMedium" style={{ color: '#666', marginBottom: 6 }}>
-              Atau masukkan kode QR:
+            <Text variant="bodySmall" style={{ color: '#666', textAlign: 'center', marginBottom: 20 }}>
+              Masukkan 6 karakter token perpustakaan untuk melihat katalog buku:
             </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TextInput
-                placeholder="Contoh: QR-PERPUS-01"
-                value={manualCode}
-                onChangeText={setManualCode}
-                mode="outlined"
-                style={{ flex: 1, backgroundColor: '#FFF' }}
-                dense
-              />
+
+            <TextInput
+              label="Token Perpustakaan"
+              placeholder="Contoh: ABC123"
+              value={tokenInput}
+              onChangeText={setTokenInput}
+              mode="outlined"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              style={styles.tokenInput}
+              dense
+            />
+
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+              <Button 
+                mode="text" 
+                onPress={() => setShowTokenModal(false)}
+                disabled={loading}
+                style={{ flex: 1 }}
+              >
+                Batal
+              </Button>
               <Button
                 mode="contained"
-                onPress={() => processQrData(manualCode)}
-                loading={scanning}
-                disabled={!manualCode.trim() || scanning}
-                style={{ alignSelf: 'center', borderRadius: 8 }}
+                onPress={handleTokenSubmit}
+                loading={loading}
+                disabled={!tokenInput.trim() || loading}
+                style={{ flex: 1, borderRadius: 8 }}
               >
-                Buka
+                Buka Katalog
               </Button>
             </View>
-
-            <Button style={{ marginTop: 16 }} mode="text" onPress={() => setShowScanner(false)}>
-              Batal
-            </Button>
           </ScrollView>
         </Modal>
       </Portal>
@@ -197,7 +167,7 @@ export default function Gerbang() {
         onDismiss={() => setErrorVisible(false)}
         duration={3000}
       >
-        QR tidak dikenali, coba lagi
+        Token tidak dikenali, coba lagi
       </Snackbar>
     </View>
   );
@@ -243,13 +213,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 20,
     margin: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     maxHeight: '85%',
   },
-  camera: {
-    height: 200,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 8,
-  }
+  tokenInput: {
+    backgroundColor: '#FFF',
+    fontSize: 18,
+    textAlign: 'center',
+    letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
 });

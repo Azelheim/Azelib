@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, useRouter, usePathname } from 'expo-router';
-import { IconButton, Text } from 'react-native-paper';
+import { IconButton, Text, Snackbar } from 'react-native-paper';
 import { View, Alert } from 'react-native';
 import { LayoutDashboard, Book, Repeat, Users, FileText, Settings, Sun, LogOut } from 'lucide-react-native';
 import { useTenant } from '../../lib/context/TenantContext';
@@ -9,7 +9,7 @@ import { clearLastActiveTenant } from '../../lib/session';
 export default function AdminLayout() {
   const router = useRouter();
   const pathname = usePathname();
-  const { tenantNama, clearTenant } = useTenant();
+  const { tenantNama, clearTenant, tokenNotification, clearTokenNotification } = useTenant();
 
   const isBukuActive = pathname.includes('buku');
   const isAnggotaActive = pathname.includes('anggota');
@@ -26,7 +26,8 @@ export default function AdminLayout() {
   };
 
   return (
-    <Tabs
+    <>
+      <Tabs
       screenOptions={{
         headerStyle: {
           backgroundColor: '#FFFFFF',
@@ -129,5 +130,19 @@ export default function AdminLayout() {
         }}
       />
     </Tabs>
+    <Snackbar
+      visible={!!tokenNotification}
+      onDismiss={clearTokenNotification}
+      duration={5000}
+      style={{ bottom: 60, backgroundColor: '#111827' }}
+      action={{
+        label: 'Tutup',
+        textColor: '#60A5FA',
+        onPress: clearTokenNotification,
+      }}
+    >
+      {tokenNotification}
+    </Snackbar>
+    </>
   );
 }

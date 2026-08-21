@@ -8,9 +8,13 @@ interface TenantState {
   userId: string | null;
   userEmail: string | null;
   isLoading: boolean;
+  tokenValue: string | null;
+  tokenNotification: string | null;
   setActiveTenant: (tenantId: string, tenantNama: string, role: string) => void;
   clearTenant: () => void;
   refreshTenant: () => Promise<void>;
+  setTokenValue: (token: string) => void;
+  clearTokenNotification: () => void;
 }
 
 const TenantContext = createContext<TenantState>({
@@ -20,9 +24,13 @@ const TenantContext = createContext<TenantState>({
   userId: null,
   userEmail: null,
   isLoading: true,
+  tokenValue: null,
+  tokenNotification: null,
   setActiveTenant: () => {},
   clearTenant: () => {},
   refreshTenant: async () => {},
+  setTokenValue: () => {},
+  clearTokenNotification: () => {},
 });
 
 export function TenantProvider({ children }: { children: ReactNode }) {
@@ -32,6 +40,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [tokenValue, setTokenValue] = useState<string | null>(null);
+  const [tokenNotification, setTokenNotification] = useState<string | null>(null);
 
   useEffect(() => {
     checkSession();
@@ -45,10 +55,38 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         setTenantId(null);
         setTenantNama(null);
         setUserRole(null);
+        setTokenValue(null);
+        setTokenNotification(null);
       }
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Global Realtime listener for tenant token updates across all roles
+  useEffect(() => {
+    if (!tenantId) return;
+
+    console.log('[TOKEN-002][REALTIME-GLOBAL-INIT] Listening to tenant changes for:', tenantId);
+    const channel = supabase
+      .channel(`tenant-global-${tenantId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tenant', filter: `id=eq.${tenantId}` },
+        (payload: any) => {
+          console.log('[TOKEN-002][REALTIME-GLOBAL-UPDATE] Payload:', payload);
+          if (payload?.new?.qr_code_value) {
+            const newToken = payload.new.qr_code_value;
+            setTokenValue(newToken);
+            setTokenNotification(`Token perpustakaan baru saja diperbarui: ${newToken}`);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId]);
 
   const checkSession = async () => {
     try {
@@ -74,6 +112,12 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setTenantId(null);
     setTenantNama(null);
     setUserRole(null);
+    setTokenValue(null);
+    setTokenNotification(null);
+  };
+
+  const clearTokenNotification = () => {
+    setTokenNotification(null);
   };
 
   const refreshTenant = async () => {
@@ -81,7 +125,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('tenant_member')
-        .select('tenant_id, role, tenant:tenant_id(nama)')
+        .select('tenant_id, role, tenant:tenant_id(nama, qr_code_value)')
         .eq('user_id', userId)
         .limit(1)
         .single();
@@ -92,6 +136,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         // tenant is a joined object with nama
         const tenantObj = data.tenant as any;
         setTenantNama(tenantObj?.nama || null);
+        if (tenantObj?.qr_code_value) {
+          setTokenValue(tenantObj.qr_code_value);
+        }
       }
     } catch (e) {
       console.error('Error refreshing tenant:', e);
@@ -101,7 +148,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   return (
     <TenantContext.Provider value={{
       tenantId, tenantNama, userRole, userId, userEmail, isLoading,
-      setActiveTenant, clearTenant, refreshTenant,
+      tokenValue, tokenNotification,
+      setActiveTenant, clearTenant, refreshTenant, setTokenValue, clearTokenNotification,
     }}>
       {children}
     </TenantContext.Provider>

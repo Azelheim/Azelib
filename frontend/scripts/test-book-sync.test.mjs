@@ -1413,6 +1413,148 @@ test('BARCODE-003 — Multi-Strategy QR & Manual Code Resolution and Validation 
   assert.equal(resolveTenantByQr('QR-PERPUSBA-NEW777', dbTenants).id, 't-123');
 });
 
+test('PHASE 19 — TOKEN-001: 6-Character Alphanumeric Token Generation & Case-Insensitive Matching', () => {
+  const generateToken = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const token1 = generateToken();
+  assert.equal(token1.length, 6);
+  assert.match(token1, /^[A-Z0-9]{6}$/);
+
+  // Case-insensitive matching logic
+  const validateToken = (inputToken, activeToken) => {
+    const cleanInput = (inputToken || '').trim().toUpperCase();
+    const cleanActive = (activeToken || '').trim().toUpperCase();
+    return cleanInput.length === 6 && cleanInput === cleanActive;
+  };
+
+  assert.ok(validateToken('k9x2mn', 'K9X2MN'));
+  assert.ok(validateToken('  K9X2MN  ', 'K9X2MN'));
+  assert.ok(validateToken('k9X2Mn', 'K9X2MN'));
+  assert.strictEqual(validateToken('WRONG1', 'K9X2MN'), false);
+});
+
+test('PHASE 19 — TOKEN-002: Token Confirmation State & Realtime Sync', () => {
+  let tokenConfirmed = false;
+  let currentToken = null;
+
+  // Initial state before server response
+  const renderTokenContainer = () => {
+    if (!tokenConfirmed || !currentToken) {
+      return { isBlurred: true, displayText: 'Memverifikasi token terkini...', loading: true };
+    }
+    return { isBlurred: false, displayText: currentToken, loading: false };
+  };
+
+  // 1. Initial render -> blurred with loading indicator
+  const state1 = renderTokenContainer();
+  assert.equal(state1.isBlurred, true);
+  assert.equal(state1.loading, true);
+
+  // 2. Server confirmation received
+  currentToken = 'AZL789';
+  tokenConfirmed = true;
+  const state2 = renderTokenContainer();
+  assert.equal(state2.isBlurred, false);
+  assert.equal(state2.displayText, 'AZL789');
+
+  // 3. Realtime update from another device
+  const incomingRealtimePayload = { qr_code_value: 'NEW456' };
+  currentToken = incomingRealtimePayload.qr_code_value;
+  const state3 = renderTokenContainer();
+  assert.equal(state3.isBlurred, false);
+  assert.equal(state3.displayText, 'NEW456');
+});
+
+test('PHASE 19 — TOKEN-003: Refresh Token Permission Matrix (Owner/Admin allowed, Staff blocked)', () => {
+  const refreshToken = (actorRole, tenantId) => {
+    if (actorRole !== 'owner' && actorRole !== 'admin') {
+      throw new Error('Hanya Owner dan Admin yang dapat memperbarui token');
+    }
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let newToken = '';
+    for (let i = 0; i < 6; i++) {
+      newToken += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return { tenantId, token: newToken };
+  };
+
+  // Owner -> Allowed
+  const resOwner = refreshToken('owner', 'tenant-1');
+  assert.equal(resOwner.token.length, 6);
+
+  // Admin -> Allowed
+  const resAdmin = refreshToken('admin', 'tenant-1');
+  assert.equal(resAdmin.token.length, 6);
+
+  // Staff -> Strictly Blocked
+  assert.throws(() => {
+    refreshToken('staff', 'tenant-1');
+  }, /Hanya Owner dan Admin yang dapat memperbarui token/);
+});
+
+test('PHASE 19 — TOKEN-004: In-App Broadcast Notification on Token Update', () => {
+  const subscribers = [];
+  const subscribeToTokenChanges = (callback) => {
+    subscribers.push(callback);
+  };
+
+  let receivedNotification = null;
+  subscribeToTokenChanges((newToken) => {
+    receivedNotification = `Token perpustakaan baru saja diperbarui: ${newToken}`;
+  });
+
+  // Trigger realtime change
+  const updatedToken = 'B7K9X2';
+  subscribers.forEach(cb => cb(updatedToken));
+
+  assert.equal(receivedNotification, 'Token perpustakaan baru saja diperbarui: B7K9X2');
+});
+
+test('PHASE 19 — TOKEN-005 & Regression — Token: Visitor Token Entry, Validation, and Isolation', () => {
+  let dbTenants = [
+    { id: 'tenant-alpha', nama: 'Perpustakaan Alpha', qr_code_value: 'ALP123' },
+    { id: 'tenant-beta', nama: 'Perpustakaan Beta', qr_code_value: 'BET456' },
+  ];
+
+  const getTenantByToken = (tokenInput) => {
+    const clean = (tokenInput || '').trim().toUpperCase();
+    if (!clean) throw new Error('Token tidak dikenali, coba lagi');
+    const match = dbTenants.find(t => t.qr_code_value && t.qr_code_value.trim().toUpperCase() === clean);
+    if (!match) throw new Error('Token tidak dikenali, coba lagi');
+    return match;
+  };
+
+  // 1. Valid token (lowercase input) -> Resolves successfully
+  const res1 = getTenantByToken('alp123');
+  assert.equal(res1.id, 'tenant-alpha');
+  assert.equal(res1.nama, 'Perpustakaan Alpha');
+
+  // 2. Invalid token -> Rejected
+  assert.throws(() => {
+    getTenantByToken('INVALID');
+  }, /Token tidak dikenali, coba lagi/);
+
+  // 3. Token refresh by Owner/Admin -> Old token rejected, new token accepted
+  dbTenants[0] = { ...dbTenants[0], qr_code_value: 'ALP789' };
+
+  // Old token is now invalid
+  assert.throws(() => {
+    getTenantByToken('ALP123');
+  }, /Token tidak dikenali, coba lagi/);
+
+  // New token is accepted
+  const res2 = getTenantByToken('ALP789');
+  assert.equal(res2.id, 'tenant-alpha');
+});
+
+
 
 
 

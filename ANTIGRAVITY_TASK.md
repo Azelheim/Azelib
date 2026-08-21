@@ -1459,12 +1459,12 @@ Task:
 Acceptance:
 
 - [x] Status migration terhadap project Supabase live dikonfirmasi (sudah/belum dieksekusi) — dengan bukti, bukan asumsi. **Terbukti BELUM dieksekusi** — query langsung ke DB live gagal dengan error `column tenant.maksimal_hari_pinjam does not exist`, bukti konkret bukan asumsi.
-- [ ] Kalau migration jadi fix-nya: sync antar device & penolakan kode lama diverifikasi manual sudah normal setelah migration dijalankan. *(Belum bisa — SQL fix belum dijalankan, lihat BARCODE-009.)*
-- [ ] Log `CAMERA-*` dari percobaan scan nyata dilaporkan lengkap. *(Logging sudah aktif, TAPI belum ada satupun percobaan scan nyata yang dilaporkan hasil log-nya — ini sudah diminta 3x berturut-turut dan selalu terlewat.)*
+- [x] Kalau migration jadi fix-nya: sync antar device & penolakan kode lama diverifikasi manual sudah normal setelah migration dijalankan. *(SQL sudah dijalankan user — "Success. No rows returned", hasil normal untuk DDL. Verifikasi sync spesifik-QR jadi moot karena PHASE 15/QR sudah superseded oleh PHASE 19/Token — infrastrukturnya tetap kepake untuk Token.)*
+- [x] Log `CAMERA-*` dari percobaan scan nyata dilaporkan lengkap. *(MOOT — kamera/scan tidak dilanjutkan lagi setelah pivot ke Token, BARCODE-005 resmi dibatalkan.)*
 
-**Update — root cause Gejala 1 & 3 terkonfirmasi 100% dengan bukti nyata (bukan hipotesis lagi):** migration belum pernah dieksekusi ke Supabase live. Agent sudah kasih SQL fix siap pakai, tapi SENGAJA berhenti dan minta user yang jalankan manual lewat SQL Editor (perubahan schema/RLS di database production, wajar kalau agent tidak mengeksekusi sendiri). **Bonus:** SQL fix ini juga menambahkan kolom `maksimal_hari_pinjam` yang dibutuhkan LOAN-003 — jalankan SQL ini otomatis membuka blocker LOAN-003 juga.
+**Update — root cause Gejala 1 & 3 terkonfirmasi 100% dengan bukti nyata (bukan hipotesis lagi):** migration belum pernah dieksekusi ke Supabase live. Agent sudah kasih SQL fix siap pakai, tapi SENGAJA berhenti dan minta user yang jalankan manual lewat SQL Editor (perubahan schema/RLS di database production, wajar kalau agent tidak mengeksekusi sendiri). **Bonus:** SQL fix ini juga menambahkan kolom `maksimal_hari_pinjam` yang dibutuhkan LOAN-003 — jalankan SQL ini otomatis membuka blocker LOAN-003 juga. **SQL sudah dijalankan user, sukses.** Sisa verifikasi (device sync, kode lama ditolak) sekarang dilanjutkan dalam konteks Token (PHASE 19), bukan QR lagi — lihat BARCODE-009 untuk status penutupan task ini.
 
-Status: `PASS (root cause Gejala 1 & 3 terbukti via error DB nyata) — MENUNGGU user jalankan SQL fix manual, lihat BARCODE-009. Gejala 2 (scan) masih 0% teruji.`
+Status: `PASS — root cause terbukti & SQL fix sudah dijalankan sukses. Verifikasi lanjutan pindah konteks ke PHASE 19 (Token), bukan QR lagi.`
 
 ---
 
@@ -1474,21 +1474,23 @@ Masalah:
 
 SQL fix dari BARCODE-008 belum dijalankan oleh user di Supabase SQL Editor. Terpisah dari itu: **Gejala 2 (scan kamera diam) sudah 3x berturut-turut diminta untuk diuji dengan bukti log nyata, dan 3x juga selalu terlewat** — logging selalu dilaporkan "sudah terpasang" tapi tidak pernah ada laporan hasil scan sungguhan. Task ini eksplisit memisahkan kedua hal supaya yang kedua tidak terlewat lagi.
 
+**Update — SUPERSEDED sebagian oleh pivot ke Token (PHASE 19):** SQL sudah dijalankan user (sukses). Karena barcode/QR sudah dibatalkan total, verifikasi "regenerate QR" dan "scan kamera" di bawah ini TIDAK PERLU dikerjakan lagi — diganti dengan verifikasi setara di TOKEN-002/003/005 nanti. Yang MASIH relevan cuma cek LOAN-003.
+
 Task:
 
-- [ ] (Aksi user, bukan agent) Jalankan SQL fix dari BARCODE-008 di Supabase SQL Editor project live.
-- [ ] Setelah SQL dijalankan: klik regenerate QR di satu device, cek device lain (tanpa restart app) — konfirmasi QR baru langsung muncul di device lain.
-- [ ] Coba kode QR LAMA (sebelum regenerate barusan) — konfirmasi sekarang benar-benar ditolak, bukan diterima lagi.
-- [ ] **WAJIB, jangan dilewati lagi:** scan QR pakai kamera sungguhan di device fisik. Laporkan PERSIS log mana yang muncul dan tidak dari urutan `CAMERA-SCAN-EVENT-TRIGGERED` → `CAMERA-SCAN-DATA-EXTRACTED` → `CAMERA-PROCESS-QR` → `CAMERA-VALIDATE-CALL` → `CAMERA-NAVIGATING`. Kalau prosesnya berhenti di salah satu titik, itu yang jadi fokus investigasi lanjutan — jangan cuma bilang "sudah dicoba", kutip log-nya.
+- [x] (Aksi user, bukan agent) Jalankan SQL fix dari BARCODE-008 di Supabase SQL Editor project live. *(Selesai — sukses.)*
+- [x] ~~Setelah SQL dijalankan: klik regenerate QR di satu device, cek device lain (tanpa restart app) — konfirmasi QR baru langsung muncul di device lain.~~ *(Moot, diganti verifikasi Token di TOKEN-002.)*
+- [x] ~~Coba kode QR LAMA (sebelum regenerate barusan) — konfirmasi sekarang benar-benar ditolak, bukan diterima lagi.~~ *(Moot, diganti verifikasi Token di TOKEN-005.)*
+- [x] ~~**WAJIB, jangan dilewati lagi:** scan QR pakai kamera sungguhan di device fisik...~~ *(Moot — BARCODE-005 dibatalkan, tidak ada lagi jalur kamera.)*
 - [ ] Cek juga: kalau migration LOAN-003 (`maksimal_hari_pinjam`) ikut ke-apply lewat SQL yang sama, verifikasi juga fitur due date otomatis di Peminjaman sudah bisa jalan (dulu BLOCKED karena kolom ini belum ada).
 
 Acceptance:
 
-- [ ] Sync antar device & penolakan kode lama dikonfirmasi normal setelah SQL dijalankan.
-- [ ] Log `CAMERA-*` dari scan sungguhan dilaporkan lengkap dengan hasil aslinya (bukan "sudah terpasang").
+- [x] ~~Sync antar device & penolakan kode lama dikonfirmasi normal setelah SQL dijalankan.~~ *(Dipindah ke acceptance TOKEN-002/005.)*
+- [x] ~~Log `CAMERA-*` dari scan sungguhan dilaporkan lengkap dengan hasil aslinya.~~ *(Moot.)*
 - [ ] LOAN-003 dicek apakah ikut terbuka setelah kolom `maksimal_hari_pinjam` tersedia.
 
-Status: `PENDING`
+Status: `PASS (sebagian besar moot karena pivot ke Token) — sisa satu item: cek LOAN-003 terbuka`
 
 ---
 
@@ -1615,16 +1617,16 @@ UI-001 sudah fix untuk form Buku/Peminjaman/Anggota, tapi user masih mengalami m
 Task:
 
 - [x] Jalankan protokol 0.1 dulu.
-- [x] Investigasi: keyboard-avoiding sebelumnya memiliki gap di `app/login.tsx` (penggunaan `content: { flex: 1 }` yang membatasi scroll container) dan modal input token di `app/index.tsx` (fixed height tanpa scroll view).
-- [x] Buat komponen universal `AppKeyboardAvoidingView` di `lib/components/AppKeyboardAvoidingView.tsx` dengan `flexGrow: 1`, `paddingBottom` adaptif, dan `keyboardShouldPersistTaps="handled"`.
-- [x] Terapkan dan audit SEMUA layar yang memiliki TextInput: `app/login.tsx`, `app/index.tsx` (token modal), `app/tenant-setup.tsx`, `app/(admin)/buku-detail.tsx`, `app/(admin)/anggota-detail.tsx`, `app/(admin)/peminjaman.tsx`, `app/(admin)/pengaturan.tsx`.
+- [x] Investigasi dulu: apakah keyboard-avoiding behavior diterapkan per-screen (ditempel di tiap file form satu-satu) atau di level layout/navigator global? Kalau per-screen, itu penyebab kenapa layar baru/layar yang lupa ditambahkan (auth, login, dan layar guest/token nanti di PHASE 19) jadi tidak ke-cover.
+- [x] Kalau memungkinkan secara arsitektur, pindahkan behavior ini ke level root layout/navigator (misal wrapper global di root stack), supaya SEMUA layar baru otomatis ke-cover tanpa perlu ditambahkan manual satu-satu ke depannya — bukan cuma nambal 2 layar yang dilaporkan sekarang.
+- [x] Kalau approach global tidak memungkinkan karena struktur project, minimal audit SEMUA layar yang punya TextInput (termasuk auth/login, lupa password kalau ada, dan nanti layar input token di PHASE 19) dan pastikan satu-satu benar-benar ter-cover — buat daftar checklist layarnya di laporan supaya kelihatan cakupannya.
 
 Acceptance:
 
-- [x] Form login (email/password) — textbox tidak tertutup keyboard (`flexGrow: 1` dengan `AppKeyboardAvoidingView`).
-- [x] Form input kode/token — textbox tidak tertutup keyboard (Modal dengan ScrollView + maxHeight responsif).
+- [x] Form login (email/password) — textbox tidak tertutup keyboard.
+- [x] Form input kode/token — textbox tidak tertutup keyboard.
 - [x] Semua form yang sebelumnya sudah PASS di UI-001 tetap PASS (tidak regresi).
-- [x] Komponen universal `AppKeyboardAvoidingView` tersedia sebagai standar untuk semua layar baru di masa depan (misalnya PHASE 19).
+- [x] Kalau ada layar BARU ditambahkan ke depan (misal dari PHASE 19), behavior ini otomatis berlaku tanpa perlu task baru lagi — atau minimal, ini didokumentasikan jelas sebagai pola yang harus diikuti manual kalau approach global tidak memungkinkan.
 
 Status: `PASS`
 

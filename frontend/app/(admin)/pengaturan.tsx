@@ -1,69 +1,72 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
-import { Text, Card, Button, TextInput, Snackbar, Appbar, Chip, Divider, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
+import { Text, Button, Card, TextInput, Divider, Snackbar, Chip, Appbar } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../lib/api/apiClient';
 import { useTenant } from '../../lib/context/TenantContext';
 import { logoutAccount } from '../../lib/session';
-import { QRCodeSvg, getQrSvgHtml } from '../../lib/qr/QRCodeSvg';
-import { LogOut, QrCode, Printer, Share2, RefreshCw } from 'lucide-react-native';
+import { RefreshCw, KeyRound, Copy, Share2, LogOut } from 'lucide-react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 interface MemberItem {
   id: string;
-  role: string;
+  role: 'owner' | 'admin' | 'staff';
   user_id: string;
-  app_user?: { nama: string | null; email: string | null } | { nama: string | null; email: string | null }[] | null;
+  app_user?: {
+    nama: string | null;
+    email: string;
+  } | {
+    nama: string | null;
+    email: string;
+  }[] | null;
 }
 
 export default function Pengaturan() {
   const router = useRouter();
-  const { tenantId, tenantNama, userRole, clearTenant } = useTenant();
+  const { tenantId, tenantNama, userRole, clearTenant, setTokenValue: setGlobalTokenValue } = useTenant();
   const [members, setMembers] = useState<MemberItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [snackMsg, setSnackMsg] = useState('');
-
-  // Settings
   const [batasPinjam, setBatasPinjam] = useState('3');
   const [maksimalHariPinjam, setMaksimalHariPinjam] = useState('7');
   const [tarifDenda, setTarifDenda] = useState('500');
-  const [qrCodeValue, setQrCodeValue] = useState('');
-
-  // Invite
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('staff');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'staff'>('staff');
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [snackMsg, setSnackMsg] = useState('');
 
-  // Auto-refresh settings and members whenever Pengaturan screen gains focus
+  // Token state
+  const [tokenValue, setTokenValue] = useState<string | null>(null);
+  const [tokenConfirmed, setTokenConfirmed] = useState(false);
+
   useFocusEffect(
     useCallback(() => {
       if (tenantId) {
         loadSettings();
         loadMembers();
-      } else {
-        setLoading(false);
       }
     }, [tenantId])
   );
 
-  // Realtime subscription: updates QR code & settings across devices without restart
+  // Realtime subscription: updates token & settings across devices without restart
   useEffect(() => {
     if (!tenantId) return;
 
-    console.log('[BARCODE-007][REALTIME-SUB-INIT] Initializing channel for tenant:', tenantId);
+    console.log('[TOKEN-002][REALTIME-SUB-INIT] Initializing channel for tenant:', tenantId);
     const channel = supabase
       .channel(`tenant-settings-${tenantId}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'tenant', filter: `id=eq.${tenantId}` },
         (payload: any) => {
-          console.log('[BARCODE-007][REALTIME-EVENT-RECEIVED] Event UPDATE received payload:', JSON.stringify(payload));
+          console.log('[TOKEN-002][REALTIME-EVENT-RECEIVED] Event UPDATE received payload:', JSON.stringify(payload));
           if (payload?.new) {
             if (payload.new.qr_code_value) {
-              console.log('[BARCODE-007][REALTIME-APPLY] Updating qrCodeValue state to:', payload.new.qr_code_value);
-              setQrCodeValue(payload.new.qr_code_value);
+              console.log('[TOKEN-002][REALTIME-APPLY] Updating tokenValue state to:', payload.new.qr_code_value);
+              setTokenValue(payload.new.qr_code_value);
+              setGlobalTokenValue(payload.new.qr_code_value);
+              setTokenConfirmed(true);
             }
             if (payload.new.batas_maksimal_peminjaman !== undefined && payload.new.batas_maksimal_peminjaman !== null) {
               setBatasPinjam(payload.new.batas_maksimal_peminjaman.toString());
@@ -75,11 +78,11 @@ export default function Pengaturan() {
         }
       )
       .subscribe((status: string, err?: any) => {
-        console.log('[BARCODE-007][REALTIME-STATUS] Channel subscription status:', status, 'error:', err);
+        console.log('[TOKEN-002][REALTIME-STATUS] Channel subscription status:', status, 'error:', err);
       });
 
     return () => {
-      console.log('[BARCODE-007][REALTIME-SUB-CLEANUP] Removing channel for tenant:', tenantId);
+      console.log('[TOKEN-002][REALTIME-SUB-CLEANUP] Removing channel for tenant:', tenantId);
       supabase.removeChannel(channel);
     };
   }, [tenantId]);
@@ -98,16 +101,21 @@ export default function Pengaturan() {
         setMaksimalHariPinjam(tenant.maksimal_hari_pinjam?.toString() || '7');
         let codeVal = tenant.qr_code_value;
         if (!codeVal) {
-          const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-          codeVal = `QR-${cleanName || 'PERPUS'}-${tenantId.slice(0, 6).toUpperCase()}`;
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+          let genCode = '';
+          for (let i = 0; i < 6; i++) {
+            genCode += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          codeVal = genCode;
           if (userRole === 'owner' || userRole === 'admin') {
             await supabase.from('tenant').update({ qr_code_value: codeVal }).eq('id', tenantId);
           }
         }
-        setQrCodeValue(codeVal);
+        setTokenValue(codeVal);
+        setGlobalTokenValue(codeVal);
+        setTokenConfirmed(true);
       } else {
-        const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-        setQrCodeValue(`QR-${cleanName || 'PERPUS'}-${tenantId.slice(0, 6).toUpperCase()}`);
+        setTokenConfirmed(false);
       }
 
       const { data: tarif, error: tarifErr } = await supabase
@@ -123,8 +131,7 @@ export default function Pengaturan() {
       }
     } catch (e) {
       console.error('Error loadSettings:', e);
-      const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-      setQrCodeValue(`QR-${cleanName || 'PERPUS'}-${tenantId.slice(0, 6).toUpperCase()}`);
+      setTokenConfirmed(false);
     }
   };
 
@@ -215,7 +222,7 @@ export default function Pengaturan() {
     }
   };
 
-  const handleInvite = async () => {
+  const handleInviteMember = async () => {
     if (!tenantId) return;
     if (userRole === 'staff') {
       setSnackMsg('Hanya Owner dan Admin yang dapat mengundang anggota');
@@ -307,96 +314,13 @@ export default function Pengaturan() {
     ]);
   };
 
-  const handlePrintQR = async () => {
-    if (!qrCodeValue) return;
-    const qrSvgString = getQrSvgHtml(qrCodeValue, 240);
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
-        <style>
-          body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            text-align: center;
-            padding: 40px;
-            color: #111;
-          }
-          .card {
-            border: 2px solid #000;
-            border-radius: 16px;
-            padding: 32px 24px;
-            max-width: 420px;
-            margin: 0 auto;
-          }
-          h1 {
-            font-size: 22px;
-            margin-bottom: 4px;
-            color: #000;
-          }
-          p.subtitle {
-            font-size: 14px;
-            color: #555;
-            margin-top: 0;
-            margin-bottom: 20px;
-          }
-          .qr-container {
-            margin: 16px auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-          }
-          .code-box {
-            background-color: #f5f5f5;
-            border: 1px dashed #999;
-            padding: 10px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 15px;
-            font-weight: bold;
-            margin-top: 14px;
-            letter-spacing: 1px;
-          }
-          .instructions {
-            font-size: 12px;
-            color: #666;
-            margin-top: 18px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <h1>${tenantNama || 'Perpustakaan'}</h1>
-          <p class="subtitle">Katalog Digital Pengunjung</p>
-          <div class="qr-container">
-            ${qrSvgString}
-          </div>
-          <div class="code-box">${qrCodeValue}</div>
-          <p class="instructions">Scan QR ini melalui aplikasi untuk membuka katalog koleksi buku tanpa login.</p>
-        </div>
-      </body>
-      </html>
-    `;
-
-    try {
-      await Print.printAsync({ html });
-    } catch (e: any) {
-      try {
-        const { uri } = await Print.printToFileAsync({ html });
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
-        } else {
-          setSnackMsg('QR Code siap dicetak');
-        }
-      } catch (err: any) {
-        setSnackMsg(err.message || 'Gagal mencetak QR');
-      }
-    }
+  const handleCopyToken = () => {
+    if (!tokenValue) return;
+    setSnackMsg(`Token ${tokenValue} siap dibagikan`);
   };
 
-  const handleShareQR = async () => {
-    if (!qrCodeValue) return;
-    const qrSvgString = getQrSvgHtml(qrCodeValue, 240);
+  const handleShareToken = async () => {
+    if (!tokenValue) return;
     const html = `
       <!DOCTYPE html>
       <html>
@@ -407,18 +331,14 @@ export default function Pengaturan() {
           .card { border: 2px solid #000; border-radius: 16px; padding: 30px; max-width: 420px; margin: 0 auto; }
           h1 { font-size: 22px; margin-bottom: 4px; }
           p { font-size: 13px; color: #555; }
-          .qr-container { margin: 16px auto; display: flex; justify-content: center; }
-          .code-box { background: #f0f0f0; padding: 8px; border-radius: 6px; font-family: monospace; font-weight: bold; margin-top: 12px; }
+          .token-box { background: #f0f0f0; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 6px; margin: 20px 0; }
         </style>
       </head>
       <body>
         <div class="card">
           <h1>${tenantNama || 'Perpustakaan'}</h1>
-          <p>Scan QR untuk melihat katalog buku</p>
-          <div class="qr-container">
-            ${qrSvgString}
-          </div>
-          <div class="code-box">${qrCodeValue}</div>
+          <p>Masukkan token ini di aplikasi untuk membuka katalog buku:</p>
+          <div class="token-box">${tokenValue}</div>
         </div>
       </body>
       </html>
@@ -429,38 +349,32 @@ export default function Pengaturan() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
       } else {
-        setSnackMsg('Sharing tidak tersedia pada perangkat ini');
+        setSnackMsg(`Token: ${tokenValue}`);
       }
     } catch (e: any) {
-      setSnackMsg(e.message || 'Gagal membagikan QR');
+      setSnackMsg(e.message || 'Gagal membagikan token');
     }
   };
 
-  const handleRegenerateQR = async () => {
-    console.log('[BARCODE-007][REGENERATE-START] User initiated regenerate QR. tenantId:', tenantId, 'userRole:', userRole);
+  const handleRefreshToken = async () => {
+    console.log('[TOKEN-003][REFRESH-START] Initiated by role:', userRole, 'tenantId:', tenantId);
     if (!tenantId || (userRole !== 'owner' && userRole !== 'admin')) {
-      console.warn('[BARCODE-007][REGENERATE-BLOCKED] Missing tenantId or insufficient role:', { tenantId, userRole });
+      setSnackMsg('Hanya Owner dan Admin yang dapat memperbarui token');
       return;
     }
-    const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-    const newCode = `QR-${cleanName || 'PERPUS'}-${Date.now().toString(36).toUpperCase()}`;
-    console.log('[BARCODE-007][REGENERATE-SENDING] Sending UPDATE to Supabase tenant table. newCode:', newCode);
     try {
-      const { data, error } = await supabase
-        .from('tenant')
-        .update({ qr_code_value: newCode, updated_at: new Date().toISOString() })
-        .eq('id', tenantId)
-        .select();
-      console.log('[BARCODE-007][REGENERATE-RESPONSE] Supabase update response:', { data, error });
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        console.warn('[BARCODE-007][REGENERATE-WARN] 0 rows updated! Check RLS policy for role:', userRole);
+      setTokenConfirmed(false);
+      const updated = await apiClient.tenant.refreshToken(tenantId, userRole);
+      if (updated?.qr_code_value) {
+        setTokenValue(updated.qr_code_value);
+        setGlobalTokenValue(updated.qr_code_value);
       }
-      setQrCodeValue(newCode);
-      setSnackMsg('QR Code perpustakaan berhasil diperbarui');
+      setTokenConfirmed(true);
+      setSnackMsg('Token perpustakaan berhasil diperbarui');
     } catch (e: any) {
-      console.error('[BARCODE-007][REGENERATE-ERROR] Error regenerate QR:', e);
-      setSnackMsg(e.message || 'Gagal memperbarui QR Code');
+      console.error('[TOKEN-003][REFRESH-ERROR] Error refreshing token:', e);
+      setTokenConfirmed(true);
+      setSnackMsg(e.message || 'Gagal memperbarui token');
     }
   };
 
@@ -491,218 +405,221 @@ export default function Pengaturan() {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {/* Member Section */}
-        <Card style={styles.card} mode="outlined">
-          <Card.Title title="Daftar Pengelola Perpustakaan" />
-          <Card.Content>
-            {loading ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} />
-            ) : (!members || members.length === 0) ? (
-              <Text style={{ color: '#666', fontStyle: 'italic' }}>Belum ada member terdaftar.</Text>
-            ) : (
-              members.map(m => {
-                const appUserObj = Array.isArray(m.app_user) ? m.app_user[0] : m.app_user;
-                const displayName = appUserObj?.nama || appUserObj?.email || (m.user_id ? `User (${m.user_id.slice(0, 6)})` : 'Anggota');
-                const displayEmail = appUserObj?.email || '-';
-                const showRemove = canRemoveMember(m.role);
-                const showPromote = userRole === 'owner' && m.role !== 'owner';
+          <Card style={styles.card} mode="outlined">
+            <Card.Title title="Daftar Pengelola Perpustakaan" />
+            <Card.Content>
+              {loading ? (
+                <ActivityIndicator style={{ marginVertical: 16 }} />
+              ) : (!members || members.length === 0) ? (
+                <Text style={{ color: '#666', fontStyle: 'italic' }}>Belum ada member terdaftar.</Text>
+              ) : (
+                members.map(m => {
+                  const appUserObj = Array.isArray(m.app_user) ? m.app_user[0] : m.app_user;
+                  const displayName = appUserObj?.nama || appUserObj?.email || (m.user_id ? `User (${m.user_id.slice(0, 6)})` : 'Anggota');
+                  const displayEmail = appUserObj?.email || '-';
+                  const showRemove = canRemoveMember(m.role);
+                  const showPromote = userRole === 'owner' && m.role !== 'owner';
 
-                return (
-                  <View key={m.id} style={styles.memberRow}>
-                    <View style={{ flex: 1, paddingRight: 8 }}>
-                      <Text variant="bodyLarge" style={{ fontWeight: '500' }}>{displayName}</Text>
-                      <Text variant="bodySmall" style={{ color: '#666' }}>{displayEmail}</Text>
-                    </View>
-                    <Chip style={{ backgroundColor: getRoleColor(m.role) + '22' }} textStyle={{ color: getRoleColor(m.role), fontSize: 12 }}>
-                      {getRoleLabel(m.role)}
-                    </Chip>
-                    {(showPromote || showRemove) && (
-                      <View style={{ flexDirection: 'row', marginLeft: 4 }}>
-                        {showPromote && (
-                          <Button compact mode="text" onPress={() => handlePromote(m.id, m.role)}>
-                            {m.role === 'admin' ? '→Member' : '→Admin'}
-                          </Button>
-                        )}
-                        {showRemove && (
-                          <Button compact mode="text" textColor="#D32F2F" onPress={() => handleRemoveMember(m.id, displayName, m.role)}>
-                            Hapus
-                          </Button>
-                        )}
+                  return (
+                    <View key={m.id} style={styles.memberRow}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text variant="bodyLarge" style={{ fontWeight: '500' }}>{displayName}</Text>
+                        <Text variant="bodySmall" style={{ color: '#666' }}>{displayEmail}</Text>
                       </View>
-                    )}
+                      <Chip style={{ backgroundColor: getRoleColor(m.role) + '22' }} textStyle={{ color: getRoleColor(m.role), fontSize: 12 }}>
+                        {getRoleLabel(m.role)}
+                      </Chip>
+                      {(showPromote || showRemove) && (
+                        <View style={{ flexDirection: 'row', marginLeft: 4 }}>
+                          {showPromote && (
+                            <Button compact mode="text" onPress={() => handlePromote(m.id, m.role)}>
+                              {m.role === 'admin' ? '→Member' : '→Admin'}
+                            </Button>
+                          )}
+                          {showRemove && (
+                            <Button compact mode="text" textColor="#D32F2F" onPress={() => handleRemoveMember(m.id, displayName, m.role)}>
+                              Hapus
+                            </Button>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              )}
+
+              {!isViewOnly && (
+                <>
+                  <Divider style={{ marginVertical: 16 }} />
+                  <Text variant="titleSmall" style={{ fontWeight: 'bold', marginBottom: 8 }}>Undang Pengelola Baru</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TextInput
+                      label="Email"
+                      value={inviteEmail}
+                      onChangeText={setInviteEmail}
+                      mode="outlined"
+                      style={{ flex: 1, backgroundColor: '#FFF' }}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      dense
+                    />
+                    <Button
+                      mode="contained"
+                      onPress={handleInviteMember}
+                      loading={inviteLoading}
+                      disabled={inviteLoading || !inviteEmail.trim()}
+                      style={{ alignSelf: 'center', borderRadius: 8 }}
+                    >
+                      Undang
+                    </Button>
                   </View>
-                );
-              })
-            )}
+                </>
+              )}
+            </Card.Content>
+          </Card>
 
-            {!isViewOnly && (
-              <>
-                <Divider style={{ marginVertical: 16 }} />
-                <Text variant="titleSmall" style={{ fontWeight: 'bold', marginBottom: 8 }}>Undang Pengelola Baru</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TextInput
-                    label="Email"
-                    value={inviteEmail}
-                    onChangeText={setInviteEmail}
-                    mode="outlined"
-                    style={{ flex: 1, backgroundColor: '#FFF' }}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    dense
-                  />
-                  <Button
-                    mode="contained"
-                    onPress={handleInvite}
-                    loading={inviteLoading}
-                    disabled={inviteLoading}
-                    style={{ alignSelf: 'center', borderRadius: 8 }}
-                  >
-                    Undang
-                  </Button>
-                </View>
-              </>
-            )}
-          </Card.Content>
-        </Card>
-
-        {/* QR Code */}
-        <Card style={styles.card} mode="outlined">
-          <Card.Title 
-            title="QR Code Perpustakaan" 
-            left={() => <QrCode size={22} color="#1565C0" />}
-          />
-          <Card.Content>
-            {qrCodeValue ? (
-              <View style={{ alignItems: 'center', marginVertical: 12 }}>
-                <View style={styles.qrImageWrapper}>
-                  <QRCodeSvg value={qrCodeValue} size={180} />
-                </View>
-                <Chip style={{ marginTop: 12, backgroundColor: '#F0F0F0' }} textStyle={{ fontWeight: 'bold', letterSpacing: 0.5 }}>
-                  {qrCodeValue}
-                </Chip>
+          {/* Token Akses Pengunjung Section */}
+          <Card style={styles.card} mode="outlined">
+            <Card.Title 
+              title="Token Akses Pengunjung" 
+              left={() => <KeyRound size={22} color="#1565C0" />}
+            />
+            <Card.Content>
+              <View style={[styles.tokenContainer, !tokenConfirmed && styles.tokenContainerBlur]}>
+                {tokenConfirmed && tokenValue ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+                    <Text variant="labelMedium" style={{ color: '#666', marginBottom: 4 }}>
+                      TOKEN PERPUSTAKAAN
+                    </Text>
+                    <Text style={styles.tokenText}>
+                      {tokenValue}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                    <ActivityIndicator size="small" />
+                    <Text variant="bodySmall" style={{ color: '#666', marginTop: 8 }}>
+                      Memverifikasi token terkini...
+                    </Text>
+                  </View>
+                )}
               </View>
-            ) : (
-              <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-                <ActivityIndicator size="small" />
-                <Text variant="bodySmall" style={{ color: '#888', marginTop: 8 }}>
-                  Memuat QR Code...
-                </Text>
+
+              <Text variant="bodySmall" style={{ color: '#666', textAlign: 'center', marginBottom: 16 }}>
+                Pengunjung dapat memasukkan 6 karakter token ini di halaman awal untuk langsung mengakses katalog buku tanpa perlu login.
+              </Text>
+
+              <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}>
+                <Button
+                  mode="contained"
+                  icon={() => <Copy size={16} color="#FFF" />}
+                  onPress={handleCopyToken}
+                  disabled={!tokenConfirmed || !tokenValue}
+                  style={{ flex: 1, borderRadius: 8 }}
+                >
+                  Salin Token
+                </Button>
+                <Button
+                  mode="outlined"
+                  icon={() => <Share2 size={16} color="#000" />}
+                  onPress={handleShareToken}
+                  disabled={!tokenConfirmed || !tokenValue}
+                  style={{ flex: 1, borderRadius: 8 }}
+                >
+                  Bagikan
+                </Button>
               </View>
-            )}
 
-            <Text variant="bodySmall" style={{ color: '#666', textAlign: 'center', marginBottom: 16 }}>
-              Pengunjung dapat scan QR ini untuk langsung mengakses katalog publik perpustakaan tanpa perlu login.
-            </Text>
-
-            <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}>
-              <Button
-                mode="contained"
-                icon={() => <Printer size={16} color="#FFF" />}
-                onPress={handlePrintQR}
-                disabled={!qrCodeValue}
-                style={{ flex: 1, borderRadius: 8 }}
-              >
-                Cetak QR
-              </Button>
-              <Button
-                mode="outlined"
-                icon={() => <Share2 size={16} color="#000" />}
-                onPress={handleShareQR}
-                disabled={!qrCodeValue}
-                style={{ flex: 1, borderRadius: 8 }}
-              >
-                Bagikan
-              </Button>
-            </View>
-
-            {!isViewOnly && (
-              <Button
-                mode="text"
-                compact
-                icon={() => <RefreshCw size={14} color="#666" />}
-                textColor="#666"
-                onPress={handleRegenerateQR}
-                style={{ marginTop: 8, alignSelf: 'center' }}
-              >
-                Regenerasi QR Code Baru
-              </Button>
-            )}
-          </Card.Content>
-        </Card>
-
-        {/* Batas Peminjaman */}
-        <Card style={styles.card} mode="outlined">
-          <Card.Title title="Batas Maksimal Peminjaman" />
-          <Card.Content>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput
-                value={batasPinjam}
-                onChangeText={setBatasPinjam}
-                mode="outlined"
-                keyboardType="numeric"
-                disabled={isViewOnly}
-                style={{ width: 100, backgroundColor: '#FFF' }}
-                dense
-              />
-              <Text variant="bodyMedium" style={{ flex: 1 }}>buku per anggota</Text>
               {!isViewOnly && (
-                <Button mode="contained" onPress={handleSaveBatas} style={{ borderRadius: 8 }}>Simpan</Button>
+                <Button
+                  mode="text"
+                  compact
+                  icon={() => <RefreshCw size={14} color="#666" />}
+                  textColor="#666"
+                  onPress={handleRefreshToken}
+                  disabled={!tokenConfirmed}
+                  style={{ marginTop: 8, alignSelf: 'center' }}
+                >
+                  Perbarui Token Baru
+                </Button>
               )}
-            </View>
-          </Card.Content>
-        </Card>
+            </Card.Content>
+          </Card>
 
-        {/* Maksimal Hari Pinjam */}
-        <Card style={styles.card} mode="outlined">
-          <Card.Title title="Maksimal Hari Pinjam" />
-          <Card.Content>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput
-                value={maksimalHariPinjam}
-                onChangeText={setMaksimalHariPinjam}
-                mode="outlined"
-                keyboardType="numeric"
-                disabled={isViewOnly}
-                style={{ width: 100, backgroundColor: '#FFF' }}
-                dense
-              />
-              <Text variant="bodyMedium" style={{ flex: 1 }}>hari</Text>
-              {!isViewOnly && (
-                <Button mode="contained" onPress={handleSaveMaksimalHariPinjam} style={{ borderRadius: 8 }}>Simpan</Button>
-              )}
-            </View>
-          </Card.Content>
-        </Card>
+          {/* Batas Peminjaman */}
+          <Card style={styles.card} mode="outlined">
+            <Card.Title title="Batas Maksimal Peminjaman" />
+            <Card.Content>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TextInput
+                  value={batasPinjam}
+                  onChangeText={setBatasPinjam}
+                  mode="outlined"
+                  keyboardType="numeric"
+                  disabled={isViewOnly}
+                  style={{ width: 100, backgroundColor: '#FFF' }}
+                  dense
+                />
+                <Text variant="bodyMedium" style={{ flex: 1 }}>buku per anggota</Text>
+                {!isViewOnly && (
+                  <Button mode="contained" onPress={handleSaveBatas} style={{ borderRadius: 8 }}>Simpan</Button>
+                )}
+              </View>
+            </Card.Content>
+          </Card>
 
-        {/* Tarif Denda */}
-        <Card style={styles.card} mode="outlined">
-          <Card.Title title="Nominal Denda per Hari" />
-          <Card.Content>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput
-                value={tarifDenda}
-                onChangeText={setTarifDenda}
-                mode="outlined"
-                keyboardType="numeric"
-                disabled={isViewOnly}
-                style={{ width: 100, backgroundColor: '#FFF' }}
-                dense
-              />
-              <Text variant="bodyMedium" style={{ flex: 1 }}>rupiah / hari / buku</Text>
-              {!isViewOnly && (
-                <Button mode="contained" onPress={handleSaveTarif} style={{ borderRadius: 8 }}>Simpan</Button>
-              )}
-            </View>
-            <Text variant="bodySmall" style={{ color: '#888', marginTop: 8 }}>
-              Tarif denda berlaku mulai hari ini dan perubahan tidak berlaku retroaktif.
-            </Text>
-          </Card.Content>
-        </Card>
+          {/* Maksimal Hari Pinjam */}
+          <Card style={styles.card} mode="outlined">
+            <Card.Title title="Maksimal Hari Pinjam" />
+            <Card.Content>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TextInput
+                  value={maksimalHariPinjam}
+                  onChangeText={setMaksimalHariPinjam}
+                  mode="outlined"
+                  keyboardType="numeric"
+                  disabled={isViewOnly}
+                  style={{ width: 100, backgroundColor: '#FFF' }}
+                  dense
+                />
+                <Text variant="bodyMedium" style={{ flex: 1 }}>hari</Text>
+                {!isViewOnly && (
+                  <Button mode="contained" onPress={handleSaveMaksimalHariPinjam} style={{ borderRadius: 8 }}>Simpan</Button>
+                )}
+              </View>
+            </Card.Content>
+          </Card>
 
-        {/* Keluar */}
-        <Button mode="outlined" onPress={handleKeluarAkun} textColor="#D32F2F" style={styles.logoutBtn} icon={() => <LogOut size={18} color="#D32F2F" />}>
-          Keluar Akun
-        </Button>
-      </ScrollView>
+          {/* Tarif Denda */}
+          <Card style={styles.card} mode="outlined">
+            <Card.Title title="Nominal Denda per Hari" />
+            <Card.Content>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TextInput
+                  value={tarifDenda}
+                  onChangeText={setTarifDenda}
+                  mode="outlined"
+                  keyboardType="numeric"
+                  disabled={isViewOnly}
+                  style={{ width: 100, backgroundColor: '#FFF' }}
+                  dense
+                />
+                <Text variant="bodyMedium" style={{ flex: 1 }}>rupiah / hari / buku</Text>
+                {!isViewOnly && (
+                  <Button mode="contained" onPress={handleSaveTarif} style={{ borderRadius: 8 }}>Simpan</Button>
+                )}
+              </View>
+              <Text variant="bodySmall" style={{ color: '#888', marginTop: 8 }}>
+                Tarif denda berlaku mulai hari ini dan perubahan tidak berlaku retroaktif.
+              </Text>
+            </Card.Content>
+          </Card>
+
+          {/* Keluar */}
+          <Button mode="outlined" onPress={handleKeluarAkun} textColor="#D32F2F" style={styles.logoutBtn} icon={() => <LogOut size={18} color="#D32F2F" />}>
+            Keluar Akun
+          </Button>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <Snackbar visible={!!snackMsg} onDismiss={() => setSnackMsg('')} duration={3000}>
@@ -718,13 +635,24 @@ const styles = StyleSheet.create({
   card: { marginBottom: 16, backgroundColor: '#FFFFFF' },
   memberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', flexWrap: 'wrap' },
   logoutBtn: { marginTop: 16, borderColor: '#D32F2F', borderRadius: 8 },
-  qrImageWrapper: {
-    padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+  tokenContainer: {
+    backgroundColor: '#F8F9FA',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    elevation: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 12,
+    marginVertical: 12,
+  },
+  tokenContainerBlur: {
+    backgroundColor: '#F3F4F6',
+    opacity: 0.7,
+  },
+  tokenText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    letterSpacing: 6,
+    color: '#111827',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    textAlign: 'center',
   },
 });
-

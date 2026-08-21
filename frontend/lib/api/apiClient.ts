@@ -256,7 +256,36 @@ export const apiClient = {
 
       console.warn('[BARCODE-007][VALIDATE-FAIL] No tenant matched code:', { cleanCode, upperCode });
       // If no strategy matched, throw standardized error
-      throw new Error('QR tidak dikenali, coba lagi');
+      throw new Error('Token tidak dikenali, coba lagi');
+    },
+    getByToken: async (token: string) => {
+      const raw = (token || '').trim();
+      if (!raw) {
+        throw new Error('Token tidak dikenali, coba lagi');
+      }
+      try {
+        return await apiClient.tenant.getByQr(raw);
+      } catch {
+        throw new Error('Token tidak dikenali, coba lagi');
+      }
+    },
+    refreshToken: async (tenantId: string, actor_role: string) => {
+      if (actor_role !== 'owner' && actor_role !== 'admin') {
+        throw new Error('Hanya Owner dan Admin yang dapat memperbarui token');
+      }
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let newToken = '';
+      for (let i = 0; i < 6; i++) {
+        newToken += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const { data, error } = await supabase
+        .from('tenant')
+        .update({ qr_code_value: newToken, updated_at: new Date().toISOString() })
+        .eq('id', tenantId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
     },
     ownerDesignateSuccessor: async (tenant_id: string, penerus_user_id: string) => {
       try {
