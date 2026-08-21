@@ -52,14 +52,17 @@ export default function Pengaturan() {
   useEffect(() => {
     if (!tenantId) return;
 
+    console.log('[BARCODE-007][REALTIME-SUB-INIT] Initializing channel for tenant:', tenantId);
     const channel = supabase
       .channel(`tenant-settings-${tenantId}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'tenant', filter: `id=eq.${tenantId}` },
         (payload: any) => {
+          console.log('[BARCODE-007][REALTIME-EVENT-RECEIVED] Event UPDATE received payload:', JSON.stringify(payload));
           if (payload?.new) {
             if (payload.new.qr_code_value) {
+              console.log('[BARCODE-007][REALTIME-APPLY] Updating qrCodeValue state to:', payload.new.qr_code_value);
               setQrCodeValue(payload.new.qr_code_value);
             }
             if (payload.new.batas_maksimal_peminjaman !== undefined && payload.new.batas_maksimal_peminjaman !== null) {
@@ -71,9 +74,12 @@ export default function Pengaturan() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status: string, err?: any) => {
+        console.log('[BARCODE-007][REALTIME-STATUS] Channel subscription status:', status, 'error:', err);
+      });
 
     return () => {
+      console.log('[BARCODE-007][REALTIME-SUB-CLEANUP] Removing channel for tenant:', tenantId);
       supabase.removeChannel(channel);
     };
   }, [tenantId]);
@@ -431,19 +437,29 @@ export default function Pengaturan() {
   };
 
   const handleRegenerateQR = async () => {
-    if (!tenantId || (userRole !== 'owner' && userRole !== 'admin')) return;
+    console.log('[BARCODE-007][REGENERATE-START] User initiated regenerate QR. tenantId:', tenantId, 'userRole:', userRole);
+    if (!tenantId || (userRole !== 'owner' && userRole !== 'admin')) {
+      console.warn('[BARCODE-007][REGENERATE-BLOCKED] Missing tenantId or insufficient role:', { tenantId, userRole });
+      return;
+    }
     const cleanName = (tenantNama || 'LIB').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
     const newCode = `QR-${cleanName || 'PERPUS'}-${Date.now().toString(36).toUpperCase()}`;
+    console.log('[BARCODE-007][REGENERATE-SENDING] Sending UPDATE to Supabase tenant table. newCode:', newCode);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tenant')
         .update({ qr_code_value: newCode, updated_at: new Date().toISOString() })
-        .eq('id', tenantId);
+        .eq('id', tenantId)
+        .select();
+      console.log('[BARCODE-007][REGENERATE-RESPONSE] Supabase update response:', { data, error });
       if (error) throw error;
+      if (!data || data.length === 0) {
+        console.warn('[BARCODE-007][REGENERATE-WARN] 0 rows updated! Check RLS policy for role:', userRole);
+      }
       setQrCodeValue(newCode);
       setSnackMsg('QR Code perpustakaan berhasil diperbarui');
     } catch (e: any) {
-      console.error('Error regenerate QR:', e);
+      console.error('[BARCODE-007][REGENERATE-ERROR] Error regenerate QR:', e);
       setSnackMsg(e.message || 'Gagal memperbarui QR Code');
     }
   };

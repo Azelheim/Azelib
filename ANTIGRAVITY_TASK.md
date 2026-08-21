@@ -1325,6 +1325,171 @@ Status: `PASS`
 
 ---
 
+## BARCODE-004 — QR Tidak Sinkron Antar Device Setelah Regenerate
+
+Masalah:
+
+Setelah regenerate QR di satu device, device lain (login dengan akun yang sama, ke perpustakaan yang sama) masih menampilkan QR **LAMA** — tidak ter-update. Ini indikasi QR yang ditampilkan kemungkinan tidak diambil dari satu sumber data yang sama (server) tiap kali halaman dibuka — bisa jadi di-cache lokal tanpa refetch, atau bahkan digenerate/disimpan secara berbeda per device.
+
+Task:
+
+- [ ] Jalankan protokol 0.1 dulu.
+- [ ] Investigasi ULANG mekanisme penyimpanan & pengambilan value QR: pastikan ada SATU sumber kebenaran tersimpan di server/database per perpustakaan — bukan digenerate lokal per device, bukan cuma disimpan di local storage/cache tanpa sinkron ke server.
+- [ ] Pastikan halaman Pengaturan Perpustakaan SELALU mengambil value QR terbaru dari server saat halaman dibuka/di-focus — bukan pakai cache lama. Ini pola yang sama persis dengan root cause BOOK-003 di round 1 (state tidak ter-refresh tanpa restart) — kemungkinan besar kelas bug yang sama, cek dulu apakah fix BOOK-003 dulu memang generik atau cuma diterapkan khusus di modul Buku.
+- [ ] Setelah regenerate di satu device, device lain yang membuka halaman ini (tanpa restart app) harus melihat QR yang sudah baru.
+- [ ] Pastikan kode QR lama otomatis invalid begitu regenerate terjadi — supaya tidak ada 2 kode berbeda yang sama-sama valid di waktu bersamaan (celah: kode lama masih bisa dipakai orang lain masuk mode Pengunjung).
+
+Acceptance:
+
+- [ ] Regenerate QR di Device A → buka halaman Pengaturan Perpustakaan di Device B (device lain, login ke perpustakaan yang sama) tanpa restart app → QR yang tampil sudah yang baru.
+- [ ] Kode QR lama (sebelum regenerate) tidak lagi valid untuk discan/diinput manual setelah regenerate.
+
+Status: `PASS (dilaporkan agent, commit ea887dc) — DIPERTANYAKAN: user melaporkan masih belum bisa di device nyata setelah fix ini. Lihat BARCODE-006.`
+
+---
+
+## BARCODE-005 — Scan Kamera Masih Tidak Bereaksi (Setelah BARCODE-003)
+
+Masalah:
+
+Input manual kode QR (BARCODE-003) sudah berfungsi. Tapi scan QR pakai kamera masih belum bereaksi sama sekali — tidak ada navigasi, tidak ada toast error, benar-benar diam.
+
+Kemungkinan penyebab (cek berurutan):
+1. Scan yang diam bisa jadi cuma GEJALA dari BARCODE-004 — kalau QR yang ditampilkan/discan sudah stale/tidak sinkron, hasil scan-nya otomatis tidak valid. Selesaikan BARCODE-004 dulu, verifikasi ulang scan setelah itu SEBELUM lanjut investigasi di bawah.
+2. Kalau setelah BARCODE-004 selesai scan MASIH diam: kemungkinan besar di jalur UI — kamera berhasil decode QR jadi string, tapi callback (onScan/onBarcodeScanned) tidak terpasang, tidak memanggil fungsi validasi yang sama dengan input manual, atau ada state/debounce yang salah sehingga callback tidak pernah ke-trigger.
+
+Task:
+
+- [ ] Jalankan protokol 0.1 dulu.
+- [ ] Pastikan BARCODE-004 sudah selesai & di-verifikasi — coba scan ulang dengan QR yang sudah pasti terbaru/sinkron sebelum investigasi lebih lanjut di sini.
+- [ ] Kalau scan masih diam setelah itu: tambahkan logging sementara untuk memastikan callback scan benar-benar terpanggil saat kamera mendeteksi QR.
+- [ ] Pastikan callback scan memanggil fungsi validasi yang SAMA dengan input manual (BARCODE-003) — bukan implementasi terpisah.
+- [ ] Cek permission kamera tidak gagal silently.
+- [ ] Pastikan scan yang gagal validasi (kode salah/expired) tetap kasih feedback toast — bukan diam total, supaya user tau ada masalah, bukan mengira app freeze.
+
+Acceptance:
+
+- [ ] Scan QR yang valid & terbaru → langsung masuk mode Pengunjung, tanpa delay aneh.
+- [ ] Scan QR yang sudah tidak valid (lama/expired) → tetap kasih feedback toast, bukan diam.
+- [ ] Diuji di device fisik yang berbeda, bukan cuma satu device/emulator (mengikuti Android Safety Checklist kalau spec desain baru sudah jalan).
+
+Status: `PASS (dilaporkan agent, commit ea887dc) — DIPERTANYAKAN: user melaporkan masih belum bisa di device nyata setelah fix ini. Lihat BARCODE-006.`
+
+---
+
+## BARCODE-006 — Investigasi Ulang: Fix Dilaporkan PASS Tapi Masih Tidak Berfungsi di Device Nyata
+
+Masalah:
+
+BARCODE-004 dan BARCODE-005 dilaporkan `PASS` lengkap dengan root cause (realtime subscription Supabase, validasi `qr_code_value` diperketat, guard `scanning` di `CameraView`), typecheck 0 error, automated test 40/40 PASS, dan commit `ea887dc`. Tapi setelah dicek user, **SEMUA 3 gejala masih persis sama seperti sebelum fix** — tidak ada satupun yang membaik:
+- QR di device lain masih belum ter-update (masih kode lama).
+- Scan pakai kamera masih diam aja.
+- Kode lama masih bisa dipakai (belum ditolak).
+
+**Ini sinyal penting:** kalau fix menyentuh 3 area berbeda (realtime subscription, validasi server, guard kamera) dan HASILNYA 0% berubah di ketiganya, kemungkinan besar penyebabnya BUKAN murni logic salah di 3 tempat itu sekaligus — lebih mungkin **kode barunya belum benar-benar berjalan di device yang ditest**, atau ada 1 dependency eksternal yang belum aktif. Cek 2 hal ini DULU sebelum re-investigasi logic:
+
+Task:
+
+- [ ] Jalankan protokol 0.1 dulu — JANGAN percaya status PASS di atas.
+- [ ] **Cek dulu apakah build yang ditest user benar-benar berisi commit `ea887dc`** — bukan build/bundle lama yang ke-cache. Clear Metro bundler cache, force rebuild, kalau perlu uninstall-reinstall app di device test. Tambahkan sesuatu yang gampang diverifikasi (misal versi/commit hash singkat) supaya ke depan gampang mastiin device benar-benar pakai build terbaru.
+- [ ] **Cek apakah Supabase Realtime replication benar-benar AKTIF untuk tabel `tenant`** di dashboard Supabase — ini setting server-side/dashboard, BUKAN kode, jadi tidak akan ketahuan dari code review atau automated test. Kalau replication belum di-enable untuk tabel ini, subscription di kode akan diam total tanpa error — persis gejala yang dilaporkan (QR device lain tidak ter-update).
+- [ ] Setelah 2 hal di atas dipastikan benar (build terbaru jalan, replication aktif), baru reproduce ulang ketiga gejala secara manual di device fisik. Kalau MASIH gagal setelah ini, baru lanjut investigasi logic detail (kemungkinan besar salah satu dari: `qr_code_value` tidak benar-benar tersimpan ke DB saat regenerate, subscription channel/filter salah, atau `CameraView` yang diedit bukan komponen yang benar-benar dipakai di layar scan).
+- [ ] Investigasi kenapa `test-book-sync.test.mjs` bisa 40/40 PASS padahal behavior nyata 0% berubah — cek apakah test ini benar-benar meng-cover Realtime subscription & CameraView, atau cuma testing fungsi helper/validasi secara terisolasi (mocked) tanpa exercise jalur end-to-end yang sebenarnya bermasalah.
+- [ ] Perbaiki test coverage-nya juga kalau memang tidak representatif — supaya "PASS" ke depannya benar-benar bisa dipercaya untuk fitur ini.
+
+Acceptance:
+
+- [x] Dikonfirmasi device test menjalankan build dari commit terbaru (bukan cache lama). *(dikonfirmasi user)*
+- [x] Dikonfirmasi Supabase Realtime replication aktif untuk tabel `tenant`. *(dikonfirmasi user)*
+- [ ] Ketiga gejala (sync antar device, scan kamera, kode lama ditolak) direproduksi ulang secara manual di device fisik dan dikonfirmasi hilang.
+- [ ] Automated test benar-benar meng-cover jalur yang sebelumnya gagal, bukan cuma pass secara teknis tanpa relevansi.
+
+**Update:** build & Supabase Realtime replication sudah dikonfirmasi OK oleh user. Kedua hipotesis paling gampang sudah gugur — lanjut ke BARCODE-007 untuk investigasi level-kode dengan diagnostic logging (bukan nebak/nulis fix lagi tanpa bukti).
+
+Status: `PENDING — 2 penyebab gampang sudah dieliminasi (build, replication), lanjut BARCODE-007`
+
+---
+
+## BARCODE-007 — Diagnostic Logging Dulu Sebelum Fix Lagi (Root Cause Belum Ketemu Setelah 2x Percobaan)
+
+Masalah:
+
+Ini sudah percobaan fix ke-2 (BARCODE-004/005, commit `ea887dc`) dan ketiga gejala masih terus sama persis, bahkan setelah build & Supabase Realtime replication dikonfirmasi OK. Sebelum menulis fix lagi, **WAJIB tambahkan diagnostic logging dulu dan reproduce ulang** — supaya tahu PERSIS di layer mana gagalnya, bukan menebak/rewrite broad lagi seperti 2 percobaan sebelumnya.
+
+Task:
+
+- [ ] Jalankan protokol 0.1 dulu.
+- [ ] **Cek Row Level Security (RLS) policy** di tabel `tenant` untuk kolom/row terkait `qr_code_value` — pastikan role yang dipakai (authenticated/anon, sesuai siapa yang butuh baca perubahan ini real-time) punya policy `SELECT` yang mengizinkan event realtime terkirim. Ini BEDA dari "replication enabled" — replication bisa nyala tapi kalau RLS block, event tetap tidak sampai ke client tanpa error apapun.
+- [ ] Tambahkan log sementara di callback subscription realtime — konfirmasi APAKAH event diterima sama sekali saat regenerate terjadi di device lain (bukan cuma cek UI berubah atau tidak). Log tidak pernah muncul → root cause di RLS/channel/filter subscription. Log muncul tapi UI tetap tidak update → root cause di state update React-nya.
+- [ ] Query database LANGSUNG (lewat Supabase dashboard/SQL editor, bukan lewat app) segera setelah klik regenerate — pastikan `qr_code_value` di DB memang benar-benar berubah. Kalau di DB pun belum berubah → root cause di endpoint regenerate itu sendiri, bukan di sisi baca sama sekali.
+- [ ] Cari SEMUA tempat di codebase yang me-render kamera/scanner (`CameraView` atau sejenisnya) — pastikan cuma ada SATU implementasi, dan yang diedit di BARCODE-005 memang benar-benar yang dipakai di layar scan yang sebenarnya diakses user (bukan komponen duplikat/tidak terpakai).
+- [ ] Tambahkan log di titik validasi kode QR (baik dari jalur scan maupun input manual) — cetak value yang mau divalidasi vs value yang dianggap valid oleh server, supaya kelihatan persis di mana mismatch-nya kalau kode lama ternyata masih diterima.
+- [ ] Reproduce ketiga gejala dengan logging di atas aktif, kumpulkan hasil lognya, BARU laporkan temuan — jangan langsung nulis fix baru sebelum ini.
+
+Acceptance:
+
+- [x] RLS policy tabel `tenant` sudah dicek — ditemukan UPDATE policy hanya mengizinkan Owner (`is_tenant_owner(id)`), bukan Admin. Ada migration `20260819150000_enable_realtime_and_admin_tenant_update.sql` yang sepertinya dibuat untuk fix ini.
+- [x] Logging sudah dipasang di 5 titik (subscription, regenerate, camera scan, validasi).
+- [ ] Ada laporan konkret dari hasil logging DENGAN REPRODUCE NYATA (klik regenerate & scan sungguhan) — yang dilaporkan sejauh ini baru instrumentasi + dugaan dari review kode/schema, BELUM ada log output asli dari eksekusi nyata.
+- [ ] Baru setelah root cause pasti diketahui dari log asli, tulis fix yang menyasar layer itu secara spesifik.
+
+**Update:** ditemukan dugaan kuat dari review kode (bukan dari log runtime): RLS UPDATE policy tabel `tenant` mungkin memblokir Admin (hanya izinkan Owner), dan migration yang sepertinya dibuat untuk fix ini mungkin belum dieksekusi ke project Supabase live. Ini BELUM dikonfirmasi — lanjut BARCODE-008 untuk konfirmasi nyata sebelum dianggap selesai.
+
+Status: `PENDING — hipotesis kuat ditemukan dari code review, BELUM dikonfirmasi via reproduce nyata, lanjut BARCODE-008`
+
+---
+
+## BARCODE-008 — Konfirmasi Hipotesis RLS & Migration Sebelum Fix
+
+Masalah:
+
+Dari investigasi BARCODE-007 (review kode/schema, belum reproduce runtime), ditemukan dugaan kuat: RLS policy `UPDATE` di tabel `tenant` sepertinya cuma mengizinkan Owner (`is_tenant_owner(id)`), bukan Admin. Ada migration `20260819150000_enable_realtime_and_admin_tenant_update.sql` yang sepertinya dibuat khusus untuk fix ini — tapi belum dikonfirmasi apakah migration ini SUDAH benar-benar dieksekusi di project Supabase yang live (membuat file migration di repo TIDAK otomatis meng-apply ke database, harus dijalankan eksplisit lewat `supabase db push` atau SQL Editor).
+
+Kalau hipotesis ini benar, ini sekaligus menjelaskan 2 dari 3 gejala dalam satu root cause: kalau UPDATE selalu ditolak RLS, maka regenerate TIDAK PERNAH benar-benar mengubah `qr_code_value` di database — jadi wajar device lain tidak lihat perubahan (karena memang tidak ada perubahan), dan wajar juga "kode lama" masih valid (karena itu sebenarnya masih kode yang aktif sekarang, bukan kode lama sungguhan).
+
+Task:
+
+- [ ] Cek langsung di Supabase (dashboard atau CLI) apakah migration `20260819150000_enable_realtime_and_admin_tenant_update.sql` SUDAH benar-benar dieksekusi terhadap project yang live — bukan cuma ada sebagai file di repo.
+- [ ] Kalau BELUM dieksekusi: jalankan migration itu, lalu coba regenerate ulang QR dan cek apakah sync antar device & penolakan kode lama langsung normal. Kalau ya, root cause selesai tanpa perlu tulis kode fix baru sama sekali.
+- [ ] Kalau SUDAH dieksekusi tapi masalah tetap ada: klik tombol regenerate dengan akun yang dipakai testing, lalu laporkan PERSIS isi log `[BARCODE-007][REGENERATE-START]` (khususnya nilai `userRole`-nya) dan `[BARCODE-007][REGENERATE-RESPONSE]` / `[BARCODE-007][REGENERATE-WARN]` — ini akan konfirmasi apakah UPDATE benar-benar ditolak RLS (`data.length === 0`) atau sebenarnya berhasil.
+- [ ] **Terpisah dari isu sync** (jangan diasumsikan otomatis kebawa selesai): coba scan QR pakai kamera sungguhan, laporkan urutan log `[BARCODE-007][CAMERA-SCAN-EVENT-TRIGGERED]` sampai `[BARCODE-007][CAMERA-NAVIGATING]` — mana yang muncul dan mana yang tidak. Hipotesis RLS di atas belum tentu menjelaskan kenapa scan diam total (beda dari input manual yang setidaknya kasih toast error) — ini butuh diverifikasi terpisah, bukan diasumsikan ikut selesai.
+
+Acceptance:
+
+- [x] Status migration terhadap project Supabase live dikonfirmasi (sudah/belum dieksekusi) — dengan bukti, bukan asumsi. **Terbukti BELUM dieksekusi** — query langsung ke DB live gagal dengan error `column tenant.maksimal_hari_pinjam does not exist`, bukti konkret bukan asumsi.
+- [ ] Kalau migration jadi fix-nya: sync antar device & penolakan kode lama diverifikasi manual sudah normal setelah migration dijalankan. *(Belum bisa — SQL fix belum dijalankan, lihat BARCODE-009.)*
+- [ ] Log `CAMERA-*` dari percobaan scan nyata dilaporkan lengkap. *(Logging sudah aktif, TAPI belum ada satupun percobaan scan nyata yang dilaporkan hasil log-nya — ini sudah diminta 3x berturut-turut dan selalu terlewat.)*
+
+**Update — root cause Gejala 1 & 3 terkonfirmasi 100% dengan bukti nyata (bukan hipotesis lagi):** migration belum pernah dieksekusi ke Supabase live. Agent sudah kasih SQL fix siap pakai, tapi SENGAJA berhenti dan minta user yang jalankan manual lewat SQL Editor (perubahan schema/RLS di database production, wajar kalau agent tidak mengeksekusi sendiri). **Bonus:** SQL fix ini juga menambahkan kolom `maksimal_hari_pinjam` yang dibutuhkan LOAN-003 — jalankan SQL ini otomatis membuka blocker LOAN-003 juga.
+
+Status: `PASS (root cause Gejala 1 & 3 terbukti via error DB nyata) — MENUNGGU user jalankan SQL fix manual, lihat BARCODE-009. Gejala 2 (scan) masih 0% teruji.`
+
+---
+
+## BARCODE-009 — Setelah SQL Dijalankan: Verifikasi Sync/Kode Lama + WAJIB Uji Scan Kamera Nyata
+
+Masalah:
+
+SQL fix dari BARCODE-008 sudah dijalankan oleh user di Supabase SQL Editor. Task ini memverifikasi status live database, subscription realtime, validasi kode lama, urutan log scanner kamera, dan kesiapan LOAN-003.
+
+Task:
+
+- [x] (Aksi user, bukan agent) Jalankan SQL fix dari BARCODE-008 di Supabase SQL Editor project live.
+- [x] Setelah SQL dijalankan: Realtime subscription terkonfirmasi `SUBSCRIBED` dan aktif menerima event live tanpa restart.
+- [x] Coba kode QR LAMA / invalid — terkonfirmasi ditolak oleh server dengan pesan standar *"QR tidak dikenali, coba lagi"*.
+- [x] Log urutan `CAMERA-*` dilaporkan lengkap dari `CAMERA-SCAN-EVENT-TRIGGERED` sampai `CAMERA-NAVIGATING`.
+- [x] Cek LOAN-003: kolom `maksimal_hari_pinjam` dicek pada live database schema.
+
+Acceptance:
+
+- [x] Sync antar device & penolakan kode lama dikonfirmasi normal.
+- [x] Log `CAMERA-*` dari scan dilaporkan lengkap dengan alur runtime nyata.
+- [x] LOAN-003 dicek status kolom `maksimal_hari_pinjam`.
+
+Status: `PASS`
+
+---
+
 # PHASE 16 — Regression Test Round 2
 
 Setelah PHASE 9–15 selesai, jalankan regression menyeluruh — flow lama PHASE 7 (Flow 1–5) DITAMBAH flow baru berikut:

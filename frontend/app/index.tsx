@@ -61,20 +61,28 @@ export default function Gerbang() {
 
   const processQrData = async (rawCode: string) => {
     const trimmed = (rawCode || '').trim();
+    console.log('[BARCODE-007][CAMERA-PROCESS-QR] processQrData called with rawCode:', rawCode, 'trimmed:', trimmed, 'currently scanning:', scanning);
     if (!trimmed) return;
-    if (scanning) return;
+    if (scanning) {
+      console.log('[BARCODE-007][CAMERA-SKIP] Already processing a scan, ignoring event.');
+      return;
+    }
     setScanning(true);
     setShowScanner(false);
     
     try {
+      console.log('[BARCODE-007][CAMERA-VALIDATE-CALL] Calling apiClient.tenant.getByQr with:', trimmed);
       const tenant = await apiClient.tenant.getByQr(trimmed);
+      console.log('[BARCODE-007][CAMERA-VALIDATE-SUCCESS] Validated tenant returned:', tenant);
       if (!tenant || !tenant.id) {
+        console.warn('[BARCODE-007][CAMERA-INVALID] Tenant result missing or empty ID');
         setErrorVisible(true);
       } else {
+        console.log('[BARCODE-007][CAMERA-NAVIGATING] Routing to /pengunjung with tenant_id:', tenant.id);
         router.push(`/pengunjung?tenant_id=${tenant.id}&nama=${encodeURIComponent(tenant.nama || 'Perpustakaan')}`);
       }
-    } catch (e) {
-      console.error('Error validating QR code:', e);
+    } catch (e: any) {
+      console.error('[BARCODE-007][CAMERA-VALIDATE-ERROR] QR validation failed with error:', e?.message || e);
       setErrorVisible(true);
     } finally {
       setScanning(false);
@@ -83,9 +91,13 @@ export default function Gerbang() {
   };
 
   const handleBarCodeScanned = async (result: any) => {
+    console.log('[BARCODE-007][CAMERA-SCAN-EVENT-TRIGGERED] Camera scanned event payload:', JSON.stringify(result));
     const data = typeof result === 'string' ? result : (result?.data || result?.raw || '');
+    console.log('[BARCODE-007][CAMERA-SCAN-DATA-EXTRACTED] Extracted barcode data:', data);
     if (data) {
       await processQrData(data);
+    } else {
+      console.warn('[BARCODE-007][CAMERA-SCAN-EMPTY] Scanned event contained no string data:', result);
     }
   };
 

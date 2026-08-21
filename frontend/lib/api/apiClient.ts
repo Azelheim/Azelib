@@ -154,6 +154,7 @@ export const apiClient = {
     },
     getByQr: async (qr_code_value: string) => {
       let raw = (qr_code_value || '').trim();
+      console.log('[BARCODE-007][VALIDATE-START] Validating input code:', { raw, input: qr_code_value });
       if (!raw) {
         throw new Error('QR tidak dikenali, coba lagi');
       }
@@ -163,6 +164,7 @@ export const apiClient = {
         try {
           const parsed = JSON.parse(raw);
           raw = parsed.qr_code_value || parsed.tenant_id || parsed.id || raw;
+          console.log('[BARCODE-007][VALIDATE-PARSED-JSON] Extracted from JSON:', raw);
         } catch {}
       } else if (raw.includes('://') || raw.includes('?')) {
         try {
@@ -174,51 +176,67 @@ export const apiClient = {
             const segments = url.pathname.split('/').filter(Boolean);
             if (segments.length > 0) raw = segments[segments.length - 1];
           }
+          console.log('[BARCODE-007][VALIDATE-PARSED-URL] Extracted from URL:', raw);
         } catch {
           const match = raw.match(/[?&](code|qr|tenant_id)=([^&]+)/);
           if (match && match[2]) {
             raw = decodeURIComponent(match[2]);
+            console.log('[BARCODE-007][VALIDATE-PARSED-REGEX] Extracted from regex:', raw);
           }
         }
       }
 
       const cleanCode = raw.trim();
       const upperCode = cleanCode.toUpperCase();
+      console.log('[BARCODE-007][VALIDATE-TARGET-CODE] Target code for DB matching:', { cleanCode, upperCode });
 
       // 2. Query Supabase with single source of truth (active qr_code_value)
       try {
         // Strategy A: Exact qr_code_value match (case-insensitive) in database
+        console.log('[BARCODE-007][VALIDATE-STRATEGY-A] Attempting ilike query for qr_code_value:', cleanCode);
         const { data: byQr, error: errQr } = await supabase
           .from('tenant')
           .select('id, nama, alamat, qr_code_value')
           .ilike('qr_code_value', cleanCode);
 
+        console.log('[BARCODE-007][VALIDATE-STRATEGY-A-RESULT]', { count: byQr?.length, byQr, errQr });
         if (!errQr && byQr && byQr.length > 0) {
+          console.log('[BARCODE-007][VALIDATE-MATCH-FOUND] Strategy A matched tenant:', byQr[0]);
           return byQr[0];
         }
 
         // Strategy B: Match by UUID if input is valid UUID
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (uuidRegex.test(cleanCode)) {
+          console.log('[BARCODE-007][VALIDATE-STRATEGY-B] Code is UUID, querying tenant by ID:', cleanCode);
           const { data: byId, error: errId } = await supabase
             .from('tenant')
             .select('id, nama, alamat, qr_code_value')
             .eq('id', cleanCode)
             .single();
+          console.log('[BARCODE-007][VALIDATE-STRATEGY-B-RESULT]', { byId, errId });
           if (!errId && byId) return byId;
         }
 
         // Strategy C: Fetch all tenants to check in-memory match & legacy fallback
+        console.log('[BARCODE-007][VALIDATE-STRATEGY-C] Fetching all tenants from server for in-memory check...');
         const { data: allTenants, error: allErr } = await supabase
           .from('tenant')
           .select('id, nama, alamat, qr_code_value');
+
+        console.log('[BARCODE-007][VALIDATE-STRATEGY-C-SERVER-VALUES]', 
+          allTenants?.map(t => ({ id: t.id, nama: t.nama, server_qr_code_value: t.qr_code_value }))
+        );
 
         if (!allErr && Array.isArray(allTenants)) {
           // Direct match against active server qr_code_value
           const foundDirect = allTenants.find(t => 
             t.qr_code_value && t.qr_code_value.trim().toUpperCase() === upperCode
           );
-          if (foundDirect) return foundDirect;
+          if (foundDirect) {
+            console.log('[BARCODE-007][VALIDATE-MATCH-FOUND] Strategy C direct matched tenant:', foundDirect);
+            return foundDirect;
+          }
 
           // Legacy fallback ONLY for tenants with NO active qr_code_value set in DB
           const foundLegacy = allTenants.find(t => {
@@ -227,12 +245,16 @@ export const apiClient = {
             const expectedPattern = `QR-${cleanName || 'PERPUS'}-${(t.id || '').slice(0, 6).toUpperCase()}`;
             return expectedPattern === upperCode;
           });
-          if (foundLegacy) return foundLegacy;
+          if (foundLegacy) {
+            console.log('[BARCODE-007][VALIDATE-MATCH-FOUND] Strategy C legacy matched tenant (no active QR in DB):', foundLegacy);
+            return foundLegacy;
+          }
         }
       } catch (e) {
-        console.error('Error in getByQr:', e);
+        console.error('[BARCODE-007][VALIDATE-ERROR] Error in getByQr:', e);
       }
 
+      console.warn('[BARCODE-007][VALIDATE-FAIL] No tenant matched code:', { cleanCode, upperCode });
       // If no strategy matched, throw standardized error
       throw new Error('QR tidak dikenali, coba lagi');
     },
