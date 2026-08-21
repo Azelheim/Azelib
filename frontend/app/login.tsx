@@ -1,26 +1,29 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { TextInput, Button, Text, Snackbar } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../lib/context/TenantContext';
 
-export default function Login() {
+import { AppKeyboardAvoidingView } from '../lib/components/AppKeyboardAvoidingView';
+
+export default function LoginScreen() {
   const router = useRouter();
   const { setActiveTenant } = useTenant();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
 
   const validate = () => {
     let valid = true;
     setEmailError('');
     setPasswordError('');
+    setGeneralError('');
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -28,9 +31,8 @@ export default function Login() {
       valid = false;
     }
 
-    const hasNumber = /\d/;
-    const hasLetter = /[a-zA-Z]/;
-    if (password.length < 8 || !hasNumber.test(password) || !hasLetter.test(password)) {
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(password)) {
       setPasswordError('Password minimal 8 karakter, kombinasi huruf dan angka');
       valid = false;
     }
@@ -92,53 +94,52 @@ export default function Login() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <AppKeyboardAvoidingView 
       style={styles.container}
+      contentContainerStyle={styles.content}
+      extraBottomPadding={60}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text variant="headlineMedium" style={styles.title}>{isRegistering ? 'Buat Akun' : 'Masuk'}</Text>
-        
-        <TextInput
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          mode="outlined"
-          error={!!emailError}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={styles.input}
-        />
-        {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
+      <Text variant="headlineMedium" style={styles.title}>{isRegistering ? 'Buat Akun' : 'Masuk'}</Text>
+      
+      <TextInput
+        label="Email"
+        value={email}
+        onChangeText={setEmail}
+        mode="outlined"
+        error={!!emailError}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        style={styles.input}
+      />
+      {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
 
-        <TextInput
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          mode="outlined"
-          secureTextEntry
-          error={!!passwordError}
-          style={styles.input}
-        />
-        {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+      <TextInput
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        mode="outlined"
+        secureTextEntry
+        error={!!passwordError}
+        style={styles.input}
+      />
+      {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
 
-        <Button 
-          mode="contained" 
-          onPress={handleLogin} 
-          loading={loading}
-          disabled={loading}
-          style={styles.button}
-        >
-          {isRegistering ? 'Daftar' : 'Masuk'}
+      <Button 
+        mode="contained" 
+        onPress={handleLogin} 
+        loading={loading}
+        disabled={loading}
+        style={styles.button}
+      >
+        {isRegistering ? 'Daftar' : 'Masuk'}
+      </Button>
+
+      <View style={styles.linksContainer}>
+        <Button mode="text" onPress={() => setIsRegistering(!isRegistering)}>
+          {isRegistering ? 'Sudah Punya Akun?' : 'Buat Akun'}
         </Button>
-
-        <View style={styles.linksContainer}>
-          <Button mode="text" onPress={() => setIsRegistering(!isRegistering)}>
-            {isRegistering ? 'Sudah Punya Akun?' : 'Buat Akun'}
-          </Button>
-          {!isRegistering && <Button mode="text" onPress={handleForgotPassword} disabled={loading}>Lupa Password</Button>}
-        </View>
-      </ScrollView>
+        {!isRegistering && <Button mode="text" onPress={handleForgotPassword} disabled={loading}>Lupa Password</Button>}
+      </View>
 
       <Snackbar
         visible={!!generalError}
@@ -147,7 +148,7 @@ export default function Login() {
       >
         {generalError}
       </Snackbar>
-    </KeyboardAvoidingView>
+    </AppKeyboardAvoidingView>
   );
 }
 
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
   },

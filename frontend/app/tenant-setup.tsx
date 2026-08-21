@@ -355,8 +355,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   formContainer: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
+    paddingBottom: 60,
   },
   input: {
     marginBottom: 16,

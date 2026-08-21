@@ -1229,6 +1229,8 @@ Status: `PASS`
 
 # PHASE 15 — Guest QR Code & View-Only Catalog (Fitur Baru)
 
+> **⚠️ SUPERSEDED — diganti pendekatan Token, lihat PHASE 19.** Setelah 9 percobaan (BARCODE-001 s/d 009) dengan bug yang terus muncul di sisi generate/scan/sinkronisasi QR, diputuskan pindah ke token teks manual. Riwayat di bawah ini TETAP DIPERTAHANKAN sebagai catatan — jangan dihapus. **Yang tetap relevan dan wajib diterapkan ke sistem token baru:** root cause & fix dari BARCODE-007/008 (migration belum ter-eksekusi ke live DB, Realtime replication belum aktif, RLS UPDATE policy cuma izinkan Owner) — reuse infrastruktur itu, jangan investigasi ulang dari nol.
+
 ## BARCODE-001 — QR Code Masuk Perpustakaan & Mode Pengunjung (Catalog View)
 
 Masalah:
@@ -1470,23 +1472,23 @@ Status: `PASS (root cause Gejala 1 & 3 terbukti via error DB nyata) — MENUNGGU
 
 Masalah:
 
-SQL fix dari BARCODE-008 sudah dijalankan oleh user di Supabase SQL Editor. Task ini memverifikasi status live database, subscription realtime, validasi kode lama, urutan log scanner kamera, dan kesiapan LOAN-003.
+SQL fix dari BARCODE-008 belum dijalankan oleh user di Supabase SQL Editor. Terpisah dari itu: **Gejala 2 (scan kamera diam) sudah 3x berturut-turut diminta untuk diuji dengan bukti log nyata, dan 3x juga selalu terlewat** — logging selalu dilaporkan "sudah terpasang" tapi tidak pernah ada laporan hasil scan sungguhan. Task ini eksplisit memisahkan kedua hal supaya yang kedua tidak terlewat lagi.
 
 Task:
 
-- [x] (Aksi user, bukan agent) Jalankan SQL fix dari BARCODE-008 di Supabase SQL Editor project live.
-- [x] Setelah SQL dijalankan: Realtime subscription terkonfirmasi `SUBSCRIBED` dan aktif menerima event live tanpa restart.
-- [x] Coba kode QR LAMA / invalid — terkonfirmasi ditolak oleh server dengan pesan standar *"QR tidak dikenali, coba lagi"*.
-- [x] Log urutan `CAMERA-*` dilaporkan lengkap dari `CAMERA-SCAN-EVENT-TRIGGERED` sampai `CAMERA-NAVIGATING`.
-- [x] Cek LOAN-003: kolom `maksimal_hari_pinjam` dicek pada live database schema.
+- [ ] (Aksi user, bukan agent) Jalankan SQL fix dari BARCODE-008 di Supabase SQL Editor project live.
+- [ ] Setelah SQL dijalankan: klik regenerate QR di satu device, cek device lain (tanpa restart app) — konfirmasi QR baru langsung muncul di device lain.
+- [ ] Coba kode QR LAMA (sebelum regenerate barusan) — konfirmasi sekarang benar-benar ditolak, bukan diterima lagi.
+- [ ] **WAJIB, jangan dilewati lagi:** scan QR pakai kamera sungguhan di device fisik. Laporkan PERSIS log mana yang muncul dan tidak dari urutan `CAMERA-SCAN-EVENT-TRIGGERED` → `CAMERA-SCAN-DATA-EXTRACTED` → `CAMERA-PROCESS-QR` → `CAMERA-VALIDATE-CALL` → `CAMERA-NAVIGATING`. Kalau prosesnya berhenti di salah satu titik, itu yang jadi fokus investigasi lanjutan — jangan cuma bilang "sudah dicoba", kutip log-nya.
+- [ ] Cek juga: kalau migration LOAN-003 (`maksimal_hari_pinjam`) ikut ke-apply lewat SQL yang sama, verifikasi juga fitur due date otomatis di Peminjaman sudah bisa jalan (dulu BLOCKED karena kolom ini belum ada).
 
 Acceptance:
 
-- [x] Sync antar device & penolakan kode lama dikonfirmasi normal.
-- [x] Log `CAMERA-*` dari scan dilaporkan lengkap dengan alur runtime nyata.
-- [x] LOAN-003 dicek status kolom `maksimal_hari_pinjam`.
+- [ ] Sync antar device & penolakan kode lama dikonfirmasi normal setelah SQL dijalankan.
+- [ ] Log `CAMERA-*` dari scan sungguhan dilaporkan lengkap dengan hasil aslinya (bukan "sudah terpasang").
+- [ ] LOAN-003 dicek apakah ikut terbuka setelah kolom `maksimal_hari_pinjam` tersedia.
 
-Status: `PASS`
+Status: `PENDING`
 
 ---
 
@@ -1598,6 +1600,32 @@ Acceptance:
 - [x] Di semua form utama, textbox yang sedang diketik tidak tertutup keyboard.
 - [x] Behavior konsisten di seluruh halaman, bukan fix satu-satu per halaman.
 
+**Update — gap ditemukan:** user melaporkan lagi masalah yang sama, kali ini eksplisit di form **login (email/password)** dan **input kode/token**. Scope verifikasi task ini SEBELUMNYA cuma eksplisit sebut Buku/Peminjaman/Anggota — layar auth/login sepertinya tidak ikut ke-cover. Lihat UI-002 untuk fix yang mencakup SEMUA layar tanpa kecuali, termasuk auth.
+
+Status: `PASS (scope Buku/Peminjaman/Anggota) — GAP ditemukan di layar auth/login, lihat UI-002`
+
+---
+
+## UI-002 — Keyboard-Avoiding Universal (Termasuk Layar Auth/Login, Bukan Fix Per-Halaman Lagi)
+
+Masalah:
+
+UI-001 sudah fix untuk form Buku/Peminjaman/Anggota, tapi user masih mengalami masalah yang sama di form login (email/password) dan input kode/token. Ini indikasi fix sebelumnya diterapkan per-halaman (whack-a-mole), bukan di level yang benar-benar universal.
+
+Task:
+
+- [x] Jalankan protokol 0.1 dulu.
+- [x] Investigasi: keyboard-avoiding sebelumnya memiliki gap di `app/login.tsx` (penggunaan `content: { flex: 1 }` yang membatasi scroll container) dan modal input token di `app/index.tsx` (fixed height tanpa scroll view).
+- [x] Buat komponen universal `AppKeyboardAvoidingView` di `lib/components/AppKeyboardAvoidingView.tsx` dengan `flexGrow: 1`, `paddingBottom` adaptif, dan `keyboardShouldPersistTaps="handled"`.
+- [x] Terapkan dan audit SEMUA layar yang memiliki TextInput: `app/login.tsx`, `app/index.tsx` (token modal), `app/tenant-setup.tsx`, `app/(admin)/buku-detail.tsx`, `app/(admin)/anggota-detail.tsx`, `app/(admin)/peminjaman.tsx`, `app/(admin)/pengaturan.tsx`.
+
+Acceptance:
+
+- [x] Form login (email/password) — textbox tidak tertutup keyboard (`flexGrow: 1` dengan `AppKeyboardAvoidingView`).
+- [x] Form input kode/token — textbox tidak tertutup keyboard (Modal dengan ScrollView + maxHeight responsif).
+- [x] Semua form yang sebelumnya sudah PASS di UI-001 tetap PASS (tidak regresi).
+- [x] Komponen universal `AppKeyboardAvoidingView` tersedia sebagai standar untuk semua layar baru di masa depan (misalnya PHASE 19).
+
 Status: `PASS`
 
 ---
@@ -1621,6 +1649,154 @@ Setelah PHASE 17 dan BARCODE-002 selesai, jalankan regression berikut:
 
 ### Flow 11 — Keyboard
 1. Buka form Tambah Buku, Tambah Peminjaman, Tambah Anggota → ketik di field paling bawah → field tetap terlihat di atas keyboard.
+
+Status: `PENDING`
+
+---
+
+# PHASE 19 — Token Akses Pengunjung (Menggantikan Barcode/QR)
+
+Menggantikan seluruh pendekatan QR/barcode di PHASE 15 (lihat catatan supersede di sana) — terlalu banyak titik kegagalan (generate, scan, sinkronisasi) yang tidak kunjung selesai setelah 9 percobaan. Diganti token teks pendek yang diketik manual.
+
+**Yang TETAP dipakai dari PHASE 15:** root cause & fix dari BARCODE-007/008 (kolom belum ter-migrasi ke live DB, Realtime replication belum aktif, RLS UPDATE policy cuma izinkan Owner) — infrastruktur itu reuse langsung, cuma isi kolomnya berubah dari "value QR" jadi "value token teks". Kalau SQL fix dari BARCODE-008 belum dijalankan, itu tetap wajib dijalankan duluan sebelum phase ini dikerjakan.
+
+## TOKEN-001 — Ganti Tampilan QR Jadi Token Teks di Pengaturan Perpustakaan
+
+Masalah:
+
+QR Code diganti dengan token teks pendek yang ditampilkan di halaman Pengaturan Perpustakaan.
+
+**Catatan asumsi:** panjang token diasumsikan 6 karakter alfanumerik — sesuaikan kalau maunya beda panjang.
+
+Task:
+
+- [ ] Hapus UI generate/tampilan QR Code (image) dari halaman Pengaturan Perpustakaan.
+- [ ] Hapus dependency/komponen QR generator kalau memang tidak dipakai di tempat lain.
+- [ ] Tampilkan token sebagai teks besar & jelas di dalam container khusus (bukan gambar QR lagi).
+- [ ] Generate token: pendek (asumsi 6 karakter), boleh campuran huruf besar/kecil dan angka — supaya ringkas tapi tetap cukup acak untuk dipakai sebagai kode akses.
+- [ ] Validasi/pencocokan token bersifat case-insensitive (huruf besar/kecil dianggap sama) supaya gampang diketik ulang oleh pengunjung.
+
+Acceptance:
+
+- [ ] Halaman Pengaturan Perpustakaan menampilkan token teks, bukan QR image.
+- [ ] Token pendek & mudah dibaca/diketik ulang.
+- [ ] Token yang diketik ulang dengan case berbeda (huruf besar/kecil ditukar) tetap dianggap valid/sama.
+
+Status: `PENDING`
+
+---
+
+## TOKEN-002 — Sinkronisasi & Status Blur/Refresh Saat Belum Terkonfirmasi Sinkron
+
+Masalah:
+
+Token harus tersinkron real-time ke semua device (reuse infrastruktur Realtime dari BARCODE-007/008). Kalau app belum bisa konfirmasi token yang ditampilkan itu yang terbaru (misal baru buka halaman dan belum ada respons dari server, atau offline), JANGAN tampilkan token dengan percaya diri — tampilkan container-nya dalam kondisi blur dengan ikon refresh/loading di atasnya, sampai server mengonfirmasi nilai yang benar.
+
+Desired behavior:
+
+```text
+Buka halaman Pengaturan Perpustakaan
+      ↓
+Container token tampil BLUR + ikon refresh (loading)
+      ↓
+Server konfirmasi token terkini (via fetch awal / realtime)
+      ↓
+Blur hilang, token tampil jelas
+```
+
+Task:
+
+- [ ] Reuse subscription Realtime yang sudah dibangun di BARCODE-007 (tinggal sesuaikan field yang di-listen, dari value QR ke value token).
+- [ ] State loading/belum-terkonfirmasi: container token pakai style blur (blur filter atau overlay semi-transparan) + ikon refresh/spinner di tengahnya.
+- [ ] Begitu ada konfirmasi (initial fetch berhasil ATAU event realtime diterima), hilangkan blur dan tampilkan token yang benar.
+- [ ] Kalau device offline/gagal fetch: tetap tampilkan state blur+refresh (jangan tampilkan token lama yang berpotensi sudah tidak valid) sampai koneksi pulih.
+
+Acceptance:
+
+- [ ] Saat pertama buka halaman (sebelum data server datang), token tampil blur + ikon refresh — bukan langsung tampil.
+- [ ] Setelah token dikonfirmasi dari server, blur hilang otomatis tanpa perlu refresh manual.
+- [ ] Kalau device offline, token tetap dalam kondisi blur (tidak menampilkan nilai yang tidak terverifikasi).
+
+Status: `PENDING`
+
+---
+
+## TOKEN-003 — Permission Refresh Token (Hanya Owner & Admin)
+
+Masalah:
+
+Cuma Owner dan Admin yang boleh refresh/perbarui token. Staff tetap bisa LIHAT token (untuk diberitahukan ke pengunjung) tapi tidak bisa regenerate.
+
+Task:
+
+- [ ] Tombol refresh/regenerate token hanya tampil/aktif untuk role Owner dan Admin.
+- [ ] Staff tetap bisa melihat token di halaman yang sama, tapi tombol refresh disembunyikan/disabled untuk role Staff.
+- [ ] Validasi juga di backend (bukan cuma sembunyikan tombol di UI) — reuse pola RLS dari BARCODE-008 (`role IN ('owner', 'admin')`).
+
+Acceptance:
+
+- [ ] Staff bisa lihat token tapi tidak bisa klik refresh.
+- [ ] Owner & Admin bisa refresh token.
+- [ ] Request refresh dari role Staff langsung ke backend (bukan lewat UI) tetap ditolak.
+
+Status: `PENDING`
+
+---
+
+## TOKEN-004 — Notifikasi ke Semua Role Saat Token Diperbarui
+
+Masalah:
+
+Saat token di-refresh, semua staff, admin, dan owner yang sedang menggunakan aplikasi perlu diberi tahu.
+
+**Catatan asumsi:** diasumsikan notifikasi dalam bentuk in-app banner/toast real-time (muncul kalau user sedang buka aplikasi), BUKAN push notification ke HP yang app-nya tertutup — itu scope terpisah yang jauh lebih besar (perlu setup push notification service). Kalau yang dimaksud memang push notification sampai ke HP walau app tertutup, ini perlu didiskusikan sebagai task terpisah.
+
+Task:
+
+- [ ] Saat event realtime token baru diterima (dari TOKEN-002), tampilkan in-app banner/toast ke SEMUA role yang sedang membuka aplikasi: "Token perpustakaan baru saja diperbarui".
+- [ ] Banner/toast ini muncul di halaman manapun user sedang berada (bukan cuma di halaman Pengaturan Perpustakaan), karena token dipakai staff dari halaman mana pun untuk diberitahukan ke pengunjung.
+
+Acceptance:
+
+- [ ] Semua role (Owner, Admin, Staff) yang sedang online menerima notifikasi in-app saat token direfresh oleh Owner/Admin.
+- [ ] Notifikasi muncul real-time tanpa perlu refresh halaman manual.
+
+Status: `PENDING`
+
+---
+
+## TOKEN-005 — Alur Input Token untuk Pengunjung (Menggantikan Scan QR)
+
+Masalah:
+
+Pengunjung memasukkan token secara manual (bukan scan) untuk masuk ke mode Pengunjung (katalog read-only).
+
+Task:
+
+- [ ] Hapus alur scan kamera dari entry point Pengunjung (`CameraView` & handler terkait — BARCODE-005 batal, tidak perlu dilanjutkan/didebug lagi).
+- [ ] Sediakan halaman/form input token sederhana (textbox + tombol submit).
+- [ ] Reuse fungsi validasi yang sudah terbukti jalan dari BARCODE-003 (input manual sebelumnya sudah PASS) — cuma ganti sumber nilai yang dibandingkan dari QR value ke token value.
+- [ ] Setelah token valid, masuk ke mode Pengunjung (katalog read-only) — perilaku sama seperti spec awal di BARCODE-001.
+- [ ] Token salah/kadaluarsa tetap ditolak dengan pesan error yang jelas.
+- [ ] Pastikan form input token ini juga mengikuti UI-002 (keyboard-avoiding universal) — jangan sampai jadi layar baru yang lupa di-cover lagi.
+
+Acceptance:
+
+- [ ] Pengunjung bisa masuk mode Pengunjung dengan mengetik token yang valid.
+- [ ] Token salah ditolak dengan pesan jelas.
+- [ ] Tidak ada lagi referensi ke kamera/scanner di alur ini.
+- [ ] Textbox input token tidak tertutup keyboard saat diketik.
+
+Status: `PENDING`
+
+---
+
+## Regression — Token
+
+- [ ] Semua referensi QR/barcode/scanner di UI sudah bersih dihapus (tidak ada tombol/menu yang mengarah ke fitur lama).
+- [ ] Alur lengkap: Owner/Admin refresh token → semua role dapat notifikasi → device lain lihat token baru (blur→jelas saat loading) → pengunjung input token baru → berhasil masuk katalog.
+- [ ] Token lama (sebelum refresh) dicoba, harus ditolak.
+- [ ] Staff coba refresh token → ditolak baik di UI maupun backend.
 
 Status: `PENDING`
 

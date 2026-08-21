@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { Text, Button, Portal, Modal, Snackbar, TextInput, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { Key, QrCode } from 'lucide-react-native';
@@ -144,49 +144,51 @@ export default function Gerbang() {
 
       <Portal>
         <Modal visible={showScanner} onDismiss={() => setShowScanner(false)} contentContainerStyle={styles.modalContent}>
-          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 12, textAlign: 'center' }}>
-            Scan QR Code Perpustakaan
-          </Text>
-          
-          {permission?.granted && showScanner && (
-            <CameraView 
-              style={styles.camera} 
-              facing="back"
-              onBarcodeScanned={scanning ? undefined : handleBarCodeScanned}
-              barcodeScannerSettings={{
-                barcodeTypes: ["qr"],
-              }}
-            />
-          )}
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, paddingBottom: 16 }}>
+            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 12, textAlign: 'center' }}>
+              Scan QR Code Perpustakaan
+            </Text>
+            
+            {permission?.granted && showScanner && (
+              <CameraView 
+                style={styles.camera} 
+                facing="back"
+                onBarcodeScanned={scanning ? undefined : handleBarCodeScanned}
+                barcodeScannerSettings={{
+                  barcodeTypes: ["qr"],
+                }}
+              />
+            )}
 
-          <Divider style={{ marginVertical: 12 }} />
+            <Divider style={{ marginVertical: 12 }} />
 
-          <Text variant="labelMedium" style={{ color: '#666', marginBottom: 6 }}>
-            Atau masukkan kode QR:
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput
-              placeholder="Contoh: QR-PERPUS-01"
-              value={manualCode}
-              onChangeText={setManualCode}
-              mode="outlined"
-              style={{ flex: 1, backgroundColor: '#FFF' }}
-              dense
-            />
-            <Button
-              mode="contained"
-              onPress={() => processQrData(manualCode)}
-              loading={scanning}
-              disabled={!manualCode.trim() || scanning}
-              style={{ alignSelf: 'center', borderRadius: 8 }}
-            >
-              Buka
+            <Text variant="labelMedium" style={{ color: '#666', marginBottom: 6 }}>
+              Atau masukkan kode QR:
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                placeholder="Contoh: QR-PERPUS-01"
+                value={manualCode}
+                onChangeText={setManualCode}
+                mode="outlined"
+                style={{ flex: 1, backgroundColor: '#FFF' }}
+                dense
+              />
+              <Button
+                mode="contained"
+                onPress={() => processQrData(manualCode)}
+                loading={scanning}
+                disabled={!manualCode.trim() || scanning}
+                style={{ alignSelf: 'center', borderRadius: 8 }}
+              >
+                Buka
+              </Button>
+            </View>
+
+            <Button style={{ marginTop: 16 }} mode="text" onPress={() => setShowScanner(false)}>
+              Batal
             </Button>
-          </View>
-
-          <Button style={{ marginTop: 16 }} mode="text" onPress={() => setShowScanner(false)}>
-            Batal
-          </Button>
+          </ScrollView>
         </Modal>
       </Portal>
 
@@ -242,11 +244,12 @@ const styles = StyleSheet.create({
     padding: 20,
     margin: 20,
     borderRadius: 8,
-    height: 400,
+    maxHeight: '85%',
   },
   camera: {
-    flex: 1,
+    height: 200,
     borderRadius: 8,
     overflow: 'hidden',
+    marginBottom: 8,
   }
 });
