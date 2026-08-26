@@ -63,7 +63,7 @@ export function AzelheimInput({
                   ? 'Courier'
                   : 'monospace'
                 : undefined,
-              minHeight: multiline ? 76 : 38,
+              minHeight: multiline ? 78 : 40,
               maxHeight: multiline ? 160 : 44,
               textAlignVertical: multiline ? 'top' : 'center',
               paddingVertical: multiline ? 8 : Platform.OS === 'ios' ? 8 : 4,

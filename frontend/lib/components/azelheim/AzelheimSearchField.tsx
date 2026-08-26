@@ -43,7 +43,7 @@ export function AzelheimSearchField({
         icon={<Search size={18} color={colors.text} />}
         onPress={onSubmit}
         bordered
-        size={40}
+        size={42}
         accessibilityLabel="Cari"
       />
     </View>
@@ -53,7 +53,7 @@ export function AzelheimSearchField({
 const styles = StyleSheet.create({
   searchbar: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 7,
     marginBottom: 10,
     alignItems: 'center',
   },
@@ -62,8 +62,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     borderRadius: 4,
     paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 8 : 5,
-    minHeight: 40,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+    minHeight: 42,
     maxHeight: 44,
     fontSize: 12.5,
     includeFontPadding: false,

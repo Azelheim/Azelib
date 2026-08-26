@@ -9,6 +9,7 @@ import {
   TextStyle,
   StyleProp,
   Animated,
+  Platform,
 } from 'react-native';
 import { useAzelheimTheme } from '../../theme';
 
@@ -26,6 +27,7 @@ interface AzelheimButtonProps {
   textStyle?: StyleProp<TextStyle>;
   fullWidth?: boolean;
   size?: 'default' | 'small';
+  accessibilityLabel?: string;
 }
 
 export function AzelheimButton({
@@ -40,15 +42,16 @@ export function AzelheimButton({
   textStyle,
   fullWidth = false,
   size = 'default',
+  accessibilityLabel,
 }: AzelheimButtonProps) {
   const { colors } = useAzelheimTheme();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
-      toValue: 0.96,
+      toValue: 0.95,
       useNativeDriver: true,
-      speed: 30,
+      speed: 35,
       bounciness: 0,
     }).start();
   };
@@ -57,7 +60,7 @@ export function AzelheimButton({
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      speed: 30,
+      speed: 35,
       bounciness: 4,
     }).start();
   };
@@ -85,7 +88,7 @@ export function AzelheimButton({
   }
 
   const minHeight = size === 'small' ? 36 : 42;
-  const fontSize = size === 'small' ? 10.5 : 12;
+  const fontSize = size === 'small' ? 10.5 : 11.5;
   const paddingV = size === 'small' ? 6 : 8;
 
   return (
@@ -96,11 +99,12 @@ export function AzelheimButton({
       ]}
     >
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={0.82}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={disabled || loading}
+        accessibilityLabel={accessibilityLabel || title}
         style={[
           styles.button,
           {
@@ -108,7 +112,7 @@ export function AzelheimButton({
             borderColor: borderCol,
             minHeight: minHeight,
             paddingVertical: paddingV,
-            opacity: disabled ? 0.5 : 1,
+            opacity: disabled ? 0.45 : 1,
             width: fullWidth ? '100%' : undefined,
           },
           style,
@@ -152,14 +156,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 7,
   },
   iconWrap: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'monospace',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     fontWeight: '800',
     letterSpacing: 0.5,
     textTransform: 'uppercase',

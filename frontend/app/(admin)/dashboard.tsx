@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform, ScrollView } from 'react-native';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity, Animated } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Activity } from 'lucide-react-native';
 import { CartesianChart, Line } from 'victory-native';
@@ -35,7 +35,10 @@ export default function Dashboard() {
   const [chartPeriod, setChartPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
   const [rawLoans, setRawLoans] = useState<any[]>([]);
   const [activeBookSlide, setActiveBookSlide] = useState(0);
-  const [cardWidth, setCardWidth] = useState(0);
+
+  // Chart Transition Animations
+  const chartFadeAnim = useRef(new Animated.Value(1)).current;
+  const chartTranslateY = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -67,6 +70,55 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleContextChange = (ctx: 'buku' | 'peminjam' | 'denda') => {
+    if (ctx === chartContext) return;
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(chartFadeAnim, {
+          toValue: 0.15,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+        Animated.timing(chartTranslateY, {
+          toValue: 3,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      setChartContext(ctx);
+      Animated.parallel([
+        Animated.timing(chartFadeAnim, {
+          toValue: 1,
+          duration: 140,
+          useNativeDriver: true,
+        }),
+        Animated.spring(chartTranslateY, {
+          toValue: 0,
+          speed: 25,
+          bounciness: 2,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
+  const handlePeriodChange = (p: 'harian' | 'mingguan' | 'bulanan') => {
+    if (p === chartPeriod) return;
+    Animated.timing(chartFadeAnim, {
+      toValue: 0.15,
+      duration: 80,
+      useNativeDriver: true,
+    }).start(() => {
+      setChartPeriod(p);
+      Animated.timing(chartFadeAnim, {
+        toValue: 1,
+        duration: 130,
+        useNativeDriver: true,
+      }).start();
+    });
   };
 
   // Generate real chart data points based on period and context
@@ -228,35 +280,42 @@ export default function Dashboard() {
           />
         </View>
 
-        {/* Chart Surface */}
-        <View
-          style={[
-            styles.chartbox,
-            { backgroundColor: colors.surface, borderColor: colors.line },
-          ]}
+        {/* Animated Chart Surface */}
+        <Animated.View
+          style={{
+            opacity: chartFadeAnim,
+            transform: [{ translateY: chartTranslateY }],
+          }}
         >
-          <View style={{ height: 110, width: '100%', paddingHorizontal: 4 }}>
-            <CartesianChart data={chartData} xKey="day" yKeys={['value'] as const}>
-              {({ points }) => (
-                <Line points={points.value} color={colors.text} strokeWidth={2.2} />
-              )}
-            </CartesianChart>
+          <View
+            style={[
+              styles.chartbox,
+              { backgroundColor: colors.surface, borderColor: colors.line },
+            ]}
+          >
+            <View style={{ height: 110, width: '100%', paddingHorizontal: 4 }}>
+              <CartesianChart data={chartData} xKey="day" yKeys={['value'] as const}>
+                {({ points }) => (
+                  <Line points={points.value} color={colors.text} strokeWidth={2.2} />
+                )}
+              </CartesianChart>
+            </View>
+            {isChartEmpty && (
+              <Text style={[styles.emptyChartText, { color: colors.faint }]}>
+                Belum ada aktivitas {chartContext} pada periode ini.
+              </Text>
+            )}
           </View>
-          {isChartEmpty && (
-            <Text style={[styles.emptyChartText, { color: colors.faint }]}>
-              Belum ada aktivitas {chartContext} pada periode ini.
-            </Text>
-          )}
-        </View>
 
-        {/* X Axis Labels */}
-        <View style={styles.axisRow}>
-          {chartData.map((item, idx) => (
-            <Text key={idx} style={[styles.axisLabel, { color: colors.faint }]}>
-              {item.label}
-            </Text>
-          ))}
-        </View>
+          {/* X Axis Labels */}
+          <View style={styles.axisRow}>
+            {chartData.map((item, idx) => (
+              <Text key={idx} style={[styles.axisLabel, { color: colors.faint }]}>
+                {item.label}
+              </Text>
+            ))}
+          </View>
+        </Animated.View>
 
         {/* Context Tabs */}
         <AzelheimTabs<'buku' | 'peminjam' | 'denda'>
@@ -266,7 +325,7 @@ export default function Dashboard() {
             { value: 'denda', label: 'Denda' },
           ]}
           activeTab={chartContext}
-          onTabChange={setChartContext}
+          onTabChange={handleContextChange}
           style={{ marginTop: 10, marginBottom: 8 }}
         />
 
@@ -278,7 +337,7 @@ export default function Dashboard() {
             { value: 'bulanan', label: 'Bulanan' },
           ]}
           activeTab={chartPeriod}
-          onTabChange={setChartPeriod}
+          onTabChange={handlePeriodChange}
           style={{ marginBottom: 0 }}
         />
       </AzelheimCard>
@@ -304,78 +363,22 @@ export default function Dashboard() {
         </Text>
       </AzelheimCard>
 
-      {/* 2x2 Grid: 4 Metric Cards */}
+      {/* 2x2 Grid: 4 Metric Cards (Identical Width & Alignment) */}
       <View style={styles.grid2}>
-        {/* Metric 01: Carousel Jumlah Buku vs Jumlah Judul */}
-        <View
+        {/* Metric 01: Toggle Carousel Jumlah Buku vs Jumlah Judul */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => setActiveBookSlide((prev) => (prev === 0 ? 1 : 0))}
           style={{ flex: 1 }}
-          onLayout={(e) => {
-            const w = e.nativeEvent.layout.width;
-            if (w > 0) setCardWidth(w);
-          }}
         >
           <AzelheimStatCard
-            code="METRIC_01"
+            code={activeBookSlide === 0 ? 'METRIC_01 [1/2]' : 'METRIC_01 [2/2]'}
             label={activeBookSlide === 0 ? 'Jumlah Buku' : 'Jumlah Judul'}
-            value=""
-            customContent={
-              <ScrollView
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onScroll={(e) => {
-                  const offsetX = e.nativeEvent.contentOffset.x;
-                  const slide = Math.round(offsetX / (cardWidth || 1));
-                  if (slide !== activeBookSlide) {
-                    setActiveBookSlide(slide);
-                  }
-                }}
-                scrollEventThrottle={16}
-                style={{ width: '100%' }}
-              >
-                <View style={{ width: cardWidth > 0 ? cardWidth - 24 : 130 }}>
-                  <Text style={[styles.statValue, { color: colors.text }]}>
-                    {summary.jumlah_buku ?? 0}
-                  </Text>
-                  <Text style={[styles.statSub, { color: colors.faint }]}>
-                    Total Salinan
-                  </Text>
-                </View>
-                <View style={{ width: cardWidth > 0 ? cardWidth - 24 : 130 }}>
-                  <Text style={[styles.statValue, { color: colors.text }]}>
-                    {summary.jumlah_judul ?? 0}
-                  </Text>
-                  <Text style={[styles.statSub, { color: colors.faint }]}>
-                    Judul Unik
-                  </Text>
-                </View>
-              </ScrollView>
-            }
+            value={activeBookSlide === 0 ? (summary.jumlah_buku ?? 0) : (summary.jumlah_judul ?? 0)}
+            sublabel={activeBookSlide === 0 ? 'Total Salinan • Tap' : 'Judul Unik • Tap'}
+            style={{ flex: 1 }}
           />
-          {/* Dot Indicator */}
-          <View style={styles.dotRow}>
-            <View
-              style={[
-                styles.dot,
-                {
-                  backgroundColor:
-                    activeBookSlide === 0 ? colors.text : colors.line,
-                  width: activeBookSlide === 0 ? 12 : 5,
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.dot,
-                {
-                  backgroundColor:
-                    activeBookSlide === 1 ? colors.text : colors.line,
-                  width: activeBookSlide === 1 ? 12 : 5,
-                },
-              ]}
-            />
-          </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Metric 02: Peminjam */}
         <AzelheimStatCard
@@ -489,27 +492,6 @@ const styles = StyleSheet.create({
   grid2: {
     flexDirection: 'row',
     gap: 8,
-  },
-  statValue: {
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    fontSize: 23,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-    marginTop: 4,
-  },
-  statSub: {
-    fontSize: 9.5,
-    marginTop: 2,
-  },
-  dotRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  dot: {
-    height: 4,
-    borderRadius: 2,
+    width: '100%',
   },
 });

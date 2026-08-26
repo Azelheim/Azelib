@@ -19,7 +19,7 @@ import {
   RefreshCw,
   QrCode,
   UserPlus,
-  LogOut,
+  Power,
   ArrowLeft,
   Download,
   MoreVertical,
@@ -585,7 +585,7 @@ export default function Pengaturan() {
       <AzelheimButton
         variant="red"
         title="Keluar Perpustakaan"
-        icon={<LogOut size={18} color={colors.danger} />}
+        icon={<Power size={18} color={colors.danger} />}
         onPress={handleKeluarPerpustakaan}
         fullWidth
         style={{ marginBottom: 20 }}

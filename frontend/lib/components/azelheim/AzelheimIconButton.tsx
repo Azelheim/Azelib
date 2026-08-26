@@ -22,7 +22,7 @@ export function AzelheimIconButton({
   icon,
   onPress,
   style,
-  size = 38,
+  size = 40,
   bordered = false,
   disabled = false,
   accessibilityLabel,
@@ -34,7 +34,7 @@ export function AzelheimIconButton({
     Animated.spring(scaleAnim, {
       toValue: 0.92,
       useNativeDriver: true,
-      speed: 30,
+      speed: 35,
       bounciness: 0,
     }).start();
   };
@@ -43,13 +43,13 @@ export function AzelheimIconButton({
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      speed: 30,
+      speed: 35,
       bounciness: 4,
     }).start();
   };
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, styles.wrapper]}>
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onPress}
@@ -77,6 +77,10 @@ export function AzelheimIconButton({
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   iconButton: {
     borderRadius: 4,
     justifyContent: 'center',

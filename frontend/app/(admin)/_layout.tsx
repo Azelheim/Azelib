@@ -1,15 +1,16 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Tabs, useRouter, usePathname } from 'expo-router';
-import { View, Text, Alert, StyleSheet, Platform, Animated } from 'react-native';
+import { View, Text, Alert, StyleSheet, Platform, Animated, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   LayoutDashboard,
   BookOpen,
-  Repeat,
-  Users,
+  ArrowLeftRight,
+  UsersRound,
   FileText,
   Sun,
   Moon,
-  Settings2,
+  SlidersHorizontal,
   Power,
 } from 'lucide-react-native';
 import { useTenant } from '../../lib/context/TenantContext';
@@ -17,38 +18,383 @@ import { clearLastActiveTenant } from '../../lib/session';
 import { useAzelheimTheme } from '../../lib/theme';
 import { AzelheimIconButton, AzelheimToast } from '../../lib/components/azelheim';
 
-export default function AdminLayout() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { colors, isDark, toggleTheme } = useAzelheimTheme();
-  const {
-    tenantNama,
-    clearTenant,
-    tokenNotification,
-    clearTokenNotification,
-  } = useTenant();
+// Custom 3-Zone Header
+function AdminHeader({
+  tenantNama,
+  isDark,
+  onToggleTheme,
+  onOpenSettings,
+  onLogout,
+}: {
+  tenantNama: string | null;
+  isDark: boolean;
+  onToggleTheme: () => void;
+  onOpenSettings: () => void;
+  onLogout: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const { colors } = useAzelheimTheme();
 
-  const isBukuActive = pathname.includes('buku');
-  const isAnggotaActive = pathname.includes('anggota');
-
-  // Theme switch rotate animation
+  // Animation values for action buttons
   const themeRotateAnim = useRef(new Animated.Value(0)).current;
+  const settingsAnim = useRef(new Animated.Value(0)).current;
+  const logoutAnim = useRef(new Animated.Value(0)).current;
 
-  const handleToggleTheme = () => {
-    Animated.timing(themeRotateAnim, {
+  const handleThemePress = () => {
+    Animated.spring(themeRotateAnim, {
       toValue: 1,
-      duration: 350,
       useNativeDriver: true,
+      bounciness: 4,
+      speed: 12,
     }).start(() => {
       themeRotateAnim.setValue(0);
     });
-    toggleTheme();
+    onToggleTheme();
+  };
+
+  const handleSettingsPress = () => {
+    Animated.sequence([
+      Animated.timing(settingsAnim, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.spring(settingsAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        bounciness: 4,
+        speed: 14,
+      }),
+    ]).start();
+    onOpenSettings();
+  };
+
+  const handleLogoutPress = () => {
+    Animated.sequence([
+      Animated.timing(logoutAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoutAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        bounciness: 3,
+        speed: 16,
+      }),
+    ]).start();
+    onLogout();
   };
 
   const spin = themeRotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
   });
+
+  const themeScale = themeRotateAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 0.82, 1],
+  });
+
+  const settingsTranslateY = settingsAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -2.5],
+  });
+
+  const settingsScale = settingsAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.08],
+  });
+
+  const logoutScale = logoutAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.92],
+  });
+
+  const logoutRotate = logoutAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '-6deg'],
+  });
+
+  return (
+    <View
+      style={[
+        styles.headerRoot,
+        {
+          backgroundColor: colors.bg,
+          paddingTop: Math.max(insets.top, 8) + 4,
+          borderBottomColor: colors.border,
+        },
+      ]}
+    >
+      <View style={styles.headerInner}>
+        {/* Zone 1 & 2: Header Main Row (Brand + Version strictly aligned with Action Group) */}
+        <View style={styles.headerMainRow}>
+          <View style={styles.brandGroup}>
+            <Text
+              style={[styles.headerTitle, { color: colors.text }]}
+              numberOfLines={1}
+            >
+              {tenantNama || 'Azelheim'}
+            </Text>
+            <View
+              style={[
+                styles.brandTag,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+            >
+              <Text style={[styles.brandTagText, { color: colors.text }]}>
+                v2.4
+              </Text>
+            </View>
+          </View>
+
+          {/* Action Group */}
+          <View style={styles.actionGroup}>
+            <Animated.View
+              style={[
+                styles.actionItemWrapper,
+                { transform: [{ rotate: spin }, { scale: themeScale }] },
+              ]}
+            >
+              <AzelheimIconButton
+                icon={
+                  isDark ? (
+                    <Moon size={20} color={colors.text} />
+                  ) : (
+                    <Sun size={20} color={colors.text} />
+                  )
+                }
+                onPress={handleThemePress}
+                accessibilityLabel="Ganti Tema"
+                size={42}
+              />
+            </Animated.View>
+
+            <Animated.View
+              style={[
+                styles.actionItemWrapper,
+                {
+                  transform: [
+                    { translateY: settingsTranslateY },
+                    { scale: settingsScale },
+                  ],
+                },
+              ]}
+            >
+              <AzelheimIconButton
+                icon={<SlidersHorizontal size={20} color={colors.text} />}
+                onPress={handleSettingsPress}
+                accessibilityLabel="Pengaturan"
+                size={42}
+              />
+            </Animated.View>
+
+            <Animated.View
+              style={[
+                styles.actionItemWrapper,
+                {
+                  transform: [
+                    { scale: logoutScale },
+                    { rotate: logoutRotate },
+                  ],
+                },
+              ]}
+            >
+              <AzelheimIconButton
+                icon={<Power size={20} color={colors.danger} />}
+                onPress={handleLogoutPress}
+                accessibilityLabel="Keluar Perpustakaan"
+                size={42}
+              />
+            </Animated.View>
+          </View>
+        </View>
+
+        {/* Zone 3: Technical Meta Row */}
+        <View style={styles.metaRow}>
+          <Text style={[styles.headerSub, { color: colors.faint }]}>
+            SYSTEM // CORE_LIB
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// Custom Tab Item with Semantic Motion & Editorial Micro-indicator
+function CustomTabItem({
+  route,
+  isFocused,
+  onPress,
+}: {
+  route: { name: string; title: string; icon: any; motionType: 'default' | 'directional' };
+  isFocused: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useAzelheimTheme();
+  const anim = useRef(new Animated.Value(isFocused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(anim, {
+      toValue: isFocused ? 1 : 0,
+      useNativeDriver: true,
+      speed: 28,
+      bounciness: 3,
+    }).start();
+  }, [isFocused]);
+
+  const translateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -2.5],
+  });
+
+  const translateX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, route.motionType === 'directional' ? 1.5 : 0],
+  });
+
+  const scale = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.08],
+  });
+
+  const indicatorScaleX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.5, 1],
+  });
+
+  const indicatorOpacity = anim.interpolate({
+    inputRange: [0, 0.4, 1],
+    outputRange: [0, 0.3, 1],
+  });
+
+  const labelOpacity = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.7, 1],
+  });
+
+  const IconComponent = route.icon;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      onPress={onPress}
+      style={styles.tabItem}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isFocused }}
+      accessibilityLabel={route.title}
+    >
+      <View style={styles.tabItemInner}>
+        <Animated.View
+          style={[
+            styles.tabIconWrapper,
+            {
+              transform: [{ translateY }, { translateX }, { scale }],
+            },
+          ]}
+        >
+          <IconComponent
+            size={20}
+            color={isFocused ? colors.text : colors.faint}
+          />
+        </Animated.View>
+
+        <Animated.Text
+          style={[
+            styles.tabLabel,
+            {
+              color: isFocused ? colors.text : colors.faint,
+              fontWeight: isFocused ? '800' : '600',
+              opacity: labelOpacity,
+            },
+          ]}
+        >
+          {route.title}
+        </Animated.Text>
+
+        <Animated.View
+          style={[
+            styles.activeIndicator,
+            {
+              backgroundColor: colors.text,
+              opacity: indicatorOpacity,
+              transform: [{ scaleX: indicatorScaleX }],
+            },
+          ]}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// Custom Bottom Tab Bar
+function CustomTabBar({ state, navigation }: any) {
+  const insets = useSafeAreaInsets();
+  const { colors } = useAzelheimTheme();
+
+  const tabRoutes = [
+    { name: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, motionType: 'default' as const },
+    { name: 'buku', title: 'Buku', icon: BookOpen, motionType: 'default' as const },
+    { name: 'peminjaman', title: 'Peminjaman', icon: ArrowLeftRight, motionType: 'directional' as const },
+    { name: 'anggota', title: 'Anggota', icon: UsersRound, motionType: 'default' as const },
+    { name: 'laporan', title: 'Laporan', icon: FileText, motionType: 'default' as const },
+  ];
+
+  return (
+    <View
+      style={[
+        styles.tabBarRoot,
+        {
+          backgroundColor: colors.bg,
+          borderTopColor: colors.border,
+          paddingBottom: Math.max(insets.bottom, 8),
+        },
+      ]}
+    >
+      <View style={styles.tabBarContent}>
+        {tabRoutes.map((tab) => {
+          const routeIndex = state.routes.findIndex((r: any) => r.name === tab.name);
+          const isFocused = state.index === routeIndex;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: state.routes[routeIndex]?.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(tab.name);
+            }
+          };
+
+          return (
+            <CustomTabItem
+              key={tab.name}
+              route={tab}
+              isFocused={isFocused}
+              onPress={onPress}
+            />
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+export default function AdminLayout() {
+  const router = useRouter();
+  const { isDark, toggleTheme } = useAzelheimTheme();
+  const {
+    tenantNama,
+    clearTenant,
+    tokenNotification,
+    clearTokenNotification,
+  } = useTenant();
 
   const handleKeluarPerpustakaan = () => {
     Alert.alert(
@@ -72,133 +418,29 @@ export default function AdminLayout() {
   return (
     <>
       <Tabs
+        tabBar={(props) => <CustomTabBar {...props} />}
         screenOptions={{
-          headerStyle: {
-            backgroundColor: colors.bg,
-            elevation: 0,
-            shadowOpacity: 0,
-            borderBottomWidth: 1.2,
-            borderBottomColor: colors.border,
-            height: 68,
-          },
-          headerTitle: '',
-          headerLeft: () => (
-            <View style={styles.headerLeft}>
-              <View style={styles.titleRow}>
-                <Text
-                  style={[styles.headerTitle, { color: colors.text }]}
-                  numberOfLines={1}
-                >
-                  {tenantNama || 'Azelheim'}
-                </Text>
-                <View
-                  style={[
-                    styles.brandTag,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: colors.surface,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.brandTagText, { color: colors.text }]}>
-                    v2.4
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.headerSub, { color: colors.faint }]}>
-                SYSTEM // CORE_LIB
-              </Text>
-            </View>
+          header: () => (
+            <AdminHeader
+              tenantNama={tenantNama}
+              isDark={isDark}
+              onToggleTheme={toggleTheme}
+              onOpenSettings={() => router.push('/(admin)/pengaturan')}
+              onLogout={handleKeluarPerpustakaan}
+            />
           ),
-          headerRight: () => (
-            <View style={styles.headerRight}>
-              <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                <AzelheimIconButton
-                  icon={
-                    isDark ? (
-                      <Moon size={19} color={colors.text} />
-                    ) : (
-                      <Sun size={19} color={colors.text} />
-                    )
-                  }
-                  onPress={handleToggleTheme}
-                  accessibilityLabel="Ganti Tema"
-                  size={38}
-                />
-              </Animated.View>
-              <AzelheimIconButton
-                icon={<Settings2 size={19} color={colors.text} />}
-                onPress={() => router.push('/(admin)/pengaturan')}
-                accessibilityLabel="Pengaturan"
-                size={38}
-              />
-              <AzelheimIconButton
-                icon={<Power size={19} color={colors.danger} />}
-                onPress={handleKeluarPerpustakaan}
-                accessibilityLabel="Keluar Perpustakaan"
-                size={38}
-              />
-            </View>
-          ),
-          tabBarStyle: {
-            backgroundColor: colors.bg,
-            borderTopWidth: 1.2,
-            borderTopColor: colors.border,
-            elevation: 0,
-            height: 68,
-            paddingTop: 8,
-            paddingBottom: Platform.OS === 'ios' ? 10 : 8,
-          },
-          tabBarActiveTintColor: colors.text,
-          tabBarInactiveTintColor: colors.faint,
-          tabBarLabelStyle: {
-            fontSize: 10,
-            fontWeight: '700',
-            marginTop: 3,
-          },
-          tabBarItemStyle: {
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-          },
         }}
       >
         <Tabs.Screen
           name="dashboard"
           options={{
             title: 'Dashboard',
-            tabBarIcon: ({ color, focused }) => (
-              <LayoutDashboard
-                size={21}
-                color={focused ? colors.text : color}
-                style={focused ? styles.activeIcon : undefined}
-              />
-            ),
           }}
         />
         <Tabs.Screen
           name="buku"
           options={{
             title: 'Buku',
-            tabBarIcon: ({ color, focused }) => (
-              <BookOpen
-                size={21}
-                color={isBukuActive || focused ? colors.text : color}
-                style={isBukuActive || focused ? styles.activeIcon : undefined}
-              />
-            ),
-            tabBarLabel: ({ color }) => (
-              <Text
-                style={{
-                  color: isBukuActive ? colors.text : color,
-                  fontSize: 10,
-                  fontWeight: isBukuActive ? '800' : '700',
-                  marginTop: 3,
-                }}
-              >
-                Buku
-              </Text>
-            ),
           }}
         />
         <Tabs.Screen
@@ -212,38 +454,12 @@ export default function AdminLayout() {
           name="peminjaman"
           options={{
             title: 'Peminjaman',
-            tabBarIcon: ({ color, focused }) => (
-              <Repeat
-                size={21}
-                color={focused ? colors.text : color}
-                style={focused ? styles.activeIcon : undefined}
-              />
-            ),
           }}
         />
         <Tabs.Screen
           name="anggota"
           options={{
             title: 'Anggota',
-            tabBarIcon: ({ color, focused }) => (
-              <Users
-                size={21}
-                color={isAnggotaActive || focused ? colors.text : color}
-                style={isAnggotaActive || focused ? styles.activeIcon : undefined}
-              />
-            ),
-            tabBarLabel: ({ color }) => (
-              <Text
-                style={{
-                  color: isAnggotaActive ? colors.text : color,
-                  fontSize: 10,
-                  fontWeight: isAnggotaActive ? '800' : '700',
-                  marginTop: 3,
-                }}
-              >
-                Anggota
-              </Text>
-            ),
           }}
         />
         <Tabs.Screen
@@ -257,13 +473,6 @@ export default function AdminLayout() {
           name="laporan"
           options={{
             title: 'Laporan',
-            tabBarIcon: ({ color, focused }) => (
-              <FileText
-                size={21}
-                color={focused ? colors.text : color}
-                style={focused ? styles.activeIcon : undefined}
-              />
-            ),
           }}
         />
         <Tabs.Screen
@@ -287,25 +496,35 @@ export default function AdminLayout() {
 }
 
 const styles = StyleSheet.create({
-  headerLeft: {
-    paddingLeft: 16,
-    justifyContent: 'center',
-    maxWidth: 220,
+  headerRoot: {
+    borderBottomWidth: 1.2,
+    paddingHorizontal: 16,
+    paddingBottom: 11,
   },
-  titleRow: {
+  headerInner: {
+    width: '100%',
+  },
+  headerMainRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  brandGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
+    flex: 1,
+    paddingRight: 8,
   },
   headerTitle: {
     fontWeight: '800',
-    fontSize: 16.5,
+    fontSize: 17,
     letterSpacing: -0.4,
   },
   brandTag: {
     borderWidth: 1.2,
-    paddingVertical: 1,
-    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    paddingHorizontal: 5.5,
     borderRadius: 3,
   },
   brandTagText: {
@@ -313,20 +532,63 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
   },
+  metaRow: {
+    marginTop: 2,
+  },
   headerSub: {
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     fontSize: 9,
-    letterSpacing: 0.7,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginTop: 2,
   },
-  headerRight: {
+  actionGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 14,
-    gap: 4,
+    gap: 3,
   },
-  activeIcon: {
-    transform: [{ translateY: -2 }, { scale: 1.15 }],
+  actionItemWrapper: {
+    width: 42,
+    height: 42,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabBarRoot: {
+    borderTopWidth: 1.2,
+    elevation: 0,
+    shadowOpacity: 0,
+    paddingTop: 6,
+  },
+  tabBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 2,
+  },
+  tabItemInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  tabIconWrapper: {
+    width: 32,
+    height: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabLabel: {
+    fontSize: 9.5,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  activeIndicator: {
+    width: 16,
+    height: 2,
+    borderRadius: 1,
+    marginTop: 3,
   },
 });

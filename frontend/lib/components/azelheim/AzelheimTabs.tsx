@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, StyleProp, Platform, Animated } from 'react-native';
 import { useAzelheimTheme } from '../../theme';
 
 export interface TabOption<T extends string = string> {
@@ -13,6 +13,73 @@ interface AzelheimTabsProps<T extends string = string> {
   activeTab: T;
   onTabChange: (tab: T) => void;
   style?: StyleProp<ViewStyle>;
+}
+
+function TabItem<T extends string = string>({
+  tab,
+  isActive,
+  isLast,
+  onPress,
+}: {
+  tab: TabOption<T>;
+  isActive: boolean;
+  isLast: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useAzelheimTheme();
+  const pressAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(pressAnim, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 0,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(pressAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 4,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[
+        styles.tabButton,
+        {
+          backgroundColor: isActive ? colors.purple : 'transparent',
+          borderRightColor: colors.border,
+          borderRightWidth: isLast ? 0 : 1.2,
+        },
+      ]}
+    >
+      <Animated.View style={{ transform: [{ scale: pressAnim }], width: '100%', alignItems: 'center' }}>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.tabLabel,
+            {
+              color: colors.text,
+              fontWeight: isActive ? '800' : '600',
+              opacity: isActive ? 1 : 0.75,
+            },
+          ]}
+        >
+          {tab.label}
+          {tab.count !== undefined ? ` [${tab.count}]` : ''}
+        </Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
 }
 
 export function AzelheimTabs<T extends string = string>({
@@ -39,33 +106,13 @@ export function AzelheimTabs<T extends string = string>({
         const isLast = idx === tabs.length - 1;
 
         return (
-          <TouchableOpacity
+          <TabItem
             key={tab.value}
-            activeOpacity={0.7}
+            tab={tab}
+            isActive={isActive}
+            isLast={isLast}
             onPress={() => onTabChange(tab.value)}
-            style={[
-              styles.tabButton,
-              {
-                backgroundColor: isActive ? colors.purple : 'transparent',
-                borderRightColor: colors.border,
-                borderRightWidth: isLast ? 0 : 1.2,
-              },
-            ]}
-          >
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.tabLabel,
-                {
-                  color: colors.text,
-                  fontWeight: isActive ? '800' : '600',
-                },
-              ]}
-            >
-              {tab.label}
-              {tab.count !== undefined ? ` [${tab.count}]` : ''}
-            </Text>
-          </TouchableOpacity>
+          />
         );
       })}
     </View>
@@ -83,13 +130,13 @@ const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     minHeight: 38,
-    paddingVertical: 9,
-    paddingHorizontal: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabLabel: {
-    fontFamily: 'monospace',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     fontSize: 10.5,
     textAlign: 'center',
     letterSpacing: 0.2,

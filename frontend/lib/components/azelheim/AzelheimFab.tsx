@@ -23,36 +23,46 @@ export function AzelheimFab({
   accessibilityLabel = 'Tambah',
 }: AzelheimFabProps) {
   const { colors } = useAzelheimTheme();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const pressAnim = useRef(new Animated.Value(0)).current;
 
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.93,
+    Animated.spring(pressAnim, {
+      toValue: 1,
       useNativeDriver: true,
-      speed: 30,
+      speed: 35,
       bounciness: 0,
     }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
+    Animated.spring(pressAnim, {
+      toValue: 0,
       useNativeDriver: true,
-      speed: 30,
+      speed: 35,
       bounciness: 4,
     }).start();
   };
+
+  const scale = pressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.90],
+  });
+
+  const rotate = pressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg'],
+  });
 
   return (
     <Animated.View
       style={[
         styles.fabContainer,
-        { transform: [{ scale: scaleAnim }] },
+        { transform: [{ scale }] },
         style,
       ]}
     >
       <TouchableOpacity
-        activeOpacity={0.85}
+        activeOpacity={0.88}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -65,7 +75,9 @@ export function AzelheimFab({
           },
         ]}
       >
-        {icon || <Plus size={22} color={colors.bg} />}
+        <Animated.View style={{ transform: [{ rotate }] }}>
+          {icon || <Plus size={22} color={colors.bg} />}
+        </Animated.View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -79,12 +91,11 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   fab: {
-    width: 50,
-    height: 50,
+    width: 48,
+    height: 48,
     borderWidth: 1.5,
     borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
   },
 });

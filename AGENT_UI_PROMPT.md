@@ -388,6 +388,72 @@ Hindari:
 
 ---
 
+## 13. Icon System & Motion Mapping
+
+Gunakan `lucide-react-native` sebagai icon system. Jangan memilih icon baru secara bebas jika icon memiliki padanan yang sudah ditentukan di mapping ini.
+
+Tujuan mapping ini adalah menjaga semantic meaning, visual consistency, dan memberi setiap icon interaction yang sesuai dengan karakter bentuknya.
+
+### Top Navigation
+
+| Fungsi | Icon Lucide | Motion | Catatan |
+|---|---|---|---|
+| Theme light | `Sun` | rotate + scale + opacity crossfade | transition ke `Moon` |
+| Theme dark | `Moon` | rotate + scale + opacity crossfade | jangan looping |
+| Settings | `SlidersHorizontal` | translateY kecil + scale | subtle directional motion |
+| Logout | `Power` | press scale + subtle rotate | tetap semantic danger |
+
+### Bottom Navigation
+
+| Fungsi | Icon Lucide | Motion | Catatan |
+|---|---|---|---|
+| Dashboard | `LayoutDashboard` | translateY(-2) + scale + opacity | active indicator |
+| Buku | `BookOpen` | translateY(-2) + scale + opacity | wrapper harus mencegah clipping |
+| Peminjaman | `ArrowLeftRight` | directional translate | cocok untuk alur transaksi |
+| Anggota | `UsersRound` | translateY(-2) + scale | jangan bounce |
+| Laporan | `FileText` | translateY(-2) + scale + opacity | active indicator |
+
+### Common Actions
+
+| Fungsi | Icon Lucide | Motion |
+|---|---|---|
+| Search | `Search` | scale ringan + translateY |
+| Filter | `ListFilter` | rotate kecil + scale |
+| Sort | `ArrowUpDown` | rotate 180° saat direction berubah |
+| Dropdown | `ChevronDown` | rotate 0→180° saat open |
+| Add/FAB | `Plus` | rotate menuju state close/open + spring |
+| Close | `X` | rotate + opacity crossfade |
+| Back | `ArrowLeft` | translateX kecil saat press |
+| Forward | `ArrowRight` | translateX kecil saat press |
+| Refresh | `RefreshCw` | rotate saat user meminta refresh |
+| Export PDF | `FileDown` | translateY + scale ringan |
+| Save | `Save` | press scale + opacity |
+| Edit | `Pencil` | rotate kecil + translateY |
+| Delete | `Trash2` | short horizontal shake + scale ringan |
+| Warning | `TriangleAlert` | short scale/opacity feedback |
+| Success | `CircleCheck` | short scale pop + opacity |
+| Error | `CircleX` | short scale pop + opacity |
+| Info | `Info` | translateY kecil + opacity |
+
+### Motion Rules untuk Icon
+
+1. Jangan memberikan animation yang identik kepada semua icon.
+2. Motion harus mengikuti semantic dan bentuk icon.
+3. Gunakan `rotate` untuk icon yang memiliki state directional/toggle.
+4. Gunakan `translate` untuk icon yang memang menyiratkan arah.
+5. Gunakan `scale` sebagai feedback pendukung, bukan satu-satunya motion.
+6. Gunakan `opacity` untuk state active/inactive atau crossfade.
+7. Jangan menggunakan looping animation tanpa user action.
+8. Jangan membuat icon berputar hanya sebagai dekorasi.
+9. Semua animated icon harus memiliki wrapper/container yang cukup luas agar transform tidak menyebabkan clipping.
+10. Khusus icon bottom navigation yang active, perbesar wrapper terlebih dahulu sebelum menerapkan scale/translate.
+
+Jika icon existing tidak cocok dengan mapping ini, ganti dengan icon yang ditentukan di atas selama semantic meaning tetap sama. Jika benar-benar tidak cocok, gunakan icon Lucide terdekat dan laporkan alasan pemilihannya. Jangan mengganti icon library.
+
+Semua motion tetap mengikuti aturan `react-native-reanimated` dengan `transform` dan `opacity` sebagai properti utama.
+
+---
+
 ## 13. Safe Area & Clipping
 
 Audit setiap komponen yang memiliki:

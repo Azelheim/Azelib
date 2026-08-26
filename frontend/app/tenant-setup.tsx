@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus, RefreshCw, LogOut, ArrowRight } from 'lucide-react-native';
+import { Plus, RefreshCw, Power, ArrowRight } from 'lucide-react-native';
 import { apiClient } from '../lib/api/apiClient';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../lib/context/TenantContext';
@@ -224,7 +224,7 @@ export default function TenantSetup() {
       <AzelheimButton
         variant="red"
         title="Keluar Akun"
-        icon={<LogOut size={18} color={colors.danger} />}
+        icon={<Power size={18} color={colors.danger} />}
         onPress={handleKeluarAkun}
         fullWidth
         style={{ marginTop: 16 }}
@@ -283,7 +283,7 @@ export default function TenantSetup() {
       <AzelheimButton
         variant="red"
         title="Keluar Akun"
-        icon={<LogOut size={18} color={colors.danger} />}
+        icon={<Power size={18} color={colors.danger} />}
         onPress={handleKeluarAkun}
         fullWidth
         style={{ marginTop: 8 }}

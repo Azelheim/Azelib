@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { LogOut, ArrowLeft } from 'lucide-react-native';
+import { Power, ArrowLeft } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { apiClient } from '../lib/api/apiClient';
 import { useAzelheimTheme } from '../lib/theme';
@@ -199,7 +199,7 @@ export default function Pengunjung() {
           </Text>
         </View>
         <AzelheimIconButton
-          icon={<LogOut size={18} color={colors.danger} />}
+          icon={<Power size={18} color={colors.danger} />}
           onPress={handleKeluar}
           accessibilityLabel="Keluar ke Gerbang"
         />

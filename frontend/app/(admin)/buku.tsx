@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Menu } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Plus, ArrowUpDown } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../lib/context/TenantContext';
 import { useAzelheimTheme } from '../../lib/theme';
@@ -204,8 +204,9 @@ export default function BukuList() {
                   { borderColor: colors.border, backgroundColor: colors.surface },
                 ]}
               >
+                <ArrowUpDown size={12} color={colors.text} />
                 <Text style={[styles.sortAnchorText, { color: colors.text }]}>
-                  {sortBy} ▾
+                  {sortBy}
                 </Text>
               </TouchableOpacity>
             }

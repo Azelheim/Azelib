@@ -29,70 +29,99 @@ export function AzelheimStatCard({
         styles.statCard,
         {
           backgroundColor: colors.card,
-          borderColor: colors.border,
+          borderColor: isAlert ? colors.danger : colors.border,
         },
         style,
       ]}
     >
-      {code ? (
-        <Text
-          style={[
-            styles.code,
-            { color: isAlert ? colors.danger : colors.faint },
-          ]}
-        >
-          {code}
-        </Text>
-      ) : null}
-      <Text style={[styles.label, { color: colors.muted }]}>{label}</Text>
+      <View style={styles.topRow}>
+        {code ? (
+          <Text
+            style={[
+              styles.code,
+              { color: isAlert ? colors.danger : colors.faint },
+            ]}
+          >
+            {code}
+          </Text>
+        ) : <View style={{ height: 12 }} />}
+      </View>
+
+      <Text style={[styles.label, { color: colors.muted }]} numberOfLines={1}>
+        {label}
+      </Text>
+
       {customContent ? (
-        customContent
+        <View style={styles.contentWrap}>{customContent}</View>
       ) : (
         <Text
           style={[
             styles.value,
             { color: isAlert ? colors.danger : colors.text },
           ]}
+          numberOfLines={1}
         >
           {value}
         </Text>
       )}
+
       {sublabel ? (
-        <Text style={[styles.sublabel, { color: isAlert ? colors.danger : colors.faint }]}>
+        <Text
+          style={[
+            styles.sublabel,
+            { color: isAlert ? colors.danger : colors.faint },
+          ]}
+          numberOfLines={1}
+        >
           {sublabel}
         </Text>
-      ) : null}
+      ) : (
+        <View style={{ height: 13 }} />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   statCard: {
+    flex: 1,
     borderWidth: 1.2,
     borderRadius: 4,
-    padding: 10,
-    minHeight: 85,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    minHeight: 96,
+    maxHeight: 108,
     justifyContent: 'space-between',
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 12,
   },
   code: {
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     fontSize: 9,
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
   label: {
     fontSize: 10.5,
-    marginTop: 2,
+    marginTop: 1,
     fontWeight: '600',
+  },
+  contentWrap: {
+    marginVertical: 2,
   },
   value: {
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     fontSize: 23,
     fontWeight: '800',
     letterSpacing: -0.8,
-    marginTop: 4,
+    marginVertical: 1,
   },
   sublabel: {
     fontSize: 9.5,
-    marginTop: 2,
+    marginTop: 1,
   },
 });

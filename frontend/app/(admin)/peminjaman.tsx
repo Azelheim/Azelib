@@ -14,8 +14,8 @@ import { Menu } from 'react-native-paper';
 import { useFocusEffect } from 'expo-router';
 import {
   Plus,
-  Check,
-  AlertTriangle,
+  CircleCheck,
+  TriangleAlert,
   ChevronDown,
   ChevronUp,
   UserPlus,
@@ -384,14 +384,14 @@ export default function Peminjaman() {
             <AzelheimButton
               variant="light"
               title="Kembalikan"
-              icon={<Check size={16} color={colors.text} />}
+              icon={<CircleCheck size={16} color={colors.text} />}
               onPress={() => handleKembalikan(item)}
               style={{ flex: 1 }}
             />
             <AzelheimButton
               variant="red"
               title="Hilang"
-              icon={<AlertTriangle size={16} color={colors.danger} />}
+              icon={<TriangleAlert size={16} color={colors.danger} />}
               onPress={() => {
                 setHilangId(item.id);
                 setShowHilang(true);

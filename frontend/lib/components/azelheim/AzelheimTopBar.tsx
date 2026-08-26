@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Platform, ViewStyle, StyleProp, Animated } from 'react-native';
-import { Sun, Moon, Settings2, Power } from 'lucide-react-native';
+import { Sun, Moon, SlidersHorizontal, Power } from 'lucide-react-native';
 import { useAzelheimTheme } from '../../theme';
 import { AzelheimIconButton } from './AzelheimIconButton';
 
@@ -26,13 +26,14 @@ export function AzelheimTopBar({
   style,
 }: AzelheimTopBarProps) {
   const { colors, isDark, toggleTheme } = useAzelheimTheme();
-  const themeRotateAnim = useRef(new Animated.Value(isDark ? 1 : 0)).current;
+  const themeAnim = useRef(new Animated.Value(isDark ? 1 : 0)).current;
 
   const handleToggle = () => {
-    Animated.timing(themeRotateAnim, {
+    Animated.spring(themeAnim, {
       toValue: isDark ? 0 : 1,
-      duration: 300,
       useNativeDriver: true,
+      bounciness: 4,
+      speed: 12,
     }).start();
     if (onThemeToggle) {
       onThemeToggle();
@@ -41,9 +42,14 @@ export function AzelheimTopBar({
     }
   };
 
-  const spin = themeRotateAnim.interpolate({
+  const spin = themeAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
+  });
+
+  const scale = themeAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 0.82, 1],
   });
 
   return (
@@ -57,66 +63,74 @@ export function AzelheimTopBar({
         style,
       ]}
     >
-      <View style={styles.brand}>
-        <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-            {title}
-          </Text>
-          {tag ? (
-            <View
-              style={[
-                styles.tag,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.surface,
-                },
-              ]}
-            >
-              <Text style={[styles.tagText, { color: colors.text }]}>{tag}</Text>
-            </View>
-          ) : null}
-        </View>
-        {subtitle ? (
-          <Text style={[styles.subtitle, { color: colors.faint }]}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
+      <View style={styles.inner}>
+        <View style={styles.mainRow}>
+          <View style={styles.brand}>
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+              {title}
+            </Text>
+            {tag ? (
+              <View
+                style={[
+                  styles.tag,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surface,
+                  },
+                ]}
+              >
+                <Text style={[styles.tagText, { color: colors.text }]}>{tag}</Text>
+              </View>
+            ) : null}
+          </View>
 
-      <View style={styles.actions}>
-        {rightActions ? (
-          rightActions
-        ) : (
-          <>
-            <Animated.View style={{ transform: [{ rotate: spin }] }}>
-              <AzelheimIconButton
-                icon={
-                  isDark ? (
-                    <Moon size={19} color={colors.text} />
-                  ) : (
-                    <Sun size={19} color={colors.text} />
-                  )
-                }
-                onPress={handleToggle}
-                accessibilityLabel="Ganti Tema"
-              />
-            </Animated.View>
-            {onSettingsPress && (
-              <AzelheimIconButton
-                icon={<Settings2 size={19} color={colors.text} />}
-                onPress={onSettingsPress}
-                accessibilityLabel="Pengaturan"
-              />
+          <View style={styles.actions}>
+            {rightActions ? (
+              rightActions
+            ) : (
+              <>
+                <Animated.View style={{ transform: [{ rotate: spin }, { scale }] }}>
+                  <AzelheimIconButton
+                    icon={
+                      isDark ? (
+                        <Moon size={20} color={colors.text} />
+                      ) : (
+                        <Sun size={20} color={colors.text} />
+                      )
+                    }
+                    onPress={handleToggle}
+                    accessibilityLabel="Ganti Tema"
+                    size={42}
+                  />
+                </Animated.View>
+                {onSettingsPress && (
+                  <AzelheimIconButton
+                    icon={<SlidersHorizontal size={20} color={colors.text} />}
+                    onPress={onSettingsPress}
+                    accessibilityLabel="Pengaturan"
+                    size={42}
+                  />
+                )}
+                {onLogoutPress && (
+                  <AzelheimIconButton
+                    icon={<Power size={20} color={colors.danger} />}
+                    onPress={onLogoutPress}
+                    accessibilityLabel="Keluar"
+                    size={42}
+                  />
+                )}
+              </>
             )}
-            {onLogoutPress && (
-              <AzelheimIconButton
-                icon={<Power size={19} color={colors.danger} />}
-                onPress={onLogoutPress}
-                accessibilityLabel="Keluar"
-              />
-            )}
-          </>
-        )}
+          </View>
+        </View>
+
+        {subtitle ? (
+          <View style={styles.metaRow}>
+            <Text style={[styles.subtitle, { color: colors.faint }]}>
+              {subtitle}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -124,33 +138,35 @@ export function AzelheimTopBar({
 
 const styles = StyleSheet.create({
   topbar: {
-    height: 68,
     borderBottomWidth: 1.2,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 11,
+  },
+  inner: {
+    width: '100%',
+  },
+  mainRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
   },
   brand: {
-    flex: 1,
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
+    flex: 1,
+    paddingRight: 8,
   },
   title: {
     fontWeight: '800',
-    fontSize: 16.5,
+    fontSize: 17,
     letterSpacing: -0.4,
   },
   tag: {
-    borderWidth: 1,
+    borderWidth: 1.2,
     paddingVertical: 1.5,
-    paddingHorizontal: 4,
+    paddingHorizontal: 5.5,
     borderRadius: 3,
   },
   tagText: {
@@ -158,16 +174,18 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
   },
+  metaRow: {
+    marginTop: 2,
+  },
   subtitle: {
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    fontSize: 8.5,
-    letterSpacing: 0.6,
+    fontSize: 9,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginTop: 1,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
 });

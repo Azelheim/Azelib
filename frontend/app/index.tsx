@@ -122,18 +122,18 @@ export default function Gerbang() {
         MASUK SEBAGAI
       </Text>
 
-      <AzelheimCard onPress={() => router.push('/login')} style={{ marginBottom: 20 }}>
+      <AzelheimCard onPress={() => router.push('/login')} style={{ marginBottom: 18 }}>
         <View style={styles.cardHead}>
           <View style={{ flex: 1 }}>
             <View style={styles.cardTitleRow}>
-              <KeyRound size={18} color={colors.text} />
+              <KeyRound size={17} color={colors.text} />
               <Text style={[styles.cardTitle, { color: colors.text }]}>LOGIN</Text>
             </View>
             <Text style={[styles.cardSub, { color: colors.muted }]}>
               Kelola perpustakaan sebagai Owner, Admin, atau Staff.
             </Text>
           </View>
-          <ArrowUpRight size={19} color={colors.text} />
+          <ArrowUpRight size={18} color={colors.text} />
         </View>
 
         <AzelheimMetaBox
@@ -148,7 +148,7 @@ export default function Gerbang() {
         PENGUNJUNG
       </Text>
 
-      <AzelheimCard style={{ marginBottom: 24 }}>
+      <AzelheimCard style={{ marginBottom: 20 }}>
         <View style={styles.cardHead}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>
@@ -180,7 +180,8 @@ export default function Gerbang() {
             loading={loading}
             disabled={!tokenInput.trim() || loading}
             icon={<ArrowRight size={18} color={colors.bg} />}
-            style={{ width: 58, minHeight: 40 }}
+            style={{ width: 56, minHeight: 42 }}
+            accessibilityLabel="Masuk Katalog"
           />
         </View>
 
