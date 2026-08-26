@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Azelib",
+    "slug": "azelib",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "azelib",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.frontend"
+      "package": "com.azelheim.azelib"
     },
     "web": {
       "output": "static",
@@ -43,8 +43,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "8ecb42ed-f829-440d-aeb1-a86deb2a27b4"
+        "projectId": "80b9f043-3816-4b7a-a725-685d4c17ebb3"
       }
-    }
+    },
+    "owner": "toothfairies"
   }
 }

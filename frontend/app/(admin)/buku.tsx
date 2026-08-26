@@ -1,10 +1,29 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Card, FAB, Searchbar, Chip, Menu, Button, Snackbar, ActivityIndicator } from 'react-native-paper';
+import React, { useState, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
+import { Menu } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { Plus } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../lib/context/TenantContext';
-import { Plus } from 'lucide-react-native';
+import { useAzelheimTheme } from '../../lib/theme';
+import {
+  AzelheimScreen,
+  AzelheimSectionHeader,
+  AzelheimCard,
+  AzelheimSearchField,
+  AzelheimBadge,
+  AzelheimFab,
+  AzelheimToast,
+} from '../../lib/components/azelheim';
 
 interface BukuItem {
   id: string;
@@ -18,19 +37,20 @@ interface BukuItem {
 
 export default function BukuList() {
   const router = useRouter();
+  const { colors } = useAzelheimTheme();
   const { tenantId, userRole } = useTenant();
   const [searchQuery, setSearchQuery] = useState('');
   const [books, setBooks] = useState<BukuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [snackMsg, setSnackMsg] = useState('');
-  
+
   // Sort
   const [sortVisible, setSortVisible] = useState(false);
   const [sortBy, setSortBy] = useState('Terbaru');
 
   // Filters
-  const [kategoriList, setKategoriList] = useState<{id: string; nama: string}[]>([]);
-  const [rakList, setRakList] = useState<{id: string; nama: string}[]>([]);
+  const [kategoriList, setKategoriList] = useState<{ id: string; nama: string }[]>([]);
+  const [rakList, setRakList] = useState<{ id: string; nama: string }[]>([]);
   const [filterKategori, setFilterKategori] = useState<string | null>(null);
   const [filterRak, setFilterRak] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
@@ -84,13 +104,14 @@ export default function BukuList() {
     }
   };
 
-  // Filter & Sort
   const filteredAndSortedBooks = useMemo(() => {
     return books
-      .filter(b => {
+      .filter((b) => {
         // Search
         const q = searchQuery.toLowerCase();
-        const matchSearch = b.judul.toLowerCase().includes(q) || (b.penulis && b.penulis.toLowerCase().includes(q));
+        const matchSearch =
+          b.judul.toLowerCase().includes(q) ||
+          (b.penulis && b.penulis.toLowerCase().includes(q));
         if (!matchSearch) return false;
 
         // Filter Kategori
@@ -101,7 +122,7 @@ export default function BukuList() {
 
         // Filter Status
         if (filterStatus) {
-          const totalTersedia = b.salinan.filter(s => s.status === 'tersedia').length;
+          const totalTersedia = b.salinan.filter((s) => s.status === 'tersedia').length;
           if (filterStatus === 'tersedia' && totalTersedia === 0) return false;
           if (filterStatus === 'habis' && totalTersedia > 0) return false;
         }
@@ -110,164 +131,378 @@ export default function BukuList() {
       })
       .sort((a, b) => {
         if (sortBy === 'Judul A-Z') return a.judul.localeCompare(b.judul);
-        if (sortBy === 'Penulis') return (a.penulis || '').localeCompare(b.penulis || '');
-        if (sortBy === 'Terbaru') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (sortBy === 'Penulis')
+          return (a.penulis || '').localeCompare(b.penulis || '');
+        if (sortBy === 'Terbaru')
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
         return 0;
       });
   }, [books, searchQuery, filterKategori, filterRak, filterStatus, sortBy]);
 
+  const renderBookRow = (item: BukuItem, isLast: boolean) => {
+    const tersedia = item.salinan.filter((s) => s.status === 'tersedia').length;
+    const total = item.salinan.length;
+
+    return (
+      <TouchableOpacity
+        key={item.id}
+        activeOpacity={0.7}
+        onPress={() =>
+          router.push({
+            pathname: '/(admin)/buku-detail',
+            params: { id: item.id },
+          })
+        }
+        style={[
+          styles.listItem,
+          { borderBottomColor: colors.line, borderBottomWidth: isLast ? 0 : 1 },
+        ]}
+      >
+        <View style={styles.itemMain}>
+          <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>
+            {item.judul}
+          </Text>
+          <Text style={[styles.itemSub, { color: colors.muted }]} numberOfLines={1}>
+            {item.penulis || 'Penulis tidak diketahui'} · {item.kategori?.nama || '-'} · Rak: {item.rak?.nama || '-'}
+          </Text>
+        </View>
+
+        <View style={styles.itemMeta}>
+          <Text style={[styles.stock, { color: colors.text }]}>
+            {tersedia}/{total}
+          </Text>
+          <Text style={[styles.stockLabel, { color: colors.faint }]}>STOK</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   if (loading && books.length === 0) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.center, { backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Search & Sort */}
-      <View style={styles.header}>
-        <Searchbar
-          placeholder="Cari judul atau penulis..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchbar}
-        />
-        <Menu
-          visible={sortVisible}
-          onDismiss={() => setSortVisible(false)}
-          anchor={<Button mode="outlined" onPress={() => setSortVisible(true)} style={styles.sortBtn}>{sortBy}</Button>}>
-          <Menu.Item onPress={() => { setSortBy('Judul A-Z'); setSortVisible(false); }} title="Judul A-Z" />
-          <Menu.Item onPress={() => { setSortBy('Penulis'); setSortVisible(false); }} title="Penulis" />
-          <Menu.Item onPress={() => { setSortBy('Terbaru'); setSortVisible(false); }} title="Terbaru" />
-        </Menu>
-      </View>
+    <AzelheimScreen scrollable={false} extraBottomPadding={80}>
+      <AzelheimSectionHeader
+        title="Buku"
+        code="COLL // 02"
+        rightContent={
+          <Menu
+            visible={sortVisible}
+            onDismiss={() => setSortVisible(false)}
+            anchor={
+              <TouchableOpacity
+                onPress={() => setSortVisible(true)}
+                style={[
+                  styles.sortAnchor,
+                  { borderColor: colors.border, backgroundColor: colors.surface },
+                ]}
+              >
+                <Text style={[styles.sortAnchorText, { color: colors.text }]}>
+                  {sortBy} ▾
+                </Text>
+              </TouchableOpacity>
+            }
+          >
+            <Menu.Item
+              onPress={() => {
+                setSortBy('Judul A-Z');
+                setSortVisible(false);
+              }}
+              title="Judul A-Z"
+            />
+            <Menu.Item
+              onPress={() => {
+                setSortBy('Penulis');
+                setSortVisible(false);
+              }}
+              title="Penulis"
+            />
+            <Menu.Item
+              onPress={() => {
+                setSortBy('Terbaru');
+                setSortVisible(false);
+              }}
+              title="Terbaru"
+            />
+          </Menu>
+        }
+      />
 
-      {/* Filter Chips */}
-      <View style={styles.filterRow}>
-        {/* Kategori Menu */}
+      {/* Search Bar */}
+      <AzelheimSearchField
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Cari judul atau penulis..."
+      />
+
+      {/* Filter Pill Row */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillScrollContent}
+        style={styles.pillScrollView}
+      >
+        <TouchableOpacity
+          onPress={() => {
+            setFilterKategori(null);
+            setFilterRak(null);
+            setFilterStatus(null);
+          }}
+          activeOpacity={0.7}
+          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+        >
+          <AzelheimBadge
+            label="SEMUA"
+            variant={
+              !filterKategori && !filterRak && !filterStatus ? 'purple' : 'gray'
+            }
+          />
+        </TouchableOpacity>
+
+        {/* Kategori Filter Menu */}
         <Menu
           visible={kategoriMenuVisible}
           onDismiss={() => setKategoriMenuVisible(false)}
           anchor={
-            <Chip 
-              selected={!!filterKategori} 
+            <TouchableOpacity
               onPress={() => setKategoriMenuVisible(true)}
-              onClose={filterKategori ? () => setFilterKategori(null) : undefined}
-              style={styles.chip}>
-              {filterKategori ? kategoriList.find(k => k.id === filterKategori)?.nama || 'Kategori' : 'Semua Kategori'}
-            </Chip>
-          }>
-          <Menu.Item onPress={() => { setFilterKategori(null); setKategoriMenuVisible(false); }} title="Semua Kategori" />
-          {kategoriList.map(k => (
-            <Menu.Item key={k.id} onPress={() => { setFilterKategori(k.id); setKategoriMenuVisible(false); }} title={k.nama} />
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
+              <AzelheimBadge
+                label={
+                  filterKategori
+                    ? `KAT: ${
+                        kategoriList.find((k) => k.id === filterKategori)?.nama ||
+                        'AKTIF'
+                      }`
+                    : 'KATEGORI ▾'
+                }
+                variant={filterKategori ? 'purple' : 'gray'}
+              />
+            </TouchableOpacity>
+          }
+        >
+          <Menu.Item
+            onPress={() => {
+              setFilterKategori(null);
+              setKategoriMenuVisible(false);
+            }}
+            title="Semua Kategori"
+          />
+          {kategoriList.map((kat) => (
+            <Menu.Item
+              key={kat.id}
+              onPress={() => {
+                setFilterKategori(kat.id);
+                setKategoriMenuVisible(false);
+              }}
+              title={kat.nama}
+            />
           ))}
         </Menu>
 
-        {/* Rak Menu */}
+        {/* Rak Filter Menu */}
         <Menu
           visible={rakMenuVisible}
           onDismiss={() => setRakMenuVisible(false)}
           anchor={
-            <Chip 
-              selected={!!filterRak} 
+            <TouchableOpacity
               onPress={() => setRakMenuVisible(true)}
-              onClose={filterRak ? () => setFilterRak(null) : undefined}
-              style={styles.chip}>
-              {filterRak ? rakList.find(r => r.id === filterRak)?.nama || 'Rak' : 'Semua Rak'}
-            </Chip>
-          }>
-          <Menu.Item onPress={() => { setFilterRak(null); setRakMenuVisible(false); }} title="Semua Rak" />
-          {rakList.map(r => (
-            <Menu.Item key={r.id} onPress={() => { setFilterRak(r.id); setRakMenuVisible(false); }} title={r.nama} />
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
+              <AzelheimBadge
+                label={
+                  filterRak
+                    ? `RAK: ${
+                        rakList.find((r) => r.id === filterRak)?.nama || 'AKTIF'
+                      }`
+                    : 'RAK ▾'
+                }
+                variant={filterRak ? 'purple' : 'gray'}
+              />
+            </TouchableOpacity>
+          }
+        >
+          <Menu.Item
+            onPress={() => {
+              setFilterRak(null);
+              setRakMenuVisible(false);
+            }}
+            title="Semua Rak"
+          />
+          {rakList.map((r) => (
+            <Menu.Item
+              key={r.id}
+              onPress={() => {
+                setFilterRak(r.id);
+                setRakMenuVisible(false);
+              }}
+              title={r.nama}
+            />
           ))}
         </Menu>
 
-        {/* Status Menu */}
+        {/* Status Filter Menu */}
         <Menu
           visible={statusMenuVisible}
           onDismiss={() => setStatusMenuVisible(false)}
           anchor={
-            <Chip 
-              selected={!!filterStatus} 
+            <TouchableOpacity
               onPress={() => setStatusMenuVisible(true)}
-              onClose={filterStatus ? () => setFilterStatus(null) : undefined}
-              style={styles.chip}>
-              {filterStatus === 'tersedia' ? 'Tersedia' : filterStatus === 'habis' ? 'Habis Dipinjam' : 'Semua Status'}
-            </Chip>
-          }>
-          <Menu.Item onPress={() => { setFilterStatus(null); setStatusMenuVisible(false); }} title="Semua Status" />
-          <Menu.Item onPress={() => { setFilterStatus('tersedia'); setStatusMenuVisible(false); }} title="Tersedia" />
-          <Menu.Item onPress={() => { setFilterStatus('habis'); setStatusMenuVisible(false); }} title="Habis Dipinjam" />
-        </Menu>
-      </View>
-
-      {/* Book List */}
-      <FlatList
-        data={filteredAndSortedBooks}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => {
-          const tersedia = item.salinan.filter(s => s.status === 'tersedia').length;
-          const total = item.salinan.length;
-          return (
-            <Card style={styles.card} mode="outlined" onPress={() => router.push({ pathname: '/(admin)/buku-detail', params: { id: item.id } })}>
-              <Card.Title 
-                title={item.judul} 
-                subtitle={item.penulis || '-'} 
-                right={() => (
-                  <View style={{ marginRight: 16, alignItems: 'flex-end' }}>
-                    <Text variant="labelSmall" style={{ color: '#666' }}>Salinan</Text>
-                    <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>{tersedia}/{total}</Text>
-                  </View>
-                )}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
+              <AzelheimBadge
+                label={
+                  filterStatus
+                    ? filterStatus.toUpperCase()
+                    : 'STATUS ▾'
+                }
+                variant={filterStatus ? 'purple' : 'gray'}
               />
-              <Card.Content>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                  <Chip style={{ backgroundColor: '#F0F0F0' }}>
-                    {item.kategori?.nama || 'Tanpa Kategori'}
-                  </Chip>
-                  {item.rak?.nama ? (
-                    <Chip style={{ backgroundColor: '#E8F5E9' }} textStyle={{ color: '#2E7D32' }}>
-                      Rak: {item.rak.nama}
-                    </Chip>
-                  ) : (
-                    <Chip style={{ backgroundColor: '#FFF3E0' }} textStyle={{ color: '#E65100', fontWeight: '500' }}>
-                      Rak: Belum Ditentukan ⚠️
-                    </Chip>
-                  )}
-                </View>
-              </Card.Content>
-            </Card>
-          );
-        }}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 32, color: '#666' }}>Belum ada buku.</Text>}
-      />
+            </TouchableOpacity>
+          }
+        >
+          <Menu.Item
+            onPress={() => {
+              setFilterStatus(null);
+              setStatusMenuVisible(false);
+            }}
+            title="Semua Status"
+          />
+          <Menu.Item
+            onPress={() => {
+              setFilterStatus('tersedia');
+              setStatusMenuVisible(false);
+            }}
+            title="Tersedia"
+          />
+          <Menu.Item
+            onPress={() => {
+              setFilterStatus('habis');
+              setStatusMenuVisible(false);
+            }}
+            title="Habis"
+          />
+        </Menu>
+      </ScrollView>
 
+      {/* Book Items List inside AzelheimCard */}
+      <AzelheimCard style={{ flex: 1, padding: 4, marginBottom: 0 }}>
+        <FlatList
+          data={filteredAndSortedBooks}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) =>
+            renderBookRow(item, index === filteredAndSortedBooks.length - 1)
+          }
+          ListEmptyComponent={
+            <Text style={[styles.emptyText, { color: colors.muted }]}>
+              Tidak ada buku yang sesuai.
+            </Text>
+          }
+        />
+      </AzelheimCard>
+
+      {/* FAB Add Book */}
       {userRole !== 'staff' && (
-        <FAB
-          icon={() => <Plus size={24} color="#FFF" />}
-          style={styles.fab}
-          onPress={() => router.push({ pathname: '/(admin)/buku-detail', params: { id: 'tambah' } })}
+        <AzelheimFab
+          icon={<Plus size={20} color={colors.bg} />}
+          onPress={() =>
+            router.push({
+              pathname: '/(admin)/buku-detail',
+              params: { id: 'tambah' },
+            })
+          }
+          accessibilityLabel="Tambah Buku"
         />
       )}
 
-      <Snackbar visible={!!snackMsg} onDismiss={() => setSnackMsg('')} duration={3000}>
-        {snackMsg}
-      </Snackbar>
-    </View>
+      <AzelheimToast
+        visible={!!snackMsg}
+        message={snackMsg}
+        onDismiss={() => setSnackMsg('')}
+        duration={3000}
+      />
+    </AzelheimScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: { flexDirection: 'row', padding: 16, paddingBottom: 8, gap: 8, alignItems: 'center' },
-  searchbar: { flex: 1, backgroundColor: '#F8F9FA' },
-  sortBtn: { height: 48, justifyContent: 'center' },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 8, gap: 8, flexWrap: 'wrap' },
-  chip: { backgroundColor: '#F0F0F0' },
-  list: { padding: 16, paddingTop: 8, paddingBottom: 80 },
-  card: { marginBottom: 12, backgroundColor: '#FFFFFF' },
-  fab: { position: 'absolute', margin: 16, right: 0, bottom: 0, backgroundColor: '#000000' }
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sortAnchor: {
+    borderWidth: 1.2,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 3,
+    minHeight: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sortAnchorText: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  pillScrollView: {
+    marginBottom: 10,
+    maxHeight: 36,
+  },
+  pillScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+  },
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 8,
+  },
+  itemMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  itemTitle: {
+    fontWeight: '800',
+    fontSize: 12.5,
+  },
+  itemSub: {
+    fontSize: 10.5,
+    marginTop: 2,
+  },
+  itemMeta: {
+    alignItems: 'flex-end',
+    minWidth: 60,
+  },
+  stock: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  stockLabel: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 8.5,
+  },
+  emptyText: {
+    textAlign: 'center',
+    paddingVertical: 32,
+    fontSize: 12,
+  },
 });

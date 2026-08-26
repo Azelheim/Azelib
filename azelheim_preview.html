@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Azelheim — Full App Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{
+  --bg:#FAFAF9; --card:#FFFFFF; --surface:#F5F5F4; --border:#1C1917; --line:#E7E5E4;
+  --text:#1C1917; --muted:#78716C; --faint:#A8A29E; --grid:#E7E5E4;
+  --purple:#F3EEFF; --green:#E6F8EE; --red:#FEE2E2; --blue:#E8F2FF; --amber:#FEF3C7;
+  --danger:#DC2626; --panel:#EEF0F1; --outer:#E2E8F0;
+}
+.dark{--bg:#09090B;--card:#121215;--surface:#18181B;--border:#27272A;--line:#1E1E22;--text:#FAFAFA;--muted:#A1A1AA;--faint:#52525B;--grid:#1F1F24;--purple:#23153D;--green:#072918;--red:#380C0C;--blue:#0B2245;--amber:#382506;--danger:#EF4444;--panel:#111217;--outer:#09090B}
+*{box-sizing:border-box} html,body{margin:0;min-height:100%;font-family:'Plus Jakarta Sans',sans-serif;color:var(--text)}
+body{background:var(--outer);background-image:radial-gradient(#94A3B8 1px,transparent 1px);background-size:24px 24px}
+button,input{font:inherit}.mono{font-family:'JetBrains Mono',monospace}
+.shell{min-height:100vh;display:grid;grid-template-columns:250px 1fr;gap:24px;padding:22px}
+.sidebar{background:var(--card);border:1.2px solid var(--border);box-shadow:4px 4px 0 var(--border);padding:16px;display:flex;flex-direction:column;gap:14px;position:sticky;top:22px;height:calc(100vh - 44px);border-radius:6px}
+.brand{font-weight:800;font-size:18px;letter-spacing:-.6px;display:flex;justify-content:space-between;align-items:center}.brand-tag{font:700 9px 'JetBrains Mono';border:1px solid var(--border);padding:2px 4px;border-radius:3px;background:var(--surface)}
+.side-label{font:700 9px 'JetBrains Mono';letter-spacing:.7px;text-transform:uppercase;color:var(--faint);margin-top:6px}.screen-list{display:flex;flex-direction:column;gap:4px;overflow:auto}.screen-btn{display:flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;color:var(--muted);padding:8px 9px;border-radius:4px;text-align:left;cursor:pointer;font-size:11px;font-weight:700}.screen-btn:hover{background:var(--surface);border-color:var(--line)}.screen-btn.active{background:var(--purple);color:var(--text);border-color:var(--border)}
+.controls{margin-top:auto;padding-top:10px;border-top:1px solid var(--line);display:flex;gap:6px}.ctrl{flex:1;border:1px solid var(--border);background:var(--card);color:var(--text);padding:8px;border-radius:4px;font-size:10px;font-weight:800;cursor:pointer}.ctrl.active{background:var(--text);color:var(--bg)}
+.preview-wrap{display:flex;justify-content:center;align-items:flex-start;min-width:0}.phone{width:min(420px,100%);height:860px;background:var(--bg);border:2px solid var(--border);border-radius:24px;box-shadow:0 20px 40px rgba(28,25,23,.15),4px 4px 0 var(--border);overflow:hidden;position:relative;background-image:radial-gradient(var(--grid) 1.1px,transparent 1.1px);background-size:16px 16px}
+.topbar{height:66px;border-bottom:1.2px solid var(--border);background:var(--bg);display:flex;justify-content:space-between;align-items:center;padding:0 16px;position:relative;z-index:3}.top-brand{display:flex;flex-direction:column}.top-title{font-weight:800;font-size:17px;letter-spacing:-.4px}.top-sub{font:400 9px 'JetBrains Mono';color:var(--faint);letter-spacing:.6px;text-transform:uppercase}.top-actions{display:flex;gap:3px}.icon{width:34px;height:34px;display:grid;place-items:center;border:1px solid transparent;background:transparent;color:var(--text);border-radius:4px;cursor:pointer}.icon:hover{background:var(--surface);border-color:var(--border)}
+.screen{position:absolute;inset:66px 0 0;overflow:auto;padding:16px 16px 82px;display:none}.screen.active{display:block}.screen::-webkit-scrollbar{width:0}
+.section-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:12px}.section-title{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.7px}.section-code{font:400 9px 'JetBrains Mono';color:var(--faint)}
+.hero{padding:12px 0 16px}.eyebrow{font:700 10px 'JetBrains Mono';text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}.hero h1{font-size:34px;line-height:1.02;letter-spacing:-1.8px;margin:10px 0}.hero p{font-size:12px;line-height:1.55;color:var(--muted);max-width:310px}.rule{border-top:1.2px solid var(--border);margin:8px 0 18px}
+.card{background:var(--card);border:1.2px solid var(--border);border-radius:4px;padding:12px 14px;position:relative;margin-bottom:10px}.card:before{content:'+';position:absolute;top:4px;right:6px;font:700 9px 'JetBrains Mono';color:var(--faint)}
+.card-head{display:flex;justify-content:space-between;gap:12px}.card-title{font-size:14px;font-weight:800;letter-spacing:-.2px}.sub{font-size:11px;color:var(--muted);margin-top:2px}.label{font-size:10px;text-transform:uppercase;letter-spacing:.55px;font-weight:800;margin-bottom:5px}.tiny{font:400 9px 'JetBrains Mono';color:var(--faint)}
+.btn{height:42px;border:1.2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 12px;font-size:11.5px;font-weight:800;cursor:pointer}.btn.dark{background:var(--text);color:var(--bg)}.btn.light{background:var(--card);color:var(--text)}.btn.purple{background:var(--purple);color:var(--text)}.btn.red{background:var(--red);color:var(--danger)}.row{display:flex;gap:8px}.row>*{flex:1}
+.badge{font:700 9px 'JetBrains Mono';border:1px solid var(--border);padding:3px 6px;border-radius:3px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.badge.green{background:var(--green)}.badge.blue{background:var(--blue)}.badge.red{background:var(--red);color:var(--danger)}.badge.gray{background:var(--surface)}.badge.amber{background:var(--amber)}
+.meta{background:var(--surface);border:1px dashed var(--line);border-radius:3px;padding:7px 8px;display:flex;justify-content:space-between;font:400 9.5px 'JetBrains Mono';color:var(--muted);gap:6px}.meta strong{color:var(--text)}
+.input{height:42px;border:1.2px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);padding:0 12px;outline:none;width:100%;font-size:12px}.input:focus{box-shadow:3px 3px 0 var(--border)}textarea.input{height:90px;padding-top:11px}.select{position:relative}.select:after{content:'▾';position:absolute;right:12px;top:11px;font:700 12px 'JetBrains Mono';pointer-events:none}.field{margin-bottom:10px}
+.tabs{display:flex;border:1.2px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:12px}.tabs button{flex:1;border:0;border-right:1.2px solid var(--border);background:transparent;color:var(--text);padding:8px 3px;font-size:10px;font-weight:700;cursor:pointer}.tabs button:last-child{border-right:0}.tabs .on{background:var(--purple);font-weight:800}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{background:var(--card);border:1.2px solid var(--border);border-radius:4px;padding:10px 11px}.stat .v{font:800 23px 'JetBrains Mono';letter-spacing:-.8px;margin-top:5px}.stat .d{font-size:9.5px;color:var(--faint);margin-top:2px}.chart{background:var(--card);border:1.2px solid var(--border);border-radius:4px;padding:12px}.chartbox{height:112px;background:var(--surface);border:1px dashed var(--line);border-radius:3px;margin-top:8px;display:grid;place-items:center}.chartbox svg{width:100%;height:92px}
+.searchbar{display:flex;gap:7px;margin-bottom:10px}.searchbar .input{flex:1}.pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.list-item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}.list-item:last-child{border-bottom:0}.item-main{min-width:0}.item-title{font-weight:800;font-size:12px}.item-sub{font-size:10px;color:var(--muted);margin-top:2px}.item-meta{text-align:right;min-width:70px}.stock{font:800 16px 'JetBrains Mono'}
+.kpi{display:flex;align-items:baseline;gap:8px}.kpi .big{font:800 26px 'JetBrains Mono'}.kpi .label2{font-size:10px;color:var(--muted)}
+.logo-box{width:52px;height:52px;border:1.4px solid var(--border);display:grid;place-items:center;border-radius:4px;background:var(--surface);margin-bottom:12px}.logo-box span{font-weight:900;font-size:19px}
+.gate{padding:18px 16px 90px}.gate .hero h1{font-size:33px}.gate-footer{margin-top:20px;display:flex;justify-content:space-between;color:var(--faint)}
+.ghost-note{font-size:10px;color:var(--muted);line-height:1.5}.code-box{background:var(--surface);border:1.2px dashed var(--border);border-radius:4px;padding:14px;text-align:center;margin:8px 0}.code-box .code{font:800 26px 'JetBrains Mono';letter-spacing:4px}.code-box .cap{font:700 9px 'JetBrains Mono';color:var(--faint);margin-top:5px}
+.bottom{position:absolute;left:0;right:0;bottom:0;height:60px;background:var(--bg);border-top:1.2px solid var(--border);display:flex;z-index:5}.nav{flex:1;border:0;background:transparent;color:var(--faint);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;font-size:9px;font-weight:700;cursor:pointer}.nav.active{color:var(--text)}.nav.active i{transform:translateY(-2px) scale(1.12)}.nav i{transition:.2s}
+.fab{position:absolute;right:16px;bottom:72px;width:48px;height:48px;border:1.5px solid var(--border);border-radius:4px;background:var(--text);color:var(--bg);display:grid;place-items:center;z-index:6;cursor:pointer;box-shadow:2px 2px 0 var(--border)}
+.toast{position:absolute;top:76px;left:16px;right:16px;z-index:8;background:var(--text);color:var(--bg);border:1px solid var(--border);padding:9px 10px;border-radius:4px;font-size:10px;font-weight:800;display:none}.toast.show{display:flex;align-items:center;gap:7px}
+.modal{position:absolute;inset:0;background:rgba(0,0,0,.28);display:none;align-items:flex-end;z-index:20}.modal.show{display:flex}.sheet{width:100%;background:var(--bg);border-top:1.2px solid var(--border);padding:14px;border-radius:12px 12px 0 0}.sheet h3{font-size:14px;margin-bottom:8px}.sheet .row{margin-top:12px}
+@media(max-width:900px){.shell{grid-template-columns:1fr;padding:12px}.sidebar{position:relative;top:auto;height:auto}.screen-list{display:grid;grid-template-columns:repeat(2,1fr);max-height:240px}.controls{margin-top:0}.preview-wrap{padding-bottom:20px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">AZELHEIM <span class="brand-tag">PREVIEW</span></div>
+    <div class="side-label">Screens</div>
+    <div class="screen-list" id="screenList">
+      <button class="screen-btn active" data-screen="gate"><i data-lucide="door-open" size="14"></i>Gerbang</button>
+      <button class="screen-btn" data-screen="login"><i data-lucide="key-round" size="14"></i>Login</button>
+      <button class="screen-btn" data-screen="libraries"><i data-lucide="library" size="14"></i>Pilih Perpustakaan</button>
+      <button class="screen-btn" data-screen="dashboard"><i data-lucide="layout-dashboard" size="14"></i>Dashboard</button>
+      <button class="screen-btn" data-screen="books"><i data-lucide="book-open" size="14"></i>Buku</button>
+      <button class="screen-btn" data-screen="bookdetail"><i data-lucide="book-copy" size="14"></i>Detail Buku</button>
+      <button class="screen-btn" data-screen="loan"><i data-lucide="repeat" size="14"></i>Peminjaman</button>
+      <button class="screen-btn" data-screen="loanform"><i data-lucide="plus-circle" size="14"></i>Peminjaman Baru</button>
+      <button class="screen-btn" data-screen="members"><i data-lucide="users" size="14"></i>Anggota</button>
+      <button class="screen-btn" data-screen="memberdetail"><i data-lucide="user-round" size="14"></i>Detail Anggota</button>
+      <button class="screen-btn" data-screen="reports"><i data-lucide="file-text" size="14"></i>Laporan</button>
+      <button class="screen-btn" data-screen="settings"><i data-lucide="settings-2" size="14"></i>Pengaturan</button>
+      <button class="screen-btn" data-screen="token"><i data-lucide="ticket" size="14"></i>Token Pengunjung</button>
+      <button class="screen-btn" data-screen="guest"><i data-lucide="eye" size="14"></i>Katalog Pengunjung</button>
+      <button class="screen-btn" data-screen="guestbook"><i data-lucide="book-marked" size="14"></i>Detail Buku Tamu</button>
+    </div>
+    <div class="controls"><button class="ctrl active" id="lightBtn">LIGHT</button><button class="ctrl" id="darkBtn">DARK</button></div>
+    <div class="ghost-note">Prototype visual — data di dalamnya hanya contoh untuk preview layout. Flow dan label mengikuti spesifikasi aplikasi.</div>
+  </aside>
+
+  <main class="preview-wrap">
+    <div class="phone" id="phone">
+      <div class="topbar" id="adminTopbar">
+        <div class="top-brand"><div class="top-title">Azelheim <span class="brand-tag">v2.4</span></div><div class="top-sub">SYSTEM // CORE_LIB</div></div>
+        <div class="top-actions"><button class="icon" id="themeIconBtn"><i data-lucide="sun" size="16"></i></button><button class="icon" onclick="showScreen('settings')"><i data-lucide="settings-2" size="16"></i></button><button class="icon" onclick="showToast('Sesi tetap aktif · Keluar Akun tersedia di Pengaturan')"><i data-lucide="power" size="16"></i></button></div>
+      </div>
+
+      <div class="toast" id="toast"><i data-lucide="info" size="13"></i><span id="toastText"></span></div>
+
+      <!-- GATE -->
+      <section class="screen active gate" id="screen-gate">
+        <div class="logo-box"><span>A</span></div>
+        <div class="eyebrow">LIBRARY SYSTEM // ENTRY</div>
+        <div class="hero"><h1>Satu Aplikasi untuk<br>Semua Perpustakaan Anda</h1><p>Kelola koleksi, peminjaman, anggota, dan laporan dalam satu tempat.</p></div>
+        <div class="rule"></div>
+        <div class="eyebrow">MASUK SEBAGAI</div>
+        <div class="card" style="margin-top:8px;cursor:pointer" onclick="showScreen('login')"><div class="card-head"><div><div class="card-title"><i data-lucide="key-round" size="15" style="vertical-align:-3px"></i> LOGIN</div><div class="sub">Kelola perpustakaan sebagai Owner, Admin, atau Staff.</div></div><i data-lucide="arrow-up-right" size="17"></i></div><div class="meta"><span>AUTH // 01</span><strong>MASUK →</strong></div></div>
+        <div style="margin-top:18px"><div class="eyebrow">PENGUNJUNG</div><div class="card" style="margin-top:8px"><div class="card-head"><div><div class="card-title">Katalog tanpa akun</div><div class="sub">Masukkan token perpustakaan yang diberikan petugas.</div></div><span class="badge blue">READ ONLY</span></div><div class="row" style="margin-top:10px"><input class="input" value="ABC123" aria-label="Token" /><button class="btn dark" style="max-width:92px" onclick="showScreen('guest')"><i data-lucide="arrow-right" size="15"></i></button></div><div class="tiny" style="margin-top:7px">ACCESS // GUEST · 6 CHAR</div></div></div>
+        <div class="gate-footer"><span class="tiny">AZELHEIM // 01</span><span class="tiny">PUBLIC BUILD</span></div>
+      </section>
+
+      <!-- LOGIN -->
+      <section class="screen" id="screen-login">
+        <div class="section-head"><div class="section-title">Login</div><div class="section-code">AUTH // 01</div></div>
+        <div class="card">
+          <div class="eyebrow">WELCOME BACK</div><div style="font-size:24px;font-weight:800;letter-spacing:-1px;margin:7px 0 4px">Masuk ke Azelheim</div><div class="sub">Kelola perpustakaan Anda dari satu tempat.</div>
+          <div style="margin-top:16px">
+            <div class="field"><div class="label">Email</div><input class="input" placeholder="nama@email.com"></div>
+            <div class="field"><div class="label">Password</div><input class="input" type="password" placeholder="••••••••"></div>
+            <button class="btn dark" style="width:100%;margin-top:4px" onclick="showScreen('libraries')"><i data-lucide="key-round" size="14"></i> LOGIN</button>
+            <div style="display:flex;justify-content:space-between;margin-top:10px"><button class="ctrl" style="border:0;padding:2px;background:transparent" onclick="showToast('Reset password → kirim email')">Lupa Password</button><button class="ctrl" style="border:0;padding:2px;background:transparent;text-align:right" onclick="showToast('Self-register → Buat Akun')">Buat Akun</button></div>
+          </div>
+        </div>
+        <div class="meta"><span>SESSION</span><strong>7 HARI</strong></div>
+      </section>
+
+      <!-- LIBRARIES -->
+      <section class="screen" id="screen-libraries">
+        <div class="section-head"><div class="section-title">Pilih Perpustakaan</div><div class="section-code">TENANT // HUB</div></div>
+        <div class="hero" style="padding-bottom:10px"><div class="eyebrow">SELAMAT DATANG KEMBALI</div><h1 style="font-size:28px;line-height:1.04;margin:8px 0">Pilih tempat<br>kamu bekerja.</h1></div>
+        <div class="card" onclick="showScreen('dashboard')" style="cursor:pointer"><div class="card-head"><div><div class="card-title">Perpustakaan Azelheim</div><div class="sub">Jl. Pendidikan No. 12</div></div><span class="badge green">OWNER</span></div><div class="meta" style="margin-top:10px"><span>LAST ACCESS</span><strong>HARI INI</strong></div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Undangan</div><div class="sub">SMP Harapan Bangsa meminta Anda bergabung.</div></div><span class="badge amber">PENDING</span></div><div class="row" style="margin-top:10px"><button class="btn light" onclick="showToast('Undangan ditolak')">Tolak</button><button class="btn dark" onclick="showScreen('dashboard')">Gabung</button></div></div>
+        <div class="row" style="margin-top:2px"><button class="btn purple" onclick="showToast('Form Buat Baru dibuka')"><i data-lucide="plus" size="14"></i> Buat Baru</button><button class="btn light" onclick="showToast('Daftar undangan diperbarui')"><i data-lucide="refresh-cw" size="14"></i> Refresh</button></div>
+      </section>
+
+      <!-- DASHBOARD -->
+      <section class="screen" id="screen-dashboard">
+        <div class="section-head"><div class="section-title"><i data-lucide="activity" size="13"></i> Metrik Perpustakaan</div><div class="section-code">SEC // 01</div></div>
+        <div class="card"><div class="card-head"><div><div class="eyebrow">OVERVIEW</div><div class="card-title" style="margin-top:5px">Pergerakan 7 Hari</div></div><span class="badge purple">BUKU</span></div><div class="chartbox"><svg viewBox="0 0 320 90" preserveAspectRatio="none"><polyline fill="none" stroke="currentColor" stroke-width="2.2" points="6,64 55,58 100,68 147,38 190,48 238,24 314,42"/><circle cx="238" cy="24" r="4" fill="var(--bg)" stroke="currentColor" stroke-width="2"/></svg></div><div class="tabs" style="margin-top:9px;margin-bottom:0"><button class="on">Buku</button><button>Peminjam</button><button>Denda</button></div></div>
+        <div class="card"><div class="card-head"><div><div class="eyebrow">DENDA</div><div class="card-title" style="margin-top:4px">Total Periode</div></div><div class="kpi"><div class="big">Rp75K</div><div class="label2">30 HARI</div></div></div><div class="sub" style="margin-top:7px">Akumulasi denda dari transaksi yang terlambat.</div></div>
+        <div class="grid2"><div class="stat"><div class="tiny">METRIC_01</div><div class="d">Jumlah Buku</div><div class="v">248</div></div><div class="stat"><div class="tiny">METRIC_02</div><div class="d">Peminjam</div><div class="v">18</div></div><div class="stat"><div class="tiny">METRIC_03</div><div class="d">Buku Dipinjam</div><div class="v">26</div></div><div class="stat"><div class="tiny" style="color:var(--danger)">ALERT_04</div><div class="d">Terlambat</div><div class="v" style="color:var(--danger)">03</div></div></div>
+      </section>
+
+      <!-- BOOKS -->
+      <section class="screen" id="screen-books">
+        <div class="section-head"><div class="section-title">Buku</div><div class="section-code">COLL // 02</div></div>
+        <div class="searchbar"><input class="input" placeholder="Cari judul atau penulis"><button class="icon" style="border:1.2px solid var(--border)"><i data-lucide="search" size="15"></i></button></div>
+        <div class="pill-row"><span class="badge gray">Semua</span><span class="badge gray">Kategori</span><span class="badge gray">Rak</span><span class="badge gray">Status</span></div>
+        <div class="card"><div class="list-item"><div class="item-main"><div class="item-title">Pulang</div><div class="item-sub">Leila S. Chudori · Romance · Rak 02</div></div><div class="item-meta"><div class="stock">19/20</div><div class="tiny">STOK</div></div></div><div class="list-item"><div class="item-main"><div class="item-title">Laskar Pelangi</div><div class="item-sub">Andrea Hirata · Fiksi · Rak 01</div></div><div class="item-meta"><div class="stock">11/12</div><div class="tiny">STOK</div></div></div><div class="list-item"><div class="item-main"><div class="item-title">Naruto Vol. 35</div><div class="item-sub">Masashi Kishimoto · Action · Rak 04</div></div><div class="item-meta"><div class="stock">03/03</div><div class="tiny">STOK</div></div></div></div>
+        <button class="fab" onclick="showScreen('bookdetail')"><i data-lucide="plus" size="20"></i></button>
+      </section>
+
+      <!-- BOOK DETAIL -->
+      <section class="screen" id="screen-bookdetail">
+        <div class="section-head"><div class="section-title">Detail Buku</div><div class="section-code">BOOK // 002</div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title" style="font-size:17px">Pulang</div><div class="sub">Leila S. Chudori</div></div><span class="badge green">19/20</span></div><div class="rule" style="margin:12px 0"></div><div class="grid2"><div><div class="label">Penerbit</div><div class="sub">Kepustakaan Populer Gramedia</div></div><div><div class="label">Tahun</div><div class="sub">2012</div></div><div><div class="label">ISBN</div><div class="sub mono">9786024246940</div></div><div><div class="label">Bahasa</div><div class="sub">Indonesia</div></div><div><div class="label">Kategori</div><span class="badge gray">Romance</span></div><div><div class="label">Rak</div><span class="badge blue">RAK: 02</span></div></div><div style="margin-top:10px"><div class="label">Sinopsis</div><div class="sub" style="line-height:1.55">Kisah tentang pengasingan, keluarga, dan pulang yang berlangsung lintas generasi.</div></div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Eksemplar</div><div class="sub">Kode per salinan · generate bulk</div></div><span class="badge gray">20 UNIT</span></div><div class="meta" style="margin-top:10px"><span>9786024246940-01</span><strong>TERSEDIA</strong></div><div class="meta" style="margin-top:6px"><span>9786024246940-02</span><strong>TERSEDIA</strong></div><div class="meta" style="margin-top:6px"><span>9786024246940-03</span><strong>DIPINJAM</strong></div><button class="btn dark" style="width:100%;margin-top:10px" onclick="showToast('Kode eksemplar berhasil dibuat')"><i data-lucide="printer" size="14"></i> Cetak Kode</button></div>
+        <div class="row"><button class="btn light" onclick="showToast('Edit Buku')"><i data-lucide="pencil" size="14"></i> Edit</button><button class="btn red" onclick="showToast('Hapus diblokir: masih ada salinan dipinjam')"><i data-lucide="trash-2" size="14"></i> Hapus</button></div>
+      </section>
+
+      <!-- LOAN LIST -->
+      <section class="screen" id="screen-loan">
+        <div class="section-head"><div class="section-title">Peminjaman</div><div class="section-code">LOAN // 03</div></div>
+        <div class="tabs"><button class="on">Aktif [2]</button><button>Terlambat [1]</button><button>Riwayat</button></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Rumi</div><div class="sub">Pulang — Leila S. Chudori</div></div><span class="badge green">AKTIF</span></div><div class="meta" style="margin-top:9px"><span>PINJAM: 18 AGO</span><strong>TEMPO: 25 AGO</strong></div><div class="row" style="margin-top:8px"><button class="btn light" onclick="showToast('Konfirmasi pengembalian')"><i data-lucide="check" size="13"></i>Kembalikan</button><button class="btn red" onclick="showToast('Konfirmasi tandai hilang')"><i data-lucide="alert-triangle" size="13"></i>Hilang</button></div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Ashel</div><div class="sub">Naruto Vol. 35 — Kishimoto</div></div><span class="badge red">TERLAMBAT</span></div><div class="meta" style="margin-top:9px"><span>PINJAM: 16 AGO</span><strong>TEMPO: 20 AGO</strong></div><div class="tiny" style="margin-top:8px;color:var(--danger)">+3 HARI · DENDA BERJALAN</div></div>
+        <button class="fab" onclick="showScreen('loanform')"><i data-lucide="plus" size="20"></i></button>
+      </section>
+
+      <!-- LOAN FORM -->
+      <section class="screen" id="screen-loanform">
+        <div class="section-head"><div class="section-title">Peminjaman Baru</div><div class="section-code">LOAN // CREATE</div></div>
+        <div class="card"><div class="field"><div class="label">Anggota</div><div class="select"><input class="input" value="Agung Pratama"></div></div><div class="field"><div class="label">Buku</div><div class="select"><input class="input" value="Pulang · 9786024246940-01"></div></div><div class="field"><div class="label">Jatuh Tempo</div><input class="input" value="30/08/2026"></div><div class="row" style="margin-top:4px"><button class="btn light" onclick="showScreen('loan')">Batal</button><button class="btn dark" onclick="showToast('Peminjaman dibuat')">Simpan Peminjaman</button></div></div>
+        <div class="meta"><span>BATAS MAKSIMAL PEMINJAMAN</span><strong>3 BUKU</strong></div>
+      </section>
+
+      <!-- MEMBERS -->
+      <section class="screen" id="screen-members">
+        <div class="section-head"><div class="section-title">Anggota</div><div class="section-code">MEMBER // 04</div></div>
+        <div class="searchbar"><input class="input" placeholder="Cari nama atau nomor anggota"><button class="icon" style="border:1.2px solid var(--border)"><i data-lucide="search" size="15"></i></button></div>
+        <div class="pill-row"><span class="badge gray">Semua</span><span class="badge gray">Siswa</span><span class="badge gray">Guru</span><span class="badge gray">Meminjam</span></div>
+        <div class="card"><div class="list-item"><div class="item-main"><div class="item-title">Agung Pratama</div><div class="item-sub mono">ANG-00001 · 08123456789</div></div><span class="badge blue">SISWA</span></div><div class="list-item"><div class="item-main"><div class="item-title">Rani Kusuma</div><div class="item-sub mono">ANG-00002 · 082233445566</div></div><span class="badge blue">GURU</span></div><div class="list-item"><div class="item-main"><div class="item-title">Budi Santoso</div><div class="item-sub mono">ANG-00003 · 083344556677</div></div><span class="badge gray">UMUM</span></div></div>
+        <button class="fab" onclick="showToast('Form Tambah Anggota dibuka')"><i data-lucide="plus" size="20"></i></button>
+      </section>
+
+      <!-- MEMBER DETAIL -->
+      <section class="screen" id="screen-memberdetail">
+        <div class="section-head"><div class="section-title">Detail Anggota</div><div class="section-code">MEMBER // 00001</div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title" style="font-size:16px">Agung Pratama</div><div class="sub mono">ANG-00001</div></div><span class="badge blue">SISWA</span></div><div class="rule" style="margin:12px 0"></div><div class="grid2"><div><div class="label">Kontak</div><div class="sub mono">08123456789</div></div><div><div class="label">Status</div><span class="badge green">MEMINJAM</span></div><div><div class="label">Alamat</div><div class="sub">Jl. Melati 5</div></div><div><div class="label">Peminjaman Aktif</div><div class="sub mono">02</div></div></div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Riwayat Peminjaman</div><div class="sub">Aktivitas terbaru</div></div></div><div class="list-item"><div><div class="item-title">Pulang</div><div class="item-sub">18–25 AGO 2026</div></div><span class="badge green">AKTIF</span></div><div class="list-item"><div><div class="item-title">Laskar Pelangi</div><div class="item-sub">03–10 AGO 2026</div></div><span class="badge gray">KEMBALI</span></div></div>
+        <div class="row"><button class="btn light" onclick="showToast('Edit Anggota')">Edit</button><button class="btn red" onclick="showToast('Hapus diblokir: masih ada peminjaman aktif')">Hapus</button></div>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="screen" id="screen-reports">
+        <div class="section-head"><div class="section-title">Laporan</div><div class="section-code">REPORT // 05</div></div>
+        <div class="tabs"><button class="on">Peminjaman</button><button>Denda</button><button>Buku</button></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Periode Laporan</div><div class="sub">Baseline wajib · dapat dikustom</div></div><span class="badge purple">PERIODE</span></div><div class="row" style="margin-top:10px"><div><div class="label">Dari</div><input class="input" value="01/08/2026"></div><div><div class="label">Sampai</div><input class="input" value="26/08/2026"></div></div><button class="btn dark" style="width:100%;margin-top:10px" onclick="showToast('Data laporan diperbarui')"><i data-lucide="filter" size="14"></i> Terapkan Filter</button></div>
+        <div class="card"><div class="kpi"><div class="big">42</div><div class="label2">TRANSAKSI</div></div><div class="sub" style="margin-top:4px">38 dikembalikan · 3 aktif · 1 hilang</div><button class="btn light" style="width:100%;margin-top:10px" onclick="openModal()"><i data-lucide="file-output" size="14"></i> Export PDF</button></div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="screen" id="screen-settings">
+        <div class="section-head"><div class="section-title">Pengaturan Perpustakaan</div><div class="section-code">LIB // CONFIG</div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Akses Pengunjung</div><div class="sub">Token pendek untuk katalog read-only.</div></div><span class="badge green">ACTIVE</span></div><div class="code-box"><div class="tiny">TOKEN PERPUSTAKAAN</div><div class="code">Q7M4K2</div><div class="cap">CASE-INSENSITIVE · 6 CHAR</div></div><div class="row"><button class="btn light" onclick="showToast('Token disalin')"><i data-lucide="copy" size="14"></i> Salin</button><button class="btn dark" onclick="showToast('Token diperbarui')"><i data-lucide="refresh-cw" size="14"></i> Refresh</button></div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Anggota & Role</div><div class="sub">Owner / Admin / Staff</div></div><span class="badge blue">3 USER</span></div><div class="list-item"><div><div class="item-title">Agung Pratama</div><div class="item-sub">agung@contoh.id</div></div><span class="badge">OWNER</span></div><div class="list-item"><div><div class="item-title">Rani Kusuma</div><div class="item-sub">rani@contoh.id</div></div><span class="badge green">ADMIN</span></div><div class="list-item"><div><div class="item-title">Budi Santoso</div><div class="item-sub">budi@contoh.id</div></div><span class="badge gray">STAFF</span></div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Aturan Transaksi</div><div class="sub">Per tenant · perubahan tidak retroaktif</div></div></div><div class="row" style="margin-top:10px"><div><div class="label">Batas Peminjaman</div><input class="input" value="3"></div><div><div class="label">Denda / Hari</div><input class="input" value="500"></div></div><button class="btn dark" style="width:100%;margin-top:10px" onclick="showToast('Pengaturan tersimpan')">Simpan Pengaturan</button></div>
+        <button class="btn red" style="width:100%" onclick="showToast('Keluar Akun → sesi dihapus')"><i data-lucide="log-out" size="14"></i> Keluar Akun</button>
+      </section>
+
+      <!-- TOKEN -->
+      <section class="screen gate" id="screen-token">
+        <div class="logo-box"><span>A</span></div><div class="eyebrow">GUEST ACCESS // TOKEN</div><div class="hero"><h1>Masuk ke<br>katalog.</h1><p>Masukkan token yang diberikan oleh petugas perpustakaan.</p></div><div class="card"><div class="label">Token Perpustakaan</div><input class="input mono" maxlength="6" value="Q7M4K2" style="letter-spacing:3px;font-weight:800;text-align:center"><div class="row" style="margin-top:10px"><button class="btn light" onclick="showScreen('gate')">Kembali</button><button class="btn dark" onclick="showScreen('guest')">Masuk</button></div><div class="tiny" style="margin-top:8px;text-align:center">ACCESS // READ ONLY</div></div>
+      </section>
+
+      <!-- GUEST -->
+      <section class="screen" id="screen-guest">
+        <div class="section-head"><div><div class="section-title">Katalog</div><div class="tiny" style="margin-top:3px">PERPUSTAKAAN AZELHEIM</div></div><button class="icon" onclick="showScreen('gate')"><i data-lucide="log-out" size="15"></i></button></div>
+        <div class="searchbar"><input class="input" placeholder="Cari buku"><button class="icon" style="border:1.2px solid var(--border)"><i data-lucide="search" size="15"></i></button></div>
+        <div class="tabs"><button class="on">Semua Buku</button><button>Rak</button><button>Kategori</button></div>
+        <div class="card"><div class="list-item"><div><div class="item-title">Pulang</div><div class="item-sub">Leila S. Chudori · Romance · Rak 02</div></div><span class="badge green">19/20</span></div><div class="list-item"><div><div class="item-title">Laskar Pelangi</div><div class="item-sub">Andrea Hirata · Fiksi · Rak 01</div></div><span class="badge green">11/12</span></div><div class="list-item" onclick="showScreen('guestbook')" style="cursor:pointer"><div><div class="item-title">Naruto Vol. 35</div><div class="item-sub">Masashi Kishimoto · Action · Rak 04</div></div><span class="badge gray">03/03</span></div></div>
+      </section>
+
+      <!-- GUEST BOOK DETAIL -->
+      <section class="screen" id="screen-guestbook">
+        <div class="section-head"><div class="section-title">Detail Buku</div><div class="section-code">GUEST // READ ONLY</div></div>
+        <div class="card"><div class="card-title" style="font-size:18px">Naruto Vol. 35</div><div class="sub">Masashi Kishimoto</div><div class="pill-row" style="margin-top:10px"><span class="badge gray">ACTION</span><span class="badge blue">RAK: 04</span><span class="badge green">TERSEDIA</span></div><div class="rule" style="margin:12px 0"></div><div class="label">Sinopsis</div><div class="sub" style="line-height:1.55">Pertarungan dan perjalanan para ninja berlanjut dalam volume ini.</div></div>
+        <button class="btn light" style="width:100%" onclick="showScreen('guest')"><i data-lucide="arrow-left" size="14"></i> Kembali ke Katalog</button>
+        <div class="tiny" style="text-align:center;margin-top:16px">PUBLIC CATALOG · NO LOGIN REQUIRED</div>
+      </section>
+
+      <nav class="bottom" id="bottomNav">
+        <button class="nav active" data-tab="dashboard" onclick="showScreen('dashboard')"><i data-lucide="layout-dashboard" size="16"></i>Dashboard</button>
+        <button class="nav" data-tab="books" onclick="showScreen('books')"><i data-lucide="book-open" size="16"></i>Buku</button>
+        <button class="nav" data-tab="loan" onclick="showScreen('loan')"><i data-lucide="repeat" size="16"></i>Peminjaman</button>
+        <button class="nav" data-tab="members" onclick="showScreen('members')"><i data-lucide="users" size="16"></i>Anggota</button>
+        <button class="nav" data-tab="reports" onclick="showScreen('reports')"><i data-lucide="file-text" size="16"></i>Laporan</button>
+      </nav>
+      <div class="modal" id="modal"><div class="sheet"><div class="tiny">EXPORT // PDF</div><h3>Pilih tindakan</h3><div class="sub">PDF sudah dibuat. Tentukan apa yang ingin dilakukan.</div><div class="row"><button class="btn light" onclick="closeModal();showToast('File disimpan')"><i data-lucide="save" size="14"></i> Simpan</button><button class="btn dark" onclick="closeModal();showToast('Share Sheet dibuka')"><i data-lucide="share-2" size="14"></i> Share</button></div></div></div>
+    </div>
+  </main>
+</div>
+<script>
+const root=document.documentElement; const screens=[...document.querySelectorAll('.screen')]; const buttons=[...document.querySelectorAll('.screen-btn')];
+function showScreen(id){screens.forEach(s=>s.classList.toggle('active',s.id==='screen-'+id));buttons.forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
+  const admin=['dashboard','books','bookdetail','loan','loanform','members','memberdetail','reports','settings'].includes(id); document.getElementById('adminTopbar').style.display=admin?'flex':'none'; document.getElementById('bottomNav').style.display=admin?'flex':'none';
+  const tabMap={dashboard:'dashboard',books:'books',bookdetail:'books',loan:'loan',loanform:'loan',members:'members',memberdetail:'members',reports:'reports'}; document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.tab===tabMap[id]));
+}
+buttons.forEach(b=>b.addEventListener('click',()=>showScreen(b.dataset.screen)));
+function setTheme(mode){root.classList.toggle('dark',mode==='dark');document.getElementById('lightBtn').classList.toggle('active',mode==='light');document.getElementById('darkBtn').classList.toggle('active',mode==='dark');document.getElementById('themeIconBtn').innerHTML='<i data-lucide="'+(mode==='dark'?'moon':'sun')+'" size="16"></i>';lucide.createIcons()}
+document.getElementById('lightBtn').onclick=()=>setTheme('light'); document.getElementById('darkBtn').onclick=()=>setTheme('dark'); document.getElementById('themeIconBtn').onclick=()=>setTheme(root.classList.contains('dark')?'light':'dark');
+function showToast(text){const t=document.getElementById('toast');document.getElementById('toastText').textContent=text;t.classList.add('show');lucide.createIcons();clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),2200)}
+function openModal(){document.getElementById('modal').classList.add('show');lucide.createIcons()} function closeModal(){document.getElementById('modal').classList.remove('show')}
+lucide.createIcons();
+</script>
+</body>
+</html>

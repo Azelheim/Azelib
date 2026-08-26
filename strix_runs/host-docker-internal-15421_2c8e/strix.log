@@ -1,0 +1,179 @@
+2026-08-26 12:58:59.287 INFO    host-docker-internal-15421_2c8e - strix.core.runner: Starting Strix scan host-docker-internal-15421_2c8e (image=ghcr.io/usestrix/strix-sandbox:1.3.0, max_turns=500, interactive=True, run_dir=D:\Azelib\strix_runs\host-docker-internal-15421_2c8e)
+2026-08-26 12:58:59.288 INFO    host-docker-internal-15421_2c8e - strix.core.runner: LLM model resolved: ollama/qwen2.5-coder:7b
+2026-08-26 12:58:59.288 INFO    host-docker-internal-15421_2c8e - strix.core.runner: Bringing up sandbox session for scan host-docker-internal-15421_2c8e
+2026-08-26 12:58:59.288 DEBUG   host-docker-internal-15421_2c8e - strix.runtime.backends: Selected sandbox backend: docker
+2026-08-26 12:58:59.289 INFO    host-docker-internal-15421_2c8e - strix.runtime.session_manager: Creating sandbox session for scan host-docker-internal-15421_2c8e (backend=docker, image=ghcr.io/usestrix/strix-sandbox:1.3.0)
+2026-08-26 12:58:59.486 DEBUG   host-docker-internal-15421_2c8e - strix.runtime.docker_client: Creating sandbox container: image=ghcr.io/usestrix/strix-sandbox:1.3.0 caps=['NET_ADMIN', 'NET_RAW'] exposed_ports=[48080]
+2026-08-26 12:58:59.742 INFO    host-docker-internal-15421_2c8e - strix.runtime.docker_client: Sandbox container created: id=3533142e7c04 image=ghcr.io/usestrix/strix-sandbox:1.3.0
+2026-08-26 12:59:00.529 DEBUG   host-docker-internal-15421_2c8e - strix.runtime.session_manager: Caido host endpoint resolved: http://127.0.0.1:55174
+2026-08-26 12:59:00.530 INFO    host-docker-internal-15421_2c8e - strix.runtime.caido_bootstrap: Bootstrapping Caido client (host=http://127.0.0.1:55174, container=http://127.0.0.1:48080)
+2026-08-26 12:59:01.148 INFO    host-docker-internal-15421_2c8e - strix.runtime.caido_bootstrap: Caido project selected: 6fb3ef84-0f11-4193-9b17-953e398d3d75
+2026-08-26 12:59:01.149 INFO    host-docker-internal-15421_2c8e - strix.runtime.session_manager: Sandbox session for scan host-docker-internal-15421_2c8e ready and cached
+2026-08-26 12:59:01.149 INFO    host-docker-internal-15421_2c8e - strix.core.runner: Sandbox ready for scan host-docker-internal-15421_2c8e
+2026-08-26 12:59:01.152 DEBUG   host-docker-internal-15421_2c8e - strix.skills: Loaded skill: scan_modes/deep -> deep
+2026-08-26 12:59:01.156 DEBUG   host-docker-internal-15421_2c8e - strix.skills: Loaded skill: tooling/agent_browser -> agent_browser
+2026-08-26 12:59:01.159 DEBUG   host-docker-internal-15421_2c8e - strix.skills: Loaded skill: tooling/python -> python
+2026-08-26 12:59:01.163 DEBUG   host-docker-internal-15421_2c8e - strix.skills: Loaded skill: coordination/root_agent -> root_agent
+2026-08-26 12:59:01.163 DEBUG   host-docker-internal-15421_2c8e - strix.skills: load_skills: 4 skill(s) resolved
+2026-08-26 12:59:01.221 DEBUG   host-docker-internal-15421_2c8e - strix.agents.prompt: render_system_prompt: scan_mode=deep root=True whitebox=False skills=4 prompt_len=79053
+2026-08-26 12:59:01.221 INFO    host-docker-internal-15421_2c8e - strix.agents.factory: Built root agent 'Root Agent' (skills=0, tools=31, scan_mode=deep, whitebox=False)
+2026-08-26 12:59:01.222 INFO    host-docker-internal-15421_2c8e - strix.core.agents: agent.register 5380c79f (Root Agent) parent=-
+2026-08-26 12:59:01.256 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 12:59:01.257 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 12:59:01.257 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 12:59:01.271 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 12:59:01.271 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 12:59:01.271 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 12:59:01.272 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 12:59:01.273 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 12:59:01.274 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 12:59:02.212 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 12:59:02.219 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 12:59:02.244 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 12:59:02.251 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 12:59:03.124 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 12:59:03.145 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 12:59:03.178 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 12:59:03.185 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 13:01:10.469 INFO    host-docker-internal-15421_2c8e - strix.report.sarif: Wrote SARIF 2.1.0 report: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e\findings.sarif (0 results)
+2026-08-26 13:01:10.471 INFO    host-docker-internal-15421_2c8e - strix.report.state: Essential scan data saved to: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e
+2026-08-26 13:01:10.471 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 13:01:10.473 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 13:01:10.484 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:01:10.485 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f ended a turn without a lifecycle tool call (interactive=True); forcing tool continuation (1/3): {"name": "exec_command", "arguments": {"cmd": "curl -I http://host.docker.internal:15421", "max_output_tokens": 1000}}
+2026-08-26 13:01:10.505 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 13:01:10.507 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 13:01:10.507 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:01:10.528 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:01:10.528 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 13:01:10.529 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:01:10.530 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 13:01:10.530 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:01:10.532 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 13:03:18.601 INFO    host-docker-internal-15421_2c8e - strix.report.sarif: Wrote SARIF 2.1.0 report: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e\findings.sarif (0 results)
+2026-08-26 13:03:18.602 INFO    host-docker-internal-15421_2c8e - strix.report.state: Essential scan data saved to: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e
+2026-08-26 13:03:18.603 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 13:03:18.604 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 13:03:18.615 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:03:18.616 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f ended a turn without a lifecycle tool call (interactive=True); forcing tool continuation (2/3): {"name": "wait_for_agents", "arguments": {}}
+2026-08-26 13:03:18.637 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 13:03:18.639 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 13:03:18.639 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:03:18.663 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:03:18.663 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 13:03:18.663 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:03:18.665 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 13:03:18.666 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:03:18.668 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 13:03:23.515 INFO    host-docker-internal-15421_2c8e - strix.report.sarif: Wrote SARIF 2.1.0 report: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e\findings.sarif (0 results)
+2026-08-26 13:03:23.517 INFO    host-docker-internal-15421_2c8e - strix.report.state: Essential scan data saved to: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e
+2026-08-26 13:03:23.518 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 13:03:23.519 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 13:03:23.531 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:03:23.533 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f ended a turn without a lifecycle tool call (interactive=True); forcing tool continuation (3/3): ```json {"name": "wait_for_agents", "arguments": {}} ```
+2026-08-26 13:03:23.533 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f exhausted tool-call recovery attempts; parking until a message arrives
+2026-08-26 13:03:23.533 INFO    host-docker-internal-15421_2c8e - strix.core.agents: agent.status 5380c79f=waiting
+2026-08-26 13:09:17.111 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 13:09:17.114 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 13:09:17.114 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:09:17.136 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:09:17.137 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 13:09:17.137 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:09:17.139 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 13:09:17.140 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:09:17.142 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 13:10:17.343 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:10:17.426 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 13:10:17.428 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 13:10:17.428 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:10:17.481 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:10:17.481 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 13:10:17.481 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:10:17.484 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 13:10:17.485 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:10:17.488 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 13:12:32.720 INFO    host-docker-internal-15421_2c8e - strix.report.sarif: Wrote SARIF 2.1.0 report: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e\findings.sarif (0 results)
+2026-08-26 13:12:32.722 INFO    host-docker-internal-15421_2c8e - strix.report.state: Essential scan data saved to: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e
+2026-08-26 13:12:32.723 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 13:12:32.726 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 13:12:32.747 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:12:32.748 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f ended a turn without a lifecycle tool call (interactive=True); forcing tool continuation (1/3): ```json {"name": "exec_command", "arguments": {"cmd": "start_scan.sh multi_tenant_rls"}} ```
+2026-08-26 13:12:32.812 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 13:12:32.814 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 13:12:32.814 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:12:32.839 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:12:32.839 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 13:12:32.840 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:12:32.841 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 13:12:32.842 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:12:32.844 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 13:14:44.668 INFO    host-docker-internal-15421_2c8e - strix.report.sarif: Wrote SARIF 2.1.0 report: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e\findings.sarif (0 results)
+2026-08-26 13:14:44.670 INFO    host-docker-internal-15421_2c8e - strix.report.state: Essential scan data saved to: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e
+2026-08-26 13:14:44.670 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 13:14:44.672 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 13:14:44.689 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:14:44.691 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f ended a turn without a lifecycle tool call (interactive=True); forcing tool continuation (2/3): ```json {   "name": "respond_to_user",   "arguments": {     "message": "Please provide the necessary information or command to proceed."   } } ```
+2026-08-26 13:14:44.744 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 13:14:44.746 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 13:14:44.747 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:14:44.768 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:14:44.768 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 13:14:44.769 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:14:44.770 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 13:14:44.770 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:14:44.772 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 13:14:49.914 INFO    host-docker-internal-15421_2c8e - strix.report.sarif: Wrote SARIF 2.1.0 report: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e\findings.sarif (0 results)
+2026-08-26 13:14:49.916 INFO    host-docker-internal-15421_2c8e - strix.report.state: Essential scan data saved to: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e
+2026-08-26 13:14:49.917 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 13:14:49.918 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 13:14:49.928 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:14:49.930 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f ended a turn without a lifecycle tool call (interactive=True); forcing tool continuation (3/3): {"name": "wait_for_agents", "arguments": {}}
+2026-08-26 13:14:49.930 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f exhausted tool-call recovery attempts; parking until a message arrives
+2026-08-26 13:14:49.930 INFO    host-docker-internal-15421_2c8e - strix.core.agents: agent.status 5380c79f=waiting
+2026-08-26 13:16:30.874 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 13:16:30.875 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 13:16:30.875 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:16:30.889 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:16:30.889 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 13:16:30.889 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:16:30.890 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 13:16:30.890 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:16:30.892 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 13:18:58.582 INFO    host-docker-internal-15421_2c8e - strix.report.sarif: Wrote SARIF 2.1.0 report: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e\findings.sarif (0 results)
+2026-08-26 13:18:58.585 INFO    host-docker-internal-15421_2c8e - strix.report.state: Essential scan data saved to: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e
+2026-08-26 13:18:58.586 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 13:18:58.587 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 13:18:58.599 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:18:58.601 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f ended a turn without a lifecycle tool call (interactive=True); forcing tool continuation (1/3): {"name": "exec_command", "arguments": {"cmd": "curl -s -X GET http://127.0.0.1:15421/api/v1/health", "login": false, "max_output_tokens": null, "shell": null, "tty": false, "workdir": null, "yield_time_ms": 100}}
+2026-08-26 13:18:58.660 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 13:18:58.662 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 13:18:58.662 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:18:58.692 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:18:58.693 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 13:18:58.693 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:18:58.696 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 13:18:58.696 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:18:58.698 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 13:19:03.661 INFO    host-docker-internal-15421_2c8e - strix.report.sarif: Wrote SARIF 2.1.0 report: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e\findings.sarif (0 results)
+2026-08-26 13:19:03.665 INFO    host-docker-internal-15421_2c8e - strix.report.state: Essential scan data saved to: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e
+2026-08-26 13:19:03.666 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 13:19:03.668 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 13:19:03.683 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:19:03.686 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f ended a turn without a lifecycle tool call (interactive=True); forcing tool continuation (2/3): ```json {"name": "wait_for_agents"} ```
+2026-08-26 13:19:03.793 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 13:19:03.796 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Setting current trace: no-op
+2026-08-26 13:19:03.796 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:19:03.832 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:19:03.832 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 13:19:03.832 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:19:03.835 DEBUG   host-docker-internal-15421_2c8e - openai.agents: No conversation_id available for request
+2026-08-26 13:19:03.836 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 13:19:03.839 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Calling LLM
+2026-08-26 13:19:08.797 INFO    host-docker-internal-15421_2c8e - strix.report.sarif: Wrote SARIF 2.1.0 report: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e\findings.sarif (0 results)
+2026-08-26 13:19:08.799 INFO    host-docker-internal-15421_2c8e - strix.report.state: Essential scan data saved to: D:\Azelib\strix_runs\host-docker-internal-15421_2c8e
+2026-08-26 13:19:08.799 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 13:19:08.800 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 13:19:08.812 DEBUG   host-docker-internal-15421_2c8e - openai.agents: Resetting current trace
+2026-08-26 13:19:08.814 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f ended a turn without a lifecycle tool call (interactive=True); forcing tool continuation (3/3): {"name": "respond_to_user", "arguments": {}}
+2026-08-26 13:19:08.814 WARNING host-docker-internal-15421_2c8e - strix.core.execution: agent 5380c79f exhausted tool-call recovery attempts; parking until a message arrives
+2026-08-26 13:19:08.814 INFO    host-docker-internal-15421_2c8e - strix.core.agents: agent.status 5380c79f=waiting

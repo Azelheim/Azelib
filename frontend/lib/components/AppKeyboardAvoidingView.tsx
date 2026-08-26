@@ -7,6 +7,7 @@ import {
   ViewStyle,
   StyleProp,
 } from 'react-native';
+import { useAzelheimTheme } from '../theme';
 
 interface AppKeyboardAvoidingViewProps {
   children: React.ReactNode;
@@ -28,10 +29,13 @@ export function AppKeyboardAvoidingView({
   extraBottomPadding = 80,
   scrollEnabled = true,
 }: AppKeyboardAvoidingViewProps) {
+  const { colors } = useAzelheimTheme();
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, style]}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      style={[styles.container, { backgroundColor: colors.bg }, style]}
     >
       <ScrollView
         contentContainerStyle={[
@@ -41,6 +45,7 @@ export function AppKeyboardAvoidingView({
         ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={true}
         scrollEnabled={scrollEnabled}
         showsVerticalScrollIndicator={false}
       >
@@ -53,7 +58,6 @@ export function AppKeyboardAvoidingView({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
     flexGrow: 1,

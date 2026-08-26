@@ -1554,6 +1554,116 @@ test('PHASE 19 — TOKEN-005 & Regression — Token: Visitor Token Entry, Valida
   assert.equal(res2.id, 'tenant-alpha');
 });
 
+test('PHASE 22 — AUDIT-003 (DASH-005 & LOAN-004): Overdue Loan Data, Tab Terlambat, and Dashboard Metrics Validation', () => {
+  const tenantId = 'tenant-test-overdue';
+  const today = '2026-08-24';
+  const tarifPerHari = 500;
+
+  // DB Loans Simulation
+  let loans = [
+    // 1. Normal active loan (due in future)
+    {
+      id: 'loan-active-1',
+      tenant_id: tenantId,
+      anggota_id: 'member-1',
+      tanggal_pinjam: '2026-08-20',
+      jatuh_tempo: '2026-08-27',
+      tanggal_kembali: null,
+      status: 'aktif',
+      biaya_penggantian: null,
+      peminjaman_detail: [{ salinan_id: 's1' }],
+    },
+    // 2. Overdue loan with past due date (due 7 days ago)
+    {
+      id: 'loan-overdue-1',
+      tenant_id: tenantId,
+      anggota_id: 'member-2',
+      tanggal_pinjam: '2026-08-10',
+      jatuh_tempo: '2026-08-17',
+      tanggal_kembali: null,
+      status: 'aktif',
+      biaya_penggantian: null,
+      peminjaman_detail: [{ salinan_id: 's2' }, { salinan_id: 's3' }],
+    },
+    // 3. Completed loan (returned in the past)
+    {
+      id: 'loan-completed-1',
+      tenant_id: tenantId,
+      anggota_id: 'member-3',
+      tanggal_pinjam: '2026-08-01',
+      jatuh_tempo: '2026-08-08',
+      tanggal_kembali: '2026-08-07',
+      status: 'dikembalikan',
+      biaya_penggantian: null,
+      peminjaman_detail: [{ salinan_id: 's4' }],
+    },
+  ];
+
+  // Helper from Peminjaman.tsx getFilteredData
+  const getPeminjamanTab = (currentTab, loanList, dateToday) => {
+    if (currentTab === 'aktif') {
+      return loanList.filter(item => item.status === 'aktif' && item.jatuh_tempo >= dateToday);
+    }
+    if (currentTab === 'terlambat') {
+      return loanList.filter(item => item.status === 'aktif' && item.jatuh_tempo < dateToday);
+    }
+    return loanList.filter(item => item.status !== 'aktif');
+  };
+
+  // Helper from Dashboard.tsx / apiClient.ts summary calculation
+  const calculateDashboardSummary = (loanList, dateToday, tarif) => {
+    const activeLoans = loanList.filter(l => l.status === 'aktif');
+    const overdueLoans = activeLoans.filter(l => l.jatuh_tempo < dateToday);
+    
+    let totalDenda = 0;
+    overdueLoans.forEach(l => {
+      const daysLate = Math.max(0, Math.floor((new Date(dateToday).getTime() - new Date(l.jatuh_tempo).getTime()) / (1000 * 60 * 60 * 24)));
+      totalDenda += daysLate * tarif;
+    });
+
+    return {
+      peminjam_aktif: new Set(activeLoans.map(l => l.anggota_id)).size,
+      buku_dipinjam: activeLoans.reduce((acc, l) => acc + l.peminjaman_detail.length, 0),
+      buku_terlambat: overdueLoans.length,
+      total_denda_periode: totalDenda,
+    };
+  };
+
+  // Step 1: Verify Peminjaman tabs with test overdue loan
+  const tabAktif = getPeminjamanTab('aktif', loans, today);
+  const tabTerlambat = getPeminjamanTab('terlambat', loans, today);
+  const tabRiwayat = getPeminjamanTab('riwayat', loans, today);
+
+  assert.equal(tabAktif.length, 1);
+  assert.equal(tabAktif[0].id, 'loan-active-1');
+
+  assert.equal(tabTerlambat.length, 1);
+  assert.equal(tabTerlambat[0].id, 'loan-overdue-1');
+  assert.equal(tabTerlambat[0].jatuh_tempo, '2026-08-17');
+
+  assert.equal(tabRiwayat.length, 1);
+  assert.equal(tabRiwayat[0].id, 'loan-completed-1');
+
+  // Step 2: Verify Dashboard Metrics
+  const summary = calculateDashboardSummary(loans, today, tarifPerHari);
+  assert.equal(summary.peminjam_aktif, 2); // member-1 and member-2
+  assert.equal(summary.buku_dipinjam, 3); // s1 (1) + s2,s3 (2) = 3
+  assert.equal(summary.buku_terlambat, 1); // exactly loan-overdue-1
+  assert.equal(summary.total_denda_periode, 7 * 500); // 7 days * 500 = 3500
+
+  // Step 3: Action Kembalikan on overdue loan -> updates Peminjaman & Dashboard in real time
+  loans[1] = { ...loans[1], status: 'dikembalikan', tanggal_kembali: today };
+
+  const tabTerlambatAfterReturn = getPeminjamanTab('terlambat', loans, today);
+  const tabRiwayatAfterReturn = getPeminjamanTab('riwayat', loans, today);
+  const summaryAfterReturn = calculateDashboardSummary(loans, today, tarifPerHari);
+
+  assert.equal(tabTerlambatAfterReturn.length, 0);
+  assert.equal(tabRiwayatAfterReturn.length, 2);
+  assert.equal(summaryAfterReturn.buku_terlambat, 0);
+  assert.equal(summaryAfterReturn.total_denda_periode, 0);
+});
+
 
 
 

@@ -21,3 +21,7 @@ frontend/android/.gradle/
 frontend/android/app/build/
 frontend/android/build/
 frontend/android/local.properties
+
+# Supabase Local Runtime
+supabase/.temp/
+supabase/.branches/

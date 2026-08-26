@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ActivityIndicator, ScrollView, Platform } from 'react-native';
-import { Text, Button, Portal, Modal, Snackbar, TextInput } from 'react-native-paper';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Key, BookOpen } from 'lucide-react-native';
+import { KeyRound, ArrowUpRight, ArrowRight } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { apiClient } from '../lib/api/apiClient';
 import { useTenant } from '../lib/context/TenantContext';
 import { getLastActiveTenant } from '../lib/session';
+import { useAzelheimTheme } from '../lib/theme';
+import {
+  AzelheimScreen,
+  AzelheimCard,
+  AzelheimButton,
+  AzelheimBadge,
+  AzelheimMetaBox,
+  AzelheimInput,
+  AzelheimToast,
+} from '../lib/components/azelheim';
 
 export default function Gerbang() {
   const router = useRouter();
+  const { colors } = useAzelheimTheme();
   const { setActiveTenant } = useTenant();
   const [checkingSession, setCheckingSession] = useState(true);
-  const [showTokenModal, setShowTokenModal] = useState(false);
   const [errorVisible, setErrorVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
@@ -47,7 +56,6 @@ export default function Gerbang() {
 
   const handleTokenSubmit = async () => {
     const trimmed = (tokenInput || '').trim();
-    console.log('[TOKEN-005][SUBMIT] Submitting token input:', trimmed);
     if (!trimmed) return;
     if (loading) return;
 
@@ -56,16 +64,18 @@ export default function Gerbang() {
 
     try {
       const tenant = await apiClient.tenant.getByToken(trimmed);
-      console.log('[TOKEN-005][VALIDATE-SUCCESS] Matched tenant:', tenant);
       if (!tenant || !tenant.id) {
         setErrorVisible(true);
       } else {
-        setShowTokenModal(false);
         setTokenInput('');
-        router.push(`/pengunjung?tenant_id=${tenant.id}&nama=${encodeURIComponent(tenant.nama || 'Perpustakaan')}`);
+        router.push(
+          `/pengunjung?tenant_id=${tenant.id}&nama=${encodeURIComponent(
+            tenant.nama || 'Perpustakaan'
+          )}`
+        );
       }
     } catch (e: any) {
-      console.error('[TOKEN-005][VALIDATE-ERROR] Token error:', e?.message || e);
+      console.error('[TOKEN][VALIDATE-ERROR] Token error:', e?.message || e);
       setErrorVisible(true);
     } finally {
       setLoading(false);
@@ -74,153 +84,212 @@ export default function Gerbang() {
 
   if (checkingSession) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.center, { backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        {/* Logo Placeholder */}
-        <View style={styles.logoPlaceholder}>
-          <Text variant="displaySmall" style={styles.logoText}>📖</Text>
-        </View>
-
-        <Text variant="titleLarge" style={styles.tagline}>
-          Satu Aplikasi untuk Semua Perpustakaan Anda
-        </Text>
-
-        <View style={styles.buttonContainer}>
-          <Button 
-            mode="contained" 
-            icon={() => <Key size={20} color="#FFF" />} 
-            onPress={() => router.push('/login')}
-            style={styles.button}
-          >
-            Login
-          </Button>
-
-          <Button 
-            mode="outlined" 
-            icon={() => <BookOpen size={20} color="#000" />} 
-            onPress={() => setShowTokenModal(true)}
-            style={styles.button}
-          >
-            Mode Pengunjung
-          </Button>
-        </View>
+    <AzelheimScreen contentContainerStyle={styles.content}>
+      {/* Brand Box & Tagline */}
+      <View
+        style={[
+          styles.logoBox,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
+        <Text style={[styles.logoText, { color: colors.text }]}>A</Text>
       </View>
 
-      <Portal>
-        <Modal 
-          visible={showTokenModal} 
-          onDismiss={() => { if (!loading) setShowTokenModal(false); }} 
-          contentContainerStyle={styles.modalContent}
-        >
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 8 }}>
-            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
-              Mode Pengunjung
-            </Text>
-            <Text variant="bodySmall" style={{ color: '#666', textAlign: 'center', marginBottom: 20 }}>
-              Masukkan 6 karakter token perpustakaan untuk melihat katalog buku:
-            </Text>
+      <Text style={[styles.eyebrow, { color: colors.muted }]}>
+        LIBRARY SYSTEM // ENTRY
+      </Text>
 
-            <TextInput
-              label="Token Perpustakaan"
-              placeholder="Contoh: ABC123"
-              value={tokenInput}
-              onChangeText={setTokenInput}
-              mode="outlined"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              style={styles.tokenInput}
-              dense
-            />
+      <View style={styles.hero}>
+        <Text style={[styles.heroTitle, { color: colors.text }]}>
+          Satu Aplikasi untuk{'\n'}Semua Perpustakaan Anda
+        </Text>
+        <Text style={[styles.heroSubtitle, { color: colors.muted }]}>
+          Kelola koleksi, peminjaman, anggota, dan laporan dalam satu tempat.
+        </Text>
+      </View>
 
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
-              <Button 
-                mode="text" 
-                onPress={() => setShowTokenModal(false)}
-                disabled={loading}
-                style={{ flex: 1 }}
-              >
-                Batal
-              </Button>
-              <Button
-                mode="contained"
-                onPress={handleTokenSubmit}
-                loading={loading}
-                disabled={!tokenInput.trim() || loading}
-                style={{ flex: 1, borderRadius: 8 }}
-              >
-                Buka Katalog
-              </Button>
+      <View style={[styles.rule, { borderTopColor: colors.border }]} />
+
+      {/* Login Card */}
+      <Text style={[styles.eyebrow, { color: colors.muted, marginBottom: 8 }]}>
+        MASUK SEBAGAI
+      </Text>
+
+      <AzelheimCard onPress={() => router.push('/login')} style={{ marginBottom: 20 }}>
+        <View style={styles.cardHead}>
+          <View style={{ flex: 1 }}>
+            <View style={styles.cardTitleRow}>
+              <KeyRound size={18} color={colors.text} />
+              <Text style={[styles.cardTitle, { color: colors.text }]}>LOGIN</Text>
             </View>
-          </ScrollView>
-        </Modal>
-      </Portal>
+            <Text style={[styles.cardSub, { color: colors.muted }]}>
+              Kelola perpustakaan sebagai Owner, Admin, atau Staff.
+            </Text>
+          </View>
+          <ArrowUpRight size={19} color={colors.text} />
+        </View>
 
-      <Snackbar
+        <AzelheimMetaBox
+          leftText="AUTH // 01"
+          rightText="MASUK →"
+          style={{ marginTop: 10 }}
+        />
+      </AzelheimCard>
+
+      {/* Guest Section */}
+      <Text style={[styles.eyebrow, { color: colors.muted, marginBottom: 8 }]}>
+        PENGUNJUNG
+      </Text>
+
+      <AzelheimCard style={{ marginBottom: 24 }}>
+        <View style={styles.cardHead}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              Katalog tanpa akun
+            </Text>
+            <Text style={[styles.cardSub, { color: colors.muted }]}>
+              Masukkan token perpustakaan yang diberikan petugas.
+            </Text>
+          </View>
+          <AzelheimBadge label="READ ONLY" variant="blue" />
+        </View>
+
+        <View style={styles.tokenRow}>
+          <AzelheimInput
+            value={tokenInput}
+            onChangeText={setTokenInput}
+            placeholder="Contoh: Q7M4K2"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={6}
+            mono
+            containerStyle={{ flex: 1, marginBottom: 0 }}
+            onSubmitEditing={handleTokenSubmit}
+            returnKeyType="go"
+          />
+          <AzelheimButton
+            variant="dark"
+            onPress={handleTokenSubmit}
+            loading={loading}
+            disabled={!tokenInput.trim() || loading}
+            icon={<ArrowRight size={18} color={colors.bg} />}
+            style={{ width: 58, minHeight: 40 }}
+          />
+        </View>
+
+        <Text style={[styles.tiny, { color: colors.faint, marginTop: 8 }]}>
+          ACCESS // GUEST · 6 CHAR
+        </Text>
+      </AzelheimCard>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <Text style={[styles.tiny, { color: colors.faint }]}>AZELHEIM // 01</Text>
+        <Text style={[styles.tiny, { color: colors.faint }]}>PUBLIC BUILD</Text>
+      </View>
+
+      <AzelheimToast
         visible={errorVisible}
+        message="Token tidak dikenali, coba lagi"
         onDismiss={() => setErrorVisible(false)}
         duration={3000}
-      >
-        Token tidak dikenali, coba lagi
-      </Snackbar>
-    </View>
+      />
+    </AzelheimScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  center: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 40,
   },
-  logoPlaceholder: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 50,
+  logoBox: {
+    width: 52,
+    height: 52,
+    borderWidth: 1.4,
+    borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 12,
   },
   logoText: {
-    fontSize: 48,
+    fontWeight: '900',
+    fontSize: 20,
   },
-  tagline: {
-    textAlign: 'center',
-    marginBottom: 48,
-    fontWeight: '600',
-  },
-  buttonContainer: {
-    width: '100%',
-    gap: 16,
-  },
-  button: {
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    margin: 20,
-    borderRadius: 12,
-    maxHeight: '85%',
-  },
-  tokenInput: {
-    backgroundColor: '#FFF',
-    fontSize: 18,
-    textAlign: 'center',
-    letterSpacing: 2,
+  eyebrow: {
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  hero: {
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  heroTitle: {
+    fontSize: 32,
+    lineHeight: 34,
+    fontWeight: '800',
+    letterSpacing: -1.4,
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+    maxWidth: 310,
+  },
+  rule: {
+    borderTopWidth: 1.2,
+    marginVertical: 14,
+  },
+  cardHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  cardSub: {
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  tokenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  tiny: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 9.5,
+  },
+  footer: {
+    marginTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
 });

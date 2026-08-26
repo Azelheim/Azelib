@@ -1,11 +1,32 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
-import { Text, TextInput, Button, Snackbar, Appbar, ActivityIndicator, Card, Chip, Divider } from 'react-native-paper';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  Platform,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Printer, Pencil, Trash2, ArrowLeft, Plus, Search } from 'lucide-react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { apiClient } from '../../lib/api/apiClient';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../lib/context/TenantContext';
-import { Trash2, Plus, Copy } from 'lucide-react-native';
+import { useAzelheimTheme } from '../../lib/theme';
+import {
+  AzelheimScreen,
+  AzelheimSectionHeader,
+  AzelheimCard,
+  AzelheimButton,
+  AzelheimBadge,
+  AzelheimMetaBox,
+  AzelheimInput,
+  AzelheimToast,
+  AzelheimIconButton,
+} from '../../lib/components/azelheim';
 
 interface SalinanItem {
   id: string;
@@ -17,9 +38,12 @@ interface SalinanItem {
 export default function DetailBuku() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { colors } = useAzelheimTheme();
   const { tenantId, userRole } = useTenant();
   const isViewOnly = userRole === 'staff';
   const isNew = id === 'tambah' || !id;
+
+  const [isEditing, setIsEditing] = useState(isNew);
 
   const [judul, setJudul] = useState('');
   const [penulis, setPenulis] = useState('');
@@ -44,11 +68,9 @@ export default function DetailBuku() {
   const [pageLoading, setPageLoading] = useState(!isNew);
   const [snackMsg, setSnackMsg] = useState('');
 
-  // Searchable & Creatable Category & Rak
+  // Categories & Raks
   const [availableCategories, setAvailableCategories] = useState<{ id: string; nama: string }[]>([]);
   const [availableRaks, setAvailableRaks] = useState<{ id: string; nama: string }[]>([]);
-  const [showCategoryMenu, setShowCategoryMenu] = useState(false);
-  const [showRakMenu, setShowRakMenu] = useState(false);
 
   const resetForm = useCallback(() => {
     setJudul('');
@@ -65,8 +87,6 @@ export default function DetailBuku() {
     setCoverUrl('');
     setJumlahSalinan('1');
     setSalinanList([]);
-    setShowCategoryMenu(false);
-    setShowRakMenu(false);
   }, []);
 
   const loadCategoriesAndRaks = useCallback(async () => {
@@ -87,6 +107,7 @@ export default function DetailBuku() {
     loadCategoriesAndRaks();
     if (isNew) {
       resetForm();
+      setIsEditing(true);
       setPageLoading(false);
     } else if (id && id !== 'tambah') {
       loadBuku();
@@ -110,7 +131,7 @@ export default function DetailBuku() {
           .from('salinan')
           .select('*')
           .eq('buku_id', id)
-          .order('nomor_urut', { ascending: true })
+          .order('nomor_urut', { ascending: true }),
       ]);
 
       if (bukuRes.error) throw bukuRes.error;
@@ -140,70 +161,81 @@ export default function DetailBuku() {
   };
 
   const handleScanIsbn = async () => {
-    if (!isbn) {
+    if (!isbn.trim()) {
       setSnackMsg('Masukkan ISBN terlebih dahulu');
       return;
     }
     setLoading(true);
     try {
-      const result = await apiClient.buku.lookupIsbn(isbn);
+      const result = await apiClient.buku.lookupIsbn(isbn.trim());
       if (result) {
         if (result.judul) setJudul(result.judul);
         if (result.penulis) setPenulis(result.penulis);
         if (result.penerbit) setPenerbit(result.penerbit);
         if (result.tahun_terbit) setTahun(result.tahun_terbit.toString());
         if (result.cover_url) setCoverUrl(result.cover_url);
-        setSnackMsg('Data buku ditemukan!');
+        setSnackMsg('Data buku ditemukan & diisi otomatis');
+      } else {
+        setSnackMsg('Buku tidak ditemukan dari ISBN');
       }
     } catch (e: any) {
-      setSnackMsg(e.message || 'Buku tidak ditemukan dari ISBN');
+      console.error(e);
+      setSnackMsg(e.message || 'Gagal mencari ISBN');
     } finally {
       setLoading(false);
     }
   };
 
-  const getOrCreateKategori = async (namaKat: string) => {
-    if (!namaKat || !namaKat.trim()) return null;
-    const cleanKat = namaKat.trim();
-    const { data: existing } = await supabase
-      .from('kategori')
-      .select('id')
-      .eq('tenant_id', tenantId)
-      .ilike('nama', cleanKat)
-      .single();
-
+  const ensureCategory = async (namaKat: string) => {
+    if (!namaKat.trim() || !tenantId) return null;
+    const trimmed = namaKat.trim();
+    const existing = availableCategories.find(
+      (k) => k.nama.toLowerCase() === trimmed.toLowerCase()
+    );
     if (existing) return existing.id;
 
-    const { data: created, error } = await supabase
+    const { data, error } = await supabase
       .from('kategori')
-      .insert({ tenant_id: tenantId, nama: cleanKat })
-      .select('id')
+      .insert({ tenant_id: tenantId, nama: trimmed })
+      .select()
       .single();
 
-    if (error) throw error;
-    return created?.id;
+    if (!error && data) {
+      setAvailableCategories((prev) => [...prev, data]);
+      return data.id;
+    }
+    return null;
   };
 
-  const getOrCreateRak = async (namaRak: string) => {
-    if (!namaRak || !namaRak.trim()) return null;
-    const cleanRak = namaRak.trim();
-    const { data: existing } = await supabase
-      .from('rak')
-      .select('id')
-      .eq('tenant_id', tenantId)
-      .ilike('nama', cleanRak)
-      .single();
-
+  const ensureRak = async (namaRak: string) => {
+    if (!namaRak.trim() || !tenantId) return null;
+    const trimmed = namaRak.trim();
+    const existing = availableRaks.find(
+      (r) => r.nama.toLowerCase() === trimmed.toLowerCase()
+    );
     if (existing) return existing.id;
 
-    const { data: created, error } = await supabase
+    const { data, error } = await supabase
       .from('rak')
-      .insert({ tenant_id: tenantId, nama: cleanRak })
-      .select('id')
+      .insert({ tenant_id: tenantId, nama: trimmed })
+      .select()
       .single();
 
-    if (error) throw error;
-    return created?.id;
+    if (!error && data) {
+      setAvailableRaks((prev) => [...prev, data]);
+      return data.id;
+    }
+    return null;
+  };
+
+  const generateLocalCode = async () => {
+    const { count } = await supabase
+      .from('buku')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+
+    const nextNum = (count || 0) + 1;
+    return `LOK-${String(nextNum).padStart(5, '0')}`;
   };
 
   const handleSimpan = async () => {
@@ -211,88 +243,113 @@ export default function DetailBuku() {
       setSnackMsg('Judul buku wajib diisi');
       return;
     }
-
     if (!rak.trim()) {
       setSnackMsg('Rak wajib diisi');
       return;
     }
 
-    const salinanInt = parseInt(jumlahSalinan);
-    if (isNew && (isNaN(salinanInt) || salinanInt < 1)) {
-      setSnackMsg('Jumlah salinan minimal 1');
-      return;
-    }
-
-    const cleanIsbn = isbn.trim() || null;
-    const cleanKodeLokal = cleanIsbn ? null : (kodeLokal.trim() || `LOK-${Date.now().toString().slice(-5)}`);
-
     setLoading(true);
     try {
-      const kategoriId = await getOrCreateKategori(kategori);
-      const rakId = await getOrCreateRak(rak);
+      const katId = await ensureCategory(kategori);
+      const rakId = await ensureRak(rak);
 
-      const payload: any = {
+      let finalKodeLokal = kodeLokal;
+      if (!isbn.trim() && !kodeLokal) {
+        finalKodeLokal = await generateLocalCode();
+      }
+
+      const bookData: any = {
         tenant_id: tenantId,
         judul: judul.trim(),
         penulis: penulis.trim() || null,
         penerbit: penerbit.trim() || null,
         tahun_terbit: tahun ? parseInt(tahun) : null,
-        isbn: cleanIsbn,
-        kode_lokal: cleanKodeLokal,
-        kategori_id: kategoriId,
+        isbn: isbn.trim() || null,
+        kode_lokal: finalKodeLokal || null,
+        kategori_id: katId,
         rak_id: rakId,
         sinopsis: sinopsis.trim() || null,
         bahasa: bahasa.trim() || null,
         jumlah_halaman: jumlahHalaman ? parseInt(jumlahHalaman) : null,
-        cover_url: coverUrl || null,
-        updated_at: new Date().toISOString(),
+        cover_url: coverUrl.trim() || null,
       };
 
       if (isNew) {
-        const { data: newBuku, error } = await supabase.from('buku').insert(payload).select().single();
-        if (error) throw error;
+        const { data: newBook, error: bookErr } = await supabase
+          .from('buku')
+          .insert(bookData)
+          .select()
+          .single();
 
-        // Generate Salinan copies
-        const copyCount = Math.max(1, salinanInt || 1);
-        await apiClient.buku.salinanGenerate(newBuku.id, copyCount);
+        if (bookErr) throw bookErr;
+
+        // Generate copies
+        const copiesCount = Math.max(1, parseInt(jumlahSalinan) || 1);
+        const prefix = bookData.isbn || finalKodeLokal;
+        const copyInserts = [];
+
+        for (let i = 1; i <= copiesCount; i++) {
+          copyInserts.push({
+            buku_id: newBook.id,
+            nomor_urut: i,
+            kode_eksemplar: `${prefix}-${String(i).padStart(2, '0')}`,
+            status: 'tersedia',
+          });
+        }
+
+        const { error: copyErr } = await supabase.from('salinan').insert(copyInserts);
+        if (copyErr) throw copyErr;
 
         resetForm();
-        setSnackMsg('Buku berhasil ditambahkan');
+        setSnackMsg('Buku dan salinan berhasil ditambahkan');
       } else {
-        const { error } = await supabase.from('buku').update(payload).eq('id', id);
-        if (error) throw error;
-        setSnackMsg('Buku berhasil diperbarui');
+        const { error: bookErr } = await supabase
+          .from('buku')
+          .update(bookData)
+          .eq('id', id);
+
+        if (bookErr) throw bookErr;
+        setSnackMsg('Data buku berhasil diperbarui');
       }
 
-      // Selalu navigasi kembali ke Halaman Buku
       router.replace('/(admin)/buku');
     } catch (e: any) {
       console.error(e);
-      setSnackMsg(e.message || 'Gagal menyimpan buku');
+      setSnackMsg(e.message || 'Gagal menyimpan data buku');
     } finally {
       setLoading(false);
     }
   };
 
   const handleTambahSalinan = async () => {
-    const count = parseInt(tambahSalinanCount);
-    if (isNaN(count) || count < 1) {
-      setSnackMsg('Jumlah tambahan minimal 1');
-      return;
-    }
+    const count = parseInt(tambahSalinanCount) || 1;
+    if (count < 1) return;
 
     setSalinanLoading(true);
     try {
-      await apiClient.buku.salinanGenerate(id as string, count);
-      setSnackMsg(`${count} salinan berhasil ditambahkan`);
-      setTambahSalinanCount('1');
-      // Reload salinan list
-      const { data } = await supabase
+      const currentMax = salinanList.reduce((max, s) => Math.max(max, s.nomor_urut), 0);
+      const prefix = isbn || kodeLokal || `LOK-${id}`;
+      const copyInserts = [];
+
+      for (let i = 1; i <= count; i++) {
+        const nextNum = currentMax + i;
+        copyInserts.push({
+          buku_id: id,
+          nomor_urut: nextNum,
+          kode_eksemplar: `${prefix}-${String(nextNum).padStart(2, '0')}`,
+          status: 'tersedia',
+        });
+      }
+
+      const { data, error } = await supabase
         .from('salinan')
-        .select('*')
-        .eq('buku_id', id)
-        .order('nomor_urut', { ascending: true });
-      if (data) setSalinanList(data as SalinanItem[]);
+        .insert(copyInserts)
+        .select();
+
+      if (error) throw error;
+      setSalinanList((prev) => [...prev, ...(data as SalinanItem[])]);
+      setTambahSalinanCount('1');
+      setSnackMsg(`${count} salinan baru berhasil ditambahkan`);
     } catch (e: any) {
       console.error(e);
       setSnackMsg(e.message || 'Gagal menambah salinan');
@@ -301,281 +358,446 @@ export default function DetailBuku() {
     }
   };
 
-  const handleHapus = async () => {
-    Alert.alert("Konfirmasi Hapus", "Yakin ingin menghapus buku ini?", [
-      { text: "Batal", style: "cancel" },
-      { text: "Hapus", style: "destructive", onPress: async () => {
-        setLoading(true);
-        try {
-          // Cek apakah ada salinan yang sedang dipinjam
-          const { data: salinanDipinjam } = await supabase
-            .from('salinan')
-            .select('id')
-            .eq('buku_id', id)
-            .eq('status', 'dipinjam');
+  const handleHapus = () => {
+    Alert.alert('Konfirmasi Hapus', 'Yakin ingin menghapus buku ini?', [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Hapus',
+        style: 'destructive',
+        onPress: async () => {
+          setLoading(true);
+          try {
+            const hasBorrowed = salinanList.some((s) => s.status === 'dipinjam');
+            if (hasBorrowed) {
+              Alert.alert(
+                'Gagal Menghapus',
+                'Buku tidak dapat dihapus karena masih ada salinan yang sedang dipinjam.'
+              );
+              setLoading(false);
+              return;
+            }
 
-          if (salinanDipinjam && salinanDipinjam.length > 0) {
-            setSnackMsg('Buku tidak dapat dihapus karena masih ada salinan yang sedang dipinjam!');
+            const { error } = await supabase
+              .from('buku')
+              .update({ dihapus: true })
+              .eq('id', id);
+
+            if (error) throw error;
+            router.replace('/(admin)/buku');
+          } catch (e: any) {
+            console.error(e);
+            setSnackMsg(e.message || 'Gagal menghapus buku');
             setLoading(false);
-            return;
           }
-
-          // Soft delete
-          const { error } = await supabase
-            .from('buku')
-            .update({ dihapus: true, updated_at: new Date().toISOString() })
-            .eq('id', id);
-
-          if (error) throw error;
-          setSnackMsg('Buku berhasil dihapus');
-          router.replace('/(admin)/buku');
-        } catch (e: any) {
-          setSnackMsg(e.message || 'Gagal menghapus buku');
-        } finally {
-          setLoading(false);
-        }
-      }}
+        },
+      },
     ]);
   };
 
-  const handleGoBack = () => {
-    router.replace('/(admin)/buku');
-  };
+  const handleCetakKode = async () => {
+    if (salinanList.length === 0) {
+      setSnackMsg('Belum ada salinan untuk dicetak');
+      return;
+    }
 
-  const getStatusColor = (status: string) => {
-    if (status === 'tersedia') return '#2E7D32';
-    if (status === 'dipinjam') return '#1565C0';
-    return '#D32F2F';
+    try {
+      const itemsHtml = salinanList
+        .map(
+          (s) => `
+          <div style="border: 1.5px dashed #000; padding: 10px; margin: 8px; width: 42%; display: inline-block; box-sizing: border-box; text-align: center; border-radius: 4px;">
+            <div style="font-size: 11px; font-weight: bold;">${judul}</div>
+            <div style="font-family: monospace; font-size: 15px; font-weight: bold; margin: 6px 0;">${s.kode_eksemplar}</div>
+            <div style="font-size: 9px; color: #555;">Salinan #${s.nomor_urut} · Status: ${s.status.toUpperCase()}</div>
+          </div>
+        `
+        )
+        .join('');
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Kode Eksemplar - ${judul}</title>
+            <style>
+              body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; }
+              h2 { text-align: center; margin-bottom: 4px; }
+              .sub { text-align: center; font-size: 12px; color: #666; margin-bottom: 20px; }
+            </style>
+          </head>
+          <body>
+            <h2>Kode Eksemplar Buku</h2>
+            <div class="sub">${judul} — Total: ${salinanList.length} Salinan</div>
+            <div style="text-align: center;">
+              ${itemsHtml}
+            </div>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch (e: any) {
+      console.error(e);
+      setSnackMsg('Gagal membuat lembar kode eksemplar');
+    }
   };
 
   if (pageLoading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.center, { backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
 
+  const totalTersedia = salinanList.filter((s) => s.status === 'tersedia').length;
+  const totalSalinan = salinanList.length;
+
   return (
-    <View style={styles.container}>
-      <Appbar.Header style={{ backgroundColor: '#fff', height: 48, elevation: 0, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
-        <Appbar.BackAction onPress={handleGoBack} />
-        <Appbar.Content title={isNew ? "Tambah Buku" : "Detail Buku"} titleStyle={{ fontSize: 16, fontWeight: 'bold' }} />
-        {!isNew && !isViewOnly && <Appbar.Action icon={() => <Trash2 size={20} color="#D32F2F" />} onPress={handleHapus} />}
-      </Appbar.Header>
+    <AzelheimScreen extraBottomPadding={60}>
+      <View style={styles.topNavRow}>
+        <AzelheimIconButton
+          icon={<ArrowLeft size={18} color={colors.text} />}
+          onPress={() => router.replace('/(admin)/buku')}
+          accessibilityLabel="Kembali ke Buku"
+        />
+      </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 }]} keyboardShouldPersistTaps="handled">
-        {isNew && (
-          <View style={styles.scanRow}>
-            <TextInput label="ISBN (Opsional)" value={isbn} onChangeText={setIsbn} mode="outlined" style={styles.flexInput} />
-            <Button mode="contained" onPress={handleScanIsbn} loading={loading} style={styles.scanBtn}>Cari</Button>
-          </View>
-        )}
+      <AzelheimSectionHeader
+        title={isNew ? 'Tambah Buku' : isEditing ? 'Edit Buku' : 'Detail Buku'}
+        code={isNew ? 'BOOK // NEW' : `BOOK // ${String(id || '').slice(0, 6).toUpperCase()}`}
+      />
 
-        <TextInput label="Judul" value={judul} onChangeText={setJudul} mode="outlined" style={styles.input} />
-        <TextInput label="Penulis" value={penulis} onChangeText={setPenulis} mode="outlined" style={styles.input} />
-        <TextInput label="Penerbit" value={penerbit} onChangeText={setPenerbit} mode="outlined" style={styles.input} />
-        
-        <View style={styles.row}>
-          <TextInput label="Tahun Terbit" value={tahun} onChangeText={setTahun} mode="outlined" style={[styles.input, { flex: 1, marginRight: 8 }]} keyboardType="numeric" />
-          <TextInput label="Bahasa" value={bahasa} onChangeText={setBahasa} mode="outlined" style={[styles.input, { flex: 1 }]} />
-        </View>
-
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <TextInput
-              label="Kategori"
-              value={kategori}
-              onChangeText={(text) => {
-                setKategori(text);
-                setShowCategoryMenu(true);
-              }}
-              onFocus={() => setShowCategoryMenu(true)}
-              mode="outlined"
-              style={styles.input}
-            />
-            {showCategoryMenu && kategori.trim().length > 0 && (
-              <View style={styles.suggestionsContainer}>
-                {availableCategories
-                  .filter(c => c.nama.toLowerCase().includes(kategori.trim().toLowerCase()))
-                  .map(c => (
-                    <Chip
-                      key={c.id}
-                      style={{ margin: 2 }}
-                      onPress={() => {
-                        setKategori(c.nama);
-                        setShowCategoryMenu(false);
-                      }}
-                    >
-                      {c.nama}
-                    </Chip>
-                  ))}
-                {!availableCategories.some(c => c.nama.trim().toLowerCase() === kategori.trim().toLowerCase()) && (
-                  <Chip
-                    style={{ margin: 2, backgroundColor: '#E3F2FD' }}
-                    textStyle={{ color: '#1565C0', fontWeight: 'bold' }}
-                    onPress={() => {
-                      setShowCategoryMenu(false);
-                    }}
-                  >
-                    + Tambah kategori "{kategori.trim()}"
-                  </Chip>
-                )}
+      {/* View Mode */}
+      {!isEditing && !isNew ? (
+        <>
+          {/* Main Book Detail Card */}
+          <AzelheimCard style={{ marginBottom: 12 }}>
+            <View style={styles.cardHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.title, { color: colors.text }]}>{judul}</Text>
+                <Text style={[styles.author, { color: colors.muted }]}>
+                  {penulis || 'Penulis tidak diketahui'}
+                </Text>
               </View>
-            )}
-          </View>
+              <AzelheimBadge
+                label={`${totalTersedia}/${totalSalinan}`}
+                variant={totalTersedia > 0 ? 'green' : 'red'}
+              />
+            </View>
 
-          <View style={{ flex: 1 }}>
-            <TextInput
-              label="Rak (Wajib)"
-              value={rak}
-              onChangeText={(text) => {
-                setRak(text);
-                setShowRakMenu(true);
-              }}
-              onFocus={() => setShowRakMenu(true)}
-              mode="outlined"
-              style={styles.input}
-            />
-            {showRakMenu && rak.trim().length > 0 && (
-              <View style={styles.suggestionsContainer}>
-                {availableRaks
-                  .filter(r => r.nama.toLowerCase().includes(rak.trim().toLowerCase()))
-                  .map(r => (
-                    <Chip
-                      key={r.id}
-                      style={{ margin: 2 }}
-                      onPress={() => {
-                        setRak(r.nama);
-                        setShowRakMenu(false);
-                      }}
-                    >
-                      {r.nama}
-                    </Chip>
-                  ))}
-                {!availableRaks.some(r => r.nama.trim().toLowerCase() === rak.trim().toLowerCase()) && (
-                  <Chip
-                    style={{ margin: 2, backgroundColor: '#E3F2FD' }}
-                    textStyle={{ color: '#1565C0', fontWeight: 'bold' }}
-                    onPress={() => {
-                      setShowRakMenu(false);
-                    }}
-                  >
-                    + Tambah rak "{rak.trim()}"
-                  </Chip>
-                )}
+            <View style={[styles.rule, { borderTopColor: colors.line }]} />
+
+            <View style={styles.grid2}>
+              <View style={styles.gridItem}>
+                <Text style={[styles.label, { color: colors.faint }]}>PENERBIT</Text>
+                <Text style={[styles.val, { color: colors.text }]}>{penerbit || '-'}</Text>
               </View>
-            )}
-          </View>
-        </View>
+              <View style={styles.gridItem}>
+                <Text style={[styles.label, { color: colors.faint }]}>TAHUN</Text>
+                <Text style={[styles.val, { color: colors.text }]}>{tahun || '-'}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={[styles.label, { color: colors.faint }]}>ISBN</Text>
+                <Text style={[styles.valMono, { color: colors.text }]}>{isbn || '-'}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={[styles.label, { color: colors.faint }]}>BAHASA</Text>
+                <Text style={[styles.val, { color: colors.text }]}>{bahasa || '-'}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={[styles.label, { color: colors.faint }]}>KATEGORI</Text>
+                <AzelheimBadge label={kategori || 'UMUM'} variant="gray" />
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={[styles.label, { color: colors.faint }]}>RAK</Text>
+                <AzelheimBadge label={`RAK: ${rak || '-'}`} variant="blue" />
+              </View>
+            </View>
 
-        {isNew && (
-          <TextInput
-            label="Jumlah Salinan (Eksemplar Awal)"
-            value={jumlahSalinan}
-            onChangeText={setJumlahSalinan}
-            mode="outlined"
-            keyboardType="numeric"
-            style={styles.input}
+            <View style={{ marginTop: 10 }}>
+              <Text style={[styles.label, { color: colors.faint }]}>SINOPSIS</Text>
+              <Text style={[styles.sinopsis, { color: colors.muted }]}>
+                {sinopsis || 'Belum ada sinopsis untuk buku ini.'}
+              </Text>
+            </View>
+          </AzelheimCard>
+
+          {/* Eksemplar Card */}
+          <AzelheimCard style={{ marginBottom: 16 }}>
+            <View style={styles.cardHead}>
+              <View>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Eksemplar</Text>
+                <Text style={[styles.cardSub, { color: colors.muted }]}>
+                  Kode per salinan · generate bulk
+                </Text>
+              </View>
+              <AzelheimBadge label={`${totalSalinan} UNIT`} variant="gray" />
+            </View>
+
+            {salinanList.map((s) => (
+              <AzelheimMetaBox
+                key={s.id}
+                leftText={s.kode_eksemplar}
+                rightText={s.status.toUpperCase()}
+                style={{ marginTop: 6 }}
+              />
+            ))}
+
+            <AzelheimButton
+              variant="dark"
+              title="Cetak Kode"
+              icon={<Printer size={18} color={colors.bg} />}
+              onPress={handleCetakKode}
+              fullWidth
+              style={{ marginTop: 12 }}
+            />
+          </AzelheimCard>
+
+          {/* Action Row */}
+          {!isViewOnly && (
+            <View style={styles.buttonRow}>
+              <AzelheimButton
+                variant="light"
+                title="Edit Buku"
+                icon={<Pencil size={18} color={colors.text} />}
+                onPress={() => setIsEditing(true)}
+                style={{ flex: 1 }}
+              />
+              <AzelheimButton
+                variant="red"
+                title="Hapus"
+                icon={<Trash2 size={18} color={colors.danger} />}
+                onPress={handleHapus}
+                style={{ flex: 1 }}
+              />
+            </View>
+          )}
+        </>
+      ) : (
+        /* Edit / Create Form */
+        <AzelheimCard style={{ marginBottom: 16 }}>
+          {isNew && (
+            <View style={styles.isbnRow}>
+              <AzelheimInput
+                label="ISBN (Opsional)"
+                placeholder="Scan / Ketik ISBN..."
+                value={isbn}
+                onChangeText={setIsbn}
+                containerStyle={{ flex: 1, marginBottom: 0 }}
+                mono
+              />
+              <AzelheimButton
+                variant="dark"
+                title="Lookup"
+                icon={<Search size={18} color={colors.bg} />}
+                onPress={handleScanIsbn}
+                loading={loading}
+                style={{ minHeight: 40, alignSelf: 'flex-end', marginLeft: 8 }}
+              />
+            </View>
+          )}
+
+          <AzelheimInput
+            label="Judul Buku *"
+            placeholder="Judul lengkap buku..."
+            value={judul}
+            onChangeText={setJudul}
           />
-        )}
 
-        <TextInput label="Jumlah Halaman" value={jumlahHalaman} onChangeText={setJumlahHalaman} mode="outlined" style={styles.input} keyboardType="numeric" />
-        <TextInput label="Sinopsis" value={sinopsis} onChangeText={setSinopsis} mode="outlined" style={styles.input} multiline numberOfLines={4} />
+          <AzelheimInput
+            label="Penulis"
+            placeholder="Nama penulis..."
+            value={penulis}
+            onChangeText={setPenulis}
+          />
 
-        {!isViewOnly && (
-          <Button mode="contained" onPress={handleSimpan} style={styles.simpanBtn} loading={loading} disabled={loading}>
-            {isNew ? "Simpan Buku" : "Perbarui Buku"}
-          </Button>
-        )}
-
-        {/* Section: Salinan Eksemplar (Untuk Edit / Detail) */}
-        {!isNew && (
-          <Card style={styles.salinanCard} mode="outlined">
-            <Card.Title
-              title={`Salinan Eksemplar (${salinanList.filter(s => s.status === 'tersedia').length}/${salinanList.length} Tersedia)`}
-              titleStyle={{ fontSize: 14, fontWeight: 'bold' }}
-              left={() => <Copy size={20} color="#000" />}
+          <View style={styles.row2}>
+            <AzelheimInput
+              label="Penerbit"
+              placeholder="Penerbit..."
+              value={penerbit}
+              onChangeText={setPenerbit}
+              containerStyle={{ flex: 1 }}
             />
-            <Card.Content>
-              {salinanList.length === 0 ? (
-                <Text style={{ color: '#888', fontStyle: 'italic', marginBottom: 12 }}>Belum ada eksemplar tercatat.</Text>
-              ) : (
-                salinanList.map(s => {
-                  const digits = Math.max(2, String(Math.max(salinanList.length, s.nomor_urut)).length);
-                  const kodeStr = `Kode: ${String(s.nomor_urut).padStart(digits, '0')}`;
-                  return (
-                    <View key={s.id} style={styles.salinanRow}>
-                      <Text variant="bodyMedium" style={{ fontWeight: '500' }}>
-                        {kodeStr} <Text style={{ color: '#666', fontSize: 12 }}>({s.kode_eksemplar})</Text>
-                      </Text>
-                      <Chip
-                        style={{ backgroundColor: getStatusColor(s.status) + '1A', height: 28 }}
-                        textStyle={{ color: getStatusColor(s.status), fontSize: 11, lineHeight: 14 }}
-                      >
-                        {s.status}
-                      </Chip>
-                    </View>
-                  );
-                })
-              )}
+            <AzelheimInput
+              label="Tahun"
+              placeholder="Contoh: 2024"
+              value={tahun}
+              onChangeText={setTahun}
+              keyboardType="number-pad"
+              containerStyle={{ flex: 1 }}
+            />
+          </View>
 
-              {!isViewOnly && (
-                <>
-                  <Divider style={{ marginVertical: 12 }} />
-                  <Text variant="labelMedium" style={{ fontWeight: '600', marginBottom: 8 }}>Tambah Salinan Baru</Text>
-                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                    <TextInput
-                      label="Jumlah"
-                      value={tambahSalinanCount}
-                      onChangeText={setTambahSalinanCount}
-                      mode="outlined"
-                      keyboardType="numeric"
-                      style={{ width: 80, backgroundColor: '#FFF' }}
-                      dense
-                    />
-                    <Button
-                      mode="contained-tonal"
-                      icon={() => <Plus size={16} color="#000" />}
-                      onPress={handleTambahSalinan}
-                      loading={salinanLoading}
-                      disabled={salinanLoading}
-                      style={{ flex: 1, borderRadius: 8 }}
-                    >
-                      Tambah Eksemplar
-                    </Button>
-                  </View>
-                </>
-              )}
-            </Card.Content>
-          </Card>
-        )}
-      </ScrollView>
-      </KeyboardAvoidingView>
+          <View style={styles.row2}>
+            <AzelheimInput
+              label="Kategori"
+              placeholder="Contoh: Fiksi"
+              value={kategori}
+              onChangeText={setKategori}
+              containerStyle={{ flex: 1 }}
+            />
+            <AzelheimInput
+              label="Rak *"
+              placeholder="Contoh: 01"
+              value={rak}
+              onChangeText={setRak}
+              containerStyle={{ flex: 1 }}
+            />
+          </View>
 
-      <Snackbar visible={!!snackMsg} onDismiss={() => setSnackMsg('')} duration={3000}>
-        {snackMsg}
-      </Snackbar>
-    </View>
+          {isNew ? (
+            <AzelheimInput
+              label="Jumlah Salinan *"
+              placeholder="1"
+              value={jumlahSalinan}
+              onChangeText={setJumlahSalinan}
+              keyboardType="number-pad"
+            />
+          ) : (
+            <View style={{ marginVertical: 8 }}>
+              <Text style={[styles.label, { color: colors.faint }]}>
+                TAMBAH SALINAN EKSEMPLAR
+              </Text>
+              <View style={styles.row2}>
+                <AzelheimInput
+                  placeholder="Jumlah..."
+                  value={tambahSalinanCount}
+                  onChangeText={setTambahSalinanCount}
+                  keyboardType="number-pad"
+                  containerStyle={{ flex: 1, marginBottom: 0 }}
+                />
+                <AzelheimButton
+                  variant="purple"
+                  title="Tambah"
+                  icon={<Plus size={14} color={colors.text} />}
+                  onPress={handleTambahSalinan}
+                  loading={salinanLoading}
+                  style={{ height: 42, flex: 1 }}
+                />
+              </View>
+            </View>
+          )}
+
+          <AzelheimInput
+            label="Sinopsis (Opsional)"
+            placeholder="Deskripsi ringkas buku..."
+            value={sinopsis}
+            onChangeText={setSinopsis}
+            multiline
+          />
+
+          <View style={styles.buttonRow}>
+            {!isNew && (
+              <AzelheimButton
+                variant="light"
+                title="Batal"
+                onPress={() => setIsEditing(false)}
+                style={{ flex: 1 }}
+              />
+            )}
+            <AzelheimButton
+              variant="dark"
+              title={isNew ? 'Simpan Buku' : 'Simpan Perubahan'}
+              onPress={handleSimpan}
+              loading={loading}
+              disabled={loading}
+              style={{ flex: 1.5 }}
+            />
+          </View>
+        </AzelheimCard>
+      )}
+
+      <AzelheimToast
+        visible={!!snackMsg}
+        message={snackMsg}
+        onDismiss={() => setSnackMsg('')}
+        duration={3000}
+      />
+    </AzelheimScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  content: { padding: 16, paddingBottom: 40 },
-  input: { marginBottom: 12, backgroundColor: '#FFFFFF' },
-  row: { flexDirection: 'row' },
-  scanRow: { flexDirection: 'row', gap: 8, marginBottom: 12, alignItems: 'center' },
-  flexInput: { flex: 1, backgroundColor: '#FFFFFF' },
-  scanBtn: { borderRadius: 8, height: 50, justifyContent: 'center' },
-  simpanBtn: { marginTop: 16, borderRadius: 8 },
-  salinanCard: { marginTop: 24, backgroundColor: '#FFFFFF', borderRadius: 8 },
-  salinanRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  suggestionsContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4, marginBottom: 8, padding: 4, backgroundColor: '#FAFAFA', borderRadius: 8, borderWidth: 1, borderColor: '#E0E0E0' },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  topNavRow: {
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  cardHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  author: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  rule: {
+    borderTopWidth: 1,
+    marginVertical: 12,
+  },
+  grid2: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 10,
+  },
+  gridItem: {
+    width: '50%',
+    paddingRight: 6,
+  },
+  label: {
+    fontSize: 9.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  val: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  valMono: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  sinopsis: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  cardSub: {
+    fontSize: 10.5,
+    marginTop: 2,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  row2: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  isbnRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 10,
+  },
 });
-
-

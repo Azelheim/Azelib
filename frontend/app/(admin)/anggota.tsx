@@ -1,10 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Card, FAB, SegmentedButtons, Chip, Snackbar, ActivityIndicator } from 'react-native-paper';
+import React, { useState, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { Menu } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { Plus } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../lib/context/TenantContext';
-import { Plus } from 'lucide-react-native';
+import { useAzelheimTheme } from '../../lib/theme';
+import {
+  AzelheimScreen,
+  AzelheimSectionHeader,
+  AzelheimCard,
+  AzelheimSearchField,
+  AzelheimBadge,
+  AzelheimFab,
+  AzelheimToast,
+} from '../../lib/components/azelheim';
 
 interface AnggotaItem {
   id: string;
@@ -12,50 +30,49 @@ interface AnggotaItem {
   nama: string;
   kategori_anggota: string | null;
   kontak: string | null;
-  sedangMeminjam?: boolean;
+  peminjaman?: { id: string; status: string }[];
 }
 
 export default function AnggotaList() {
   const router = useRouter();
+  const { colors } = useAzelheimTheme();
   const { tenantId, userRole } = useTenant();
-  const [filterStatus, setFilterStatus] = useState('semua');
-  const [anggota, setAnggota] = useState<AnggotaItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [members, setMembers] = useState<AnggotaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [snackMsg, setSnackMsg] = useState('');
 
+  // Filters
+  const [filterKategori, setFilterKategori] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'semua' | 'meminjam' | 'bebas'>('semua');
+  const [kategoriMenuVisible, setKategoriMenuVisible] = useState(false);
+  const [statusMenuVisible, setStatusMenuVisible] = useState(false);
+
   useFocusEffect(
     useCallback(() => {
-      if (tenantId) fetchAnggota();
+      if (tenantId) {
+        fetchMembers();
+      } else {
+        setLoading(false);
+      }
     }, [tenantId])
   );
 
-  const fetchAnggota = async () => {
+  const fetchMembers = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('anggota')
-        .select('*')
+        .select(`
+          id, nomor_anggota, nama, kategori_anggota, kontak,
+          peminjaman(id, status)
+        `)
         .eq('tenant_id', tenantId)
         .eq('dihapus', false)
-        .order('created_at', { ascending: false });
+        .order('nama', { ascending: true });
 
       if (error) throw error;
-
-      // Check active loan per anggota
-      const { data: activeLoans } = await supabase
-        .from('peminjaman')
-        .select('anggota_id')
-        .eq('tenant_id', tenantId)
-        .eq('status', 'aktif');
-
-      const borrowingIds = new Set((activeLoans || []).map(l => l.anggota_id));
-
-      const processed = (data || []).map(a => ({
-        ...a,
-        sedangMeminjam: borrowingIds.has(a.id),
-      }));
-
-      setAnggota(processed);
+      setMembers((data as any[]) || []);
     } catch (e: any) {
       console.error(e);
       setSnackMsg(e.message || 'Gagal memuat daftar anggota');
@@ -64,68 +81,288 @@ export default function AnggotaList() {
     }
   };
 
-  const filteredAnggota = anggota.filter(item => {
-    if (filterStatus === 'meminjam') return item.sedangMeminjam;
-    if (filterStatus === 'tidak') return !item.sedangMeminjam;
-    return true;
-  });
+  const filteredMembers = useMemo(() => {
+    return members.filter((m) => {
+      // Search
+      const q = searchQuery.toLowerCase();
+      const matchSearch =
+        m.nama.toLowerCase().includes(q) ||
+        m.nomor_anggota.toLowerCase().includes(q) ||
+        (m.kontak && m.kontak.toLowerCase().includes(q));
+      if (!matchSearch) return false;
 
-  if (loading && anggota.length === 0) {
+      // Filter Kategori
+      if (filterKategori && m.kategori_anggota !== filterKategori) return false;
+
+      // Filter Status Pinjam
+      const hasActiveLoan = (m.peminjaman || []).some((p) => p.status === 'aktif');
+      if (filterStatus === 'meminjam' && !hasActiveLoan) return false;
+      if (filterStatus === 'bebas' && hasActiveLoan) return false;
+
+      return true;
+    });
+  }, [members, searchQuery, filterKategori, filterStatus]);
+
+  const renderMemberRow = (item: AnggotaItem, isLast: boolean) => {
+    const hasActiveLoan = (item.peminjaman || []).some((p) => p.status === 'aktif');
+
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
+      <TouchableOpacity
+        key={item.id}
+        activeOpacity={0.7}
+        onPress={() =>
+          router.push({
+            pathname: '/(admin)/anggota-detail',
+            params: { id: item.id },
+          })
+        }
+        style={[
+          styles.listItem,
+          { borderBottomColor: colors.line, borderBottomWidth: isLast ? 0 : 1 },
+        ]}
+      >
+        <View style={styles.itemMain}>
+          <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>
+            {item.nama}
+          </Text>
+          <Text style={[styles.itemSub, { color: colors.muted }]} numberOfLines={1}>
+            {item.nomor_anggota} · {item.kategori_anggota || 'Umum'} · {item.kontak || '-'}
+          </Text>
+        </View>
+
+        <AzelheimBadge
+          label={hasActiveLoan ? 'MEMINJAM' : 'BEBAS'}
+          variant={hasActiveLoan ? 'purple' : 'gray'}
+        />
+      </TouchableOpacity>
+    );
+  };
+
+  if (loading && members.length === 0) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <SegmentedButtons
-        value={filterStatus}
-        onValueChange={setFilterStatus}
-        buttons={[
-          { value: 'semua', label: 'Semua' },
-          { value: 'meminjam', label: 'Meminjam' },
-          { value: 'tidak', label: 'Tidak Meminjam' },
-        ]}
-        style={styles.segmented}
+    <AzelheimScreen scrollable={false} extraBottomPadding={80}>
+      <AzelheimSectionHeader title="Anggota" code="MEMB // 04" />
+
+      {/* Search Bar */}
+      <AzelheimSearchField
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Cari nama, nomor, atau kontak..."
       />
 
-      <FlatList
-        data={filteredAnggota}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <Card style={styles.card} mode="outlined" onPress={() => router.push({ pathname: '/(admin)/anggota-detail', params: { id: item.id } })}>
-            <Card.Title 
-              title={item.nama} 
-              subtitle={`${item.nomor_anggota} | ${item.kontak || '-'}`}
-              right={() => (
-                <Chip style={{ marginRight: 16, backgroundColor: item.sedangMeminjam ? '#E3F2FD' : '#F5F5F5' }}>
-                  {item.sedangMeminjam ? 'Meminjam' : 'Bebas Pinjam'}
-                </Chip>
-              )}
-            />
-          </Card>
-        )}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 32, color: '#666' }}>Belum ada anggota.</Text>}
-      />
+      {/* Filter Pill Row */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillScrollContent}
+        style={styles.pillScrollView}
+      >
+        <TouchableOpacity
+          onPress={() => {
+            setFilterKategori(null);
+            setFilterStatus('semua');
+          }}
+          activeOpacity={0.7}
+          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+        >
+          <AzelheimBadge
+            label="SEMUA"
+            variant={!filterKategori && filterStatus === 'semua' ? 'purple' : 'gray'}
+          />
+        </TouchableOpacity>
 
+        {/* Kategori Menu */}
+        <Menu
+          visible={kategoriMenuVisible}
+          onDismiss={() => setKategoriMenuVisible(false)}
+          anchor={
+            <TouchableOpacity
+              onPress={() => setKategoriMenuVisible(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
+              <AzelheimBadge
+                label={
+                  filterKategori
+                    ? `KAT: ${filterKategori.toUpperCase()}`
+                    : 'KATEGORI ▾'
+                }
+                variant={filterKategori ? 'purple' : 'gray'}
+              />
+            </TouchableOpacity>
+          }
+        >
+          <Menu.Item
+            onPress={() => {
+              setFilterKategori(null);
+              setKategoriMenuVisible(false);
+            }}
+            title="Semua Kategori"
+          />
+          <Menu.Item
+            onPress={() => {
+              setFilterKategori('Siswa');
+              setKategoriMenuVisible(false);
+            }}
+            title="Siswa"
+          />
+          <Menu.Item
+            onPress={() => {
+              setFilterKategori('Guru');
+              setKategoriMenuVisible(false);
+            }}
+            title="Guru"
+          />
+          <Menu.Item
+            onPress={() => {
+              setFilterKategori('Staff');
+              setKategoriMenuVisible(false);
+            }}
+            title="Staff"
+          />
+          <Menu.Item
+            onPress={() => {
+              setFilterKategori('Umum');
+              setKategoriMenuVisible(false);
+            }}
+            title="Umum"
+          />
+        </Menu>
+
+        {/* Status Menu */}
+        <Menu
+          visible={statusMenuVisible}
+          onDismiss={() => setStatusMenuVisible(false)}
+          anchor={
+            <TouchableOpacity
+              onPress={() => setStatusMenuVisible(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
+              <AzelheimBadge
+                label={
+                  filterStatus === 'meminjam'
+                    ? 'STATUS: MEMINJAM'
+                    : filterStatus === 'bebas'
+                    ? 'STATUS: BEBAS'
+                    : 'STATUS ▾'
+                }
+                variant={filterStatus !== 'semua' ? 'purple' : 'gray'}
+              />
+            </TouchableOpacity>
+          }
+        >
+          <Menu.Item
+            onPress={() => {
+              setFilterStatus('semua');
+              setStatusMenuVisible(false);
+            }}
+            title="Semua Status"
+          />
+          <Menu.Item
+            onPress={() => {
+              setFilterStatus('meminjam');
+              setStatusMenuVisible(false);
+            }}
+            title="Sedang Meminjam"
+          />
+          <Menu.Item
+            onPress={() => {
+              setFilterStatus('bebas');
+              setStatusMenuVisible(false);
+            }}
+            title="Bebas Pinjaman"
+          />
+        </Menu>
+      </ScrollView>
+
+      {/* List */}
+      <AzelheimCard style={{ flex: 1, padding: 4, marginBottom: 0 }}>
+        <FlatList
+          data={filteredMembers}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) =>
+            renderMemberRow(item, index === filteredMembers.length - 1)
+          }
+          ListEmptyComponent={
+            <Text style={[styles.emptyText, { color: colors.muted }]}>
+              Tidak ada anggota yang sesuai.
+            </Text>
+          }
+        />
+      </AzelheimCard>
+
+      {/* FAB Add Member */}
       {userRole !== 'staff' && (
-        <FAB icon={() => <Plus size={24} color="#FFF" />} style={styles.fab} onPress={() => router.push({ pathname: '/(admin)/anggota-detail', params: { id: 'tambah' } })} />
+        <AzelheimFab
+          icon={<Plus size={22} color={colors.bg} />}
+          onPress={() =>
+            router.push({
+              pathname: '/(admin)/anggota-detail',
+              params: { id: 'tambah' },
+            })
+          }
+          accessibilityLabel="Tambah Anggota"
+        />
       )}
 
-      <Snackbar visible={!!snackMsg} onDismiss={() => setSnackMsg('')} duration={3000}>
-        {snackMsg}
-      </Snackbar>
-    </View>
+      <AzelheimToast
+        visible={!!snackMsg}
+        message={snackMsg}
+        onDismiss={() => setSnackMsg('')}
+        duration={3000}
+      />
+    </AzelheimScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  segmented: { margin: 16, marginBottom: 8 },
-  list: { padding: 16, paddingTop: 8, paddingBottom: 80 },
-  card: { marginBottom: 12, backgroundColor: '#FFFFFF' },
-  fab: { position: 'absolute', margin: 16, right: 0, bottom: 0, backgroundColor: '#000000' }
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pillScrollView: {
+    marginBottom: 10,
+    maxHeight: 36,
+  },
+  pillScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+  },
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 8,
+  },
+  itemMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  itemTitle: {
+    fontWeight: '800',
+    fontSize: 12.5,
+  },
+  itemSub: {
+    fontSize: 10.5,
+    marginTop: 2,
+  },
+  emptyText: {
+    textAlign: 'center',
+    paddingVertical: 32,
+    fontSize: 12,
+  },
 });

@@ -1,27 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Alert, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
-import { Text, Button, TextInput, Card, ActivityIndicator, Snackbar, Chip, Divider } from 'react-native-paper';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Plus, RefreshCw, LogOut, ArrowRight } from 'lucide-react-native';
 import { apiClient } from '../lib/api/apiClient';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../lib/context/TenantContext';
 import { saveLastActiveTenant, logoutAccount } from '../lib/session';
-import { Building2, Plus, Mail, ArrowRight, LogOut } from 'lucide-react-native';
+import { useAzelheimTheme } from '../lib/theme';
+import {
+  AzelheimScreen,
+  AzelheimSectionHeader,
+  AzelheimCard,
+  AzelheimButton,
+  AzelheimBadge,
+  AzelheimMetaBox,
+  AzelheimInput,
+  AzelheimToast,
+} from '../lib/components/azelheim';
 
 interface LibraryItem {
   tenant_id: string;
   nama: string;
   role: string;
+  alamat?: string;
 }
 
 export default function TenantSetup() {
   const router = useRouter();
+  const { colors } = useAzelheimTheme();
   const { setActiveTenant, clearTenant } = useTenant();
   const [viewMode, setViewMode] = useState<'select' | 'options' | 'create' | 'join'>('options');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [snackMsg, setSnackMsg] = useState('');
-  
+
   // Existing memberships
   const [userLibraries, setUserLibraries] = useState<LibraryItem[]>([]);
 
@@ -51,6 +63,7 @@ export default function TenantSetup() {
             tenant_id: m.tenant_id,
             nama: m.tenant?.nama || 'Perpustakaan',
             role: m.role || 'staff',
+            alamat: m.tenant?.alamat || '',
           }));
           setUserLibraries(libs);
           setViewMode('select');
@@ -73,9 +86,9 @@ export default function TenantSetup() {
     }
     setLoading(true);
     try {
-      const result = await apiClient.tenant.create(nama, alamat);
-      await saveLastActiveTenant({ id: result.tenant_id, nama, role: 'owner' });
-      setActiveTenant(result.tenant_id, nama, 'owner');
+      const result = await apiClient.tenant.create(nama.trim(), alamat.trim());
+      await saveLastActiveTenant({ id: result.tenant_id, nama: nama.trim(), role: 'owner' });
+      setActiveTenant(result.tenant_id, nama.trim(), 'owner');
       router.replace('/(admin)/dashboard');
     } catch (e: any) {
       console.error(e);
@@ -121,261 +134,354 @@ export default function TenantSetup() {
   const handleKeluarAkun = () => {
     Alert.alert('Keluar Akun', 'Apakah Anda yakin ingin keluar dari akun Anda?', [
       { text: 'Batal', style: 'cancel' },
-      { text: 'Keluar', style: 'destructive', onPress: async () => {
-        await logoutAccount();
-        clearTenant();
-        router.replace('/login');
-      }},
+      {
+        text: 'Keluar',
+        style: 'destructive',
+        onPress: async () => {
+          await logoutAccount();
+          clearTenant();
+          router.replace('/login');
+        },
+      },
     ]);
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    if (role === 'owner') return '#1565C0';
-    if (role === 'admin') return '#E65100';
-    return '#2E7D32';
+  const getBadgeVariant = (role: string) => {
+    if (role === 'owner') return 'green';
+    if (role === 'admin') return 'blue';
+    return 'gray';
   };
 
   if (initialLoading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.center, { backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
 
-  // 1. Select Mode: User has 1 or more libraries
+  // 1. Select Mode
   const renderSelect = () => (
-    <View style={styles.formContainer}>
-      <Text variant="headlineSmall" style={styles.title}>Pilih Perpustakaan</Text>
-      <Text variant="bodyMedium" style={{ textAlign: 'center', marginBottom: 20, color: '#666' }}>
-        Pilih perpustakaan yang ingin Anda kelola atau masuki:
-      </Text>
+    <>
+      <AzelheimSectionHeader title="Pilih Perpustakaan" code="TENANT // HUB" />
 
-      <FlatList
-        data={userLibraries}
-        keyExtractor={(item) => item.tenant_id}
-        renderItem={({ item }) => (
-          <Card
-            style={styles.card}
-            mode="outlined"
-            onPress={() => handleSelectLibrary(item.tenant_id, item.nama, item.role)}
-          >
-            <Card.Title
-              title={item.nama}
-              titleStyle={{ fontWeight: 'bold' }}
-              left={() => <Building2 size={24} color="#000" />}
-              right={() => (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
-                  <Chip style={{ backgroundColor: getRoleBadgeColor(item.role) + '1A', marginRight: 8 }}>
-                    {item.role.toUpperCase()}
-                  </Chip>
-                  <ArrowRight size={20} color="#666" />
-                </View>
-              )}
-            />
-          </Card>
-        )}
-      />
-
-      <Divider style={{ marginVertical: 16 }} />
-
-      <View style={{ flexDirection: 'column', gap: 10 }}>
-        <Button
-          mode="contained"
-          icon={() => <Plus size={18} color="#FFF" />}
-          onPress={() => setViewMode('create')}
-          style={styles.button}
-        >
-          Buat Perpustakaan Baru
-        </Button>
-        <Button
-          mode="outlined"
-          icon={() => <Mail size={18} color="#000" />}
-          onPress={() => { setViewMode('join'); loadInvitations(); }}
-          style={styles.button}
-        >
-          Cek Undangan Lain
-        </Button>
-        <Button
-          mode="text"
-          textColor="#D32F2F"
-          icon={() => <LogOut size={16} color="#D32F2F" />}
-          onPress={handleKeluarAkun}
-          style={{ marginTop: 8 }}
-        >
-          Keluar Akun
-        </Button>
+      <View style={styles.hero}>
+        <Text style={[styles.eyebrow, { color: colors.muted }]}>
+          SELAMAT DATANG KEMBALI
+        </Text>
+        <Text style={[styles.heroTitle, { color: colors.text }]}>
+          Pilih tempat{'\n'}kamu bekerja.
+        </Text>
       </View>
-    </View>
+
+      {userLibraries.map((lib) => (
+        <AzelheimCard
+          key={lib.tenant_id}
+          onPress={() => handleSelectLibrary(lib.tenant_id, lib.nama, lib.role)}
+          style={{ marginBottom: 12 }}
+        >
+          <View style={styles.cardHead}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                {lib.nama}
+              </Text>
+              <Text style={[styles.cardSub, { color: colors.muted }]}>
+                {lib.alamat || 'Perpustakaan Terdaftar'}
+              </Text>
+            </View>
+            <AzelheimBadge
+              label={lib.role}
+              variant={getBadgeVariant(lib.role)}
+            />
+          </View>
+          <AzelheimMetaBox
+            leftText="LAST ACCESS"
+            rightText="HARI INI"
+            style={{ marginTop: 10 }}
+          />
+        </AzelheimCard>
+      ))}
+
+      <View style={styles.buttonRow}>
+        <AzelheimButton
+          variant="purple"
+          title="Buat Baru"
+          icon={<Plus size={18} color={colors.text} />}
+          onPress={() => setViewMode('create')}
+          style={{ flex: 1 }}
+        />
+        <AzelheimButton
+          variant="light"
+          title="Undangan"
+          onPress={() => {
+            setViewMode('join');
+            loadInvitations();
+          }}
+          style={{ flex: 1 }}
+        />
+      </View>
+
+      <AzelheimButton
+        variant="red"
+        title="Keluar Akun"
+        icon={<LogOut size={18} color={colors.danger} />}
+        onPress={handleKeluarAkun}
+        fullWidth
+        style={{ marginTop: 16 }}
+      />
+    </>
   );
 
-  // 2. Options Mode: 0 libraries
+  // 2. Options Mode (0 libraries)
   const renderOptions = () => (
-    <View style={styles.optionsContainer}>
-      <Text variant="headlineSmall" style={styles.title}>Mulai Mengelola Perpustakaan</Text>
-      <Button mode="contained" onPress={() => setViewMode('create')} style={styles.button}>
-        Buat Baru
-      </Button>
-      <Button mode="outlined" onPress={() => { setViewMode('join'); loadInvitations(); }} style={styles.button}>
-        Gabung Undangan
-      </Button>
-      <Button
-        mode="text"
-        textColor="#D32F2F"
-        icon={() => <LogOut size={16} color="#D32F2F" />}
+    <>
+      <AzelheimSectionHeader title="Mulai Perpustakaan" code="TENANT // INIT" />
+
+      <View style={styles.hero}>
+        <Text style={[styles.eyebrow, { color: colors.muted }]}>
+          MEMULAI AZELHEIM
+        </Text>
+        <Text style={[styles.heroTitle, { color: colors.text }]}>
+          Kelola perpustakaan{'\n'}pertama Anda.
+        </Text>
+      </View>
+
+      <AzelheimCard style={{ marginBottom: 16 }}>
+        <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 4 }]}>
+          Buat Perpustakaan Baru
+        </Text>
+        <Text style={[styles.cardSub, { color: colors.muted, marginBottom: 12 }]}>
+          Daftarkan sekolah atau instansi Anda dan mulai kelola buku.
+        </Text>
+        <AzelheimButton
+          variant="dark"
+          title="Buat Baru"
+          icon={<Plus size={18} color={colors.bg} />}
+          onPress={() => setViewMode('create')}
+          fullWidth
+        />
+      </AzelheimCard>
+
+      <AzelheimCard style={{ marginBottom: 16 }}>
+        <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 4 }]}>
+          Gabung Lewat Undangan
+        </Text>
+        <Text style={[styles.cardSub, { color: colors.muted, marginBottom: 12 }]}>
+          Periksa apakah ada undangan masuk ke email Anda.
+        </Text>
+        <AzelheimButton
+          variant="light"
+          title="Cek Undangan"
+          onPress={() => {
+            setViewMode('join');
+            loadInvitations();
+          }}
+          fullWidth
+        />
+      </AzelheimCard>
+
+      <AzelheimButton
+        variant="red"
+        title="Keluar Akun"
+        icon={<LogOut size={18} color={colors.danger} />}
         onPress={handleKeluarAkun}
-        style={{ marginTop: 16 }}
-      >
-        Keluar Akun
-      </Button>
-    </View>
+        fullWidth
+        style={{ marginTop: 8 }}
+      />
+    </>
   );
 
   // 3. Create Mode
   const renderCreate = () => (
-    <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled">
-      <Text variant="titleLarge" style={styles.subtitle}>Buat Perpustakaan Baru</Text>
-      <TextInput
-        label="Nama Perpustakaan"
-        value={nama}
-        onChangeText={setNama}
-        mode="outlined"
-        style={styles.input}
-      />
-      <TextInput
-        label="Alamat"
-        value={alamat}
-        onChangeText={setAlamat}
-        mode="outlined"
-        style={styles.input}
-        multiline
-        numberOfLines={3}
-      />
-      <View style={styles.actionRow}>
-        <Button
-          mode="text"
-          onPress={() => setViewMode(userLibraries.length > 0 ? 'select' : 'options')}
-          style={{ flex: 1 }}
-        >
-          Batal
-        </Button>
-        <Button
-          mode="contained"
-          onPress={handleCreate}
-          loading={loading}
-          disabled={loading}
-          style={{ flex: 1 }}
-        >
-          Buat
-        </Button>
-      </View>
-    </ScrollView>
+    <>
+      <AzelheimSectionHeader title="Buat Baru" code="TENANT // CREATE" />
+
+      <AzelheimCard style={{ marginBottom: 16 }}>
+        <Text style={[styles.eyebrow, { color: colors.muted, marginBottom: 4 }]}>
+          PERPUSTAKAAN BARU
+        </Text>
+        <Text style={[styles.mainTitle, { color: colors.text, marginBottom: 14 }]}>
+          Data Perpustakaan
+        </Text>
+
+        <AzelheimInput
+          label="Nama Perpustakaan"
+          placeholder="Contoh: SMA Negeri 1 Jakarta"
+          value={nama}
+          onChangeText={setNama}
+        />
+
+        <AzelheimInput
+          label="Alamat (Opsional)"
+          placeholder="Jl. Pendidikan No. 12..."
+          value={alamat}
+          onChangeText={setAlamat}
+          multiline
+        />
+
+        <View style={styles.buttonRow}>
+          <AzelheimButton
+            variant="light"
+            title="Batal"
+            onPress={() =>
+              setViewMode(userLibraries.length > 0 ? 'select' : 'options')
+            }
+            style={{ flex: 1 }}
+          />
+          <AzelheimButton
+            variant="dark"
+            title="Simpan & Masuk"
+            onPress={handleCreate}
+            loading={loading}
+            disabled={loading}
+            style={{ flex: 1.5 }}
+          />
+        </View>
+      </AzelheimCard>
+    </>
   );
 
   // 4. Join Mode
   const renderJoin = () => (
-    <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled">
-      <Text variant="titleLarge" style={styles.subtitle}>Undangan Bergabung</Text>
+    <>
+      <AzelheimSectionHeader title="Undangan Masuk" code="TENANT // INVITES" />
+
       {loading ? (
-        <ActivityIndicator size="large" style={{ marginTop: 32 }} />
+        <View style={styles.center}>
+          <ActivityIndicator size="small" color={colors.text} />
+        </View>
       ) : invitations.length === 0 ? (
-        <Text style={styles.emptyText}>Tidak ada undangan masuk saat ini.</Text>
+        <AzelheimCard style={{ marginBottom: 16 }}>
+          <Text style={[styles.cardTitle, { color: colors.text, textAlign: 'center' }]}>
+            Tidak Ada Undangan
+          </Text>
+          <Text
+            style={[
+              styles.cardSub,
+              { color: colors.muted, textAlign: 'center', marginTop: 4 },
+            ]}
+          >
+            Belum ada undangan bergabung ke perpustakaan lain saat ini.
+          </Text>
+        </AzelheimCard>
       ) : (
-        <FlatList
-          data={invitations}
-          keyExtractor={(item) => item.tenant_id}
-          scrollEnabled={false}
-          renderItem={({ item }) => (
-            <Card
-              style={styles.card}
-              mode="outlined"
-              onPress={() => handleJoin(item.tenant_id, item.nama_tenant, item.role_ditawarkan)}
-            >
-              <Card.Title
-                title={item.nama_tenant}
-                subtitle={`Peran yang ditawarkan: ${item.role_ditawarkan}`}
-                right={() => <Button mode="contained-tonal">Gabung</Button>}
+        invitations.map((inv) => (
+          <AzelheimCard key={inv.tenant_id} style={{ marginBottom: 12 }}>
+            <View style={styles.cardHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  {inv.nama_tenant}
+                </Text>
+                <Text style={[styles.cardSub, { color: colors.muted }]}>
+                  Peran ditawarkan: {inv.role_ditawarkan}
+                </Text>
+              </View>
+              <AzelheimBadge label="PENDING" variant="amber" />
+            </View>
+            <View style={[styles.buttonRow, { marginTop: 10 }]}>
+              <AzelheimButton
+                variant="dark"
+                title="Gabung"
+                icon={<ArrowRight size={18} color={colors.bg} />}
+                onPress={() =>
+                  handleJoin(
+                    inv.tenant_id,
+                    inv.nama_tenant,
+                    inv.role_ditawarkan
+                  )
+                }
+                style={{ flex: 1 }}
               />
-            </Card>
-          )}
-        />
+            </View>
+          </AzelheimCard>
+        ))
       )}
-      <Button
-        mode="text"
-        onPress={() => setViewMode(userLibraries.length > 0 ? 'select' : 'options')}
-        style={{ marginTop: 16 }}
-      >
-        Kembali
-      </Button>
-    </ScrollView>
+
+      <View style={styles.buttonRow}>
+        <AzelheimButton
+          variant="light"
+          title="Kembali"
+          onPress={() =>
+            setViewMode(userLibraries.length > 0 ? 'select' : 'options')
+          }
+          style={{ flex: 1 }}
+        />
+        <AzelheimButton
+          variant="purple"
+          title="Refresh"
+          icon={<RefreshCw size={18} color={colors.text} />}
+          onPress={loadInvitations}
+          style={{ flex: 1 }}
+        />
+      </View>
+    </>
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
+    <AzelheimScreen>
       {viewMode === 'select' && renderSelect()}
       {viewMode === 'options' && renderOptions()}
       {viewMode === 'create' && renderCreate()}
       {viewMode === 'join' && renderJoin()}
-      <Snackbar
+
+      <AzelheimToast
         visible={!!snackMsg}
+        message={snackMsg}
         onDismiss={() => setSnackMsg('')}
         duration={3000}
-      >
-        {snackMsg}
-      </Snackbar>
-    </KeyboardAvoidingView>
+      />
+    </AzelheimScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  center: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 24,
     justifyContent: 'center',
-  },
-  optionsContainer: {
     alignItems: 'center',
+    paddingVertical: 32,
   },
-  title: {
-    marginBottom: 16,
-    textAlign: 'center',
-    fontWeight: 'bold',
+  hero: {
+    paddingBottom: 14,
   },
-  subtitle: {
-    marginBottom: 24,
-    fontWeight: '600',
+  eyebrow: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
-  button: {
-    width: '100%',
-    paddingVertical: 4,
-    borderRadius: 8,
+  heroTitle: {
+    fontSize: 26,
+    lineHeight: 28,
+    fontWeight: '800',
+    letterSpacing: -1,
+    marginTop: 6,
   },
-  formContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingBottom: 60,
+  mainTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
-  input: {
-    marginBottom: 16,
-    backgroundColor: '#FFFFFF',
-  },
-  actionRow: {
+  cardHead: {
     flexDirection: 'row',
-    marginTop: 16,
-    gap: 16,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  card: {
-    marginBottom: 12,
-    backgroundColor: '#FFFFFF',
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 32,
-    color: '#666',
-  }
+  cardSub: {
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
 });
-

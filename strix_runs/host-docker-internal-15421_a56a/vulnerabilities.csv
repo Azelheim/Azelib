@@ -1,0 +1,4 @@
+id,title,severity,timestamp,file
+vuln-0001,Unauthenticated arbitrary SQL execution and database control via exposed postgres-meta API,CRITICAL,2026-08-26 07:39:14 UTC,vulnerabilities/vuln-0001.md
+vuln-0002,Predictable JWT signing secret enables forged service_role token and full account takeover,CRITICAL,2026-08-26 07:41:25 UTC,vulnerabilities/vuln-0002.md
+vuln-0003,Refresh token rotation does not invalidate prior tokens (no reuse detection),MEDIUM,2026-08-26 07:42:16 UTC,vulnerabilities/vuln-0003.md

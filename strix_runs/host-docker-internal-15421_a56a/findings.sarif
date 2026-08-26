@@ -1,0 +1,252 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Strix",
+          "informationUri": "https://strix.ai",
+          "rules": [
+            {
+              "id": "CWE-306",
+              "name": "Unauthenticated arbitrary SQL execution and database control via exposed postgres-meta API",
+              "shortDescription": {
+                "text": "Unauthenticated arbitrary SQL execution and database control via exposed postgres-meta API"
+              },
+              "fullDescription": {
+                "text": "The Supabase postgres-meta service is exposed at `/pg/*` on the public Kong gateway with no authentication. Any unauthenticated client can execute arbitrary SQL against the underlying PostgreSQL database via `POST /pg/query` (as the `postgres` role) and create/drop tables via `POST /pg/tables`. This yields full read and write access to all database data — including user PII and password hashes in `auth.users` — and completely bypasses the Row Level Security model that the application relies on. The REST API layer is correctly gated (all tables return HTTP 401 for anonymous users), which means the unauthenticated postgres-meta route nullifies the application's entire access-control design."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "help": {
+                "text": "The Supabase postgres-meta service is exposed at `/pg/*` on the public Kong gateway with no authentication. Any unauthenticated client can execute arbitrary SQL against the underlying PostgreSQL database via `POST /pg/query` (as the `postgres` role) and create/drop tables via `POST /pg/tables`. This yields full read and write access to all database data — including user PII and password hashes in `auth.users` — and completely bypasses the Row Level Security model that the application relies on. The REST API layer is correctly gated (all tables return HTTP 401 for anonymous users), which means the unauthenticated postgres-meta route nullifies the application's entire access-control design.\n\nUnauthenticated, arbitrary SQL execution against the primary PostgreSQL database. Demonstrated actions include reading every table's data (including `auth.users` emails and bcrypt password hashes for all registered accounts), inserting new rows across tables (with foreign-key chains), deleting rows, dropping tables, and creating tables. Because the executing role has `can_bypass_rls`, the Row Level Security policies are completely ineffective against this channel. An attacker can exfiltrate all stored data, tamper with or destroy data, and escalate to creating roles/databases — a total compromise of the application's data plane.\n\nRemove the postgres-meta routes from the public origin entirely, since they are a management surface equivalent to the Supabase dashboard and must never be reachable over the internet. Configure the Kong gateway to deny external access to `/pg/*` (return 404 or 403 for all methods and all `/pg/*` paths), and only allow postgres-meta from the internal/trusted management network where schema-editing tooling legitimately calls it. As defense in depth, ensure the postgres-meta service itself requires an approved API token/role so that even an internal compromise cannot reach it, and verify no other service is behind an unauthenticated Kong route. After restricting the route, re-validate that `/pg/*` no longer responds anonymously and that `POST /pg/query` cannot be reached.",
+                "markdown": "The Supabase postgres-meta service is exposed at `/pg/*` on the public Kong gateway with no authentication. Any unauthenticated client can execute arbitrary SQL against the underlying PostgreSQL database via `POST /pg/query` (as the `postgres` role) and create/drop tables via `POST /pg/tables`. This yields full read and write access to all database data — including user PII and password hashes in `auth.users` — and completely bypasses the Row Level Security model that the application relies on. The REST API layer is correctly gated (all tables return HTTP 401 for anonymous users), which means the unauthenticated postgres-meta route nullifies the application's entire access-control design.\n\nUnauthenticated, arbitrary SQL execution against the primary PostgreSQL database. Demonstrated actions include reading every table's data (including `auth.users` emails and bcrypt password hashes for all registered accounts), inserting new rows across tables (with foreign-key chains), deleting rows, dropping tables, and creating tables. Because the executing role has `can_bypass_rls`, the Row Level Security policies are completely ineffective against this channel. An attacker can exfiltrate all stored data, tamper with or destroy data, and escalate to creating roles/databases — a total compromise of the application's data plane.\n\nRemove the postgres-meta routes from the public origin entirely, since they are a management surface equivalent to the Supabase dashboard and must never be reachable over the internet. Configure the Kong gateway to deny external access to `/pg/*` (return 404 or 403 for all methods and all `/pg/*` paths), and only allow postgres-meta from the internal/trusted management network where schema-editing tooling legitimately calls it. As defense in depth, ensure the postgres-meta service itself requires an approved API token/role so that even an internal compromise cannot reach it, and verify no other service is behind an unauthenticated Kong route. After restricting the route, re-validate that `/pg/*` no longer responds anonymously and that `POST /pg/query` cannot be reached."
+              },
+              "properties": {
+                "security-severity": "9.8",
+                "tags": [
+                  "security",
+                  "CWE-306",
+                  "stride:S",
+                  "stride:E"
+                ]
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/306.html"
+            },
+            {
+              "id": "CWE-798",
+              "name": "Predictable JWT signing secret enables forged service_role token and full account takeover",
+              "shortDescription": {
+                "text": "Predictable JWT signing secret enables forged service_role token and full account takeover"
+              },
+              "fullDescription": {
+                "text": "The Supabase deployment signs JWTs with the publicly known default secret `super-secret-jwt-token-with-at-least-32-characters-long`. Any unauthenticated attacker can forge a valid HS256 `service_role` JWT and gain full GoTrue admin privileges: enumerate every registered user and reset any account's password, achieving complete account takeover. The forged token is also accepted as the PostgREST `service_role` DB role, which bypasses Row Level Security."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "help": {
+                "text": "The Supabase deployment signs JWTs with the publicly known default secret `super-secret-jwt-token-with-at-least-32-characters-long`. Any unauthenticated attacker can forge a valid HS256 `service_role` JWT and gain full GoTrue admin privileges: enumerate every registered user and reset any account's password, achieving complete account takeover. The forged token is also accepted as the PostgREST `service_role` DB role, which bypasses Row Level Security.\n\nAn attacker with no prior access can mint arbitrary JWTs for any role and any user identity. Demonstrated consequences include: (1) listing all 15 registered accounts and their PII via `GET /auth/v1/admin/users`; (2) resetting any user's password via `PUT /auth/v1/admin/users/{id}` and logging in with the attacker-chosen password (full account takeover); and (3) causing PostgREST to execute queries as the `service_role` database role, which ignores RLS policies. Because the signing secret is shared by Kong/PostgREST/GoTrue/Storage, the compromise spans all Supabase services under this origin.\n\nReplace the `JWT_SECRET` with a high-entropy random value (at least 64 bytes) and rotate it across all Supabase services (GoTrue, PostgREST, Kong, Storage, Realtime) so they all verify against the new secret. Regenerate the `anon` and `service_role` API keys accordingly. Set `GOTRUE_SIGNING_KEY`/`JWT_SECRET` to the new value and restart the services. Audit `auth.users` for any accounts whose passwords were altered by an unauthorized party, and enable token-rotation reuse detection for refresh tokens as defense in depth. Also configure a secrets manager and avoid committing secret values to version control or docker-compose templates.",
+                "markdown": "The Supabase deployment signs JWTs with the publicly known default secret `super-secret-jwt-token-with-at-least-32-characters-long`. Any unauthenticated attacker can forge a valid HS256 `service_role` JWT and gain full GoTrue admin privileges: enumerate every registered user and reset any account's password, achieving complete account takeover. The forged token is also accepted as the PostgREST `service_role` DB role, which bypasses Row Level Security.\n\nAn attacker with no prior access can mint arbitrary JWTs for any role and any user identity. Demonstrated consequences include: (1) listing all 15 registered accounts and their PII via `GET /auth/v1/admin/users`; (2) resetting any user's password via `PUT /auth/v1/admin/users/{id}` and logging in with the attacker-chosen password (full account takeover); and (3) causing PostgREST to execute queries as the `service_role` database role, which ignores RLS policies. Because the signing secret is shared by Kong/PostgREST/GoTrue/Storage, the compromise spans all Supabase services under this origin.\n\nReplace the `JWT_SECRET` with a high-entropy random value (at least 64 bytes) and rotate it across all Supabase services (GoTrue, PostgREST, Kong, Storage, Realtime) so they all verify against the new secret. Regenerate the `anon` and `service_role` API keys accordingly. Set `GOTRUE_SIGNING_KEY`/`JWT_SECRET` to the new value and restart the services. Audit `auth.users` for any accounts whose passwords were altered by an unauthorized party, and enable token-rotation reuse detection for refresh tokens as defense in depth. Also configure a secrets manager and avoid committing secret values to version control or docker-compose templates."
+              },
+              "properties": {
+                "security-severity": "9.8",
+                "tags": [
+                  "security",
+                  "CWE-798",
+                  "stride:S",
+                  "stride:I"
+                ]
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/798.html"
+            },
+            {
+              "id": "CWE-613",
+              "name": "Refresh token rotation does not invalidate prior tokens (no reuse detection)",
+              "shortDescription": {
+                "text": "Refresh token rotation does not invalidate prior tokens (no reuse detection)"
+              },
+              "fullDescription": {
+                "text": "The GoTrue token endpoint at /auth/v1/token rotates refresh tokens on use but does not invalidate the superseded token, and there is no reuse detection. A refresh token that has already been rotated can be replayed indefinitely to obtain valid access tokens, so a stolen token cannot be neutralized by rotation and grants a persistent authenticated session."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "help": {
+                "text": "The GoTrue token endpoint at /auth/v1/token rotates refresh tokens on use but does not invalidate the superseded token, and there is no reuse detection. A refresh token that has already been rotated can be replayed indefinitely to obtain valid access tokens, so a stolen token cannot be neutralized by rotation and grants a persistent authenticated session.\n\nRefresh token rotation is intended to cap the damage from a stolen refresh token by making each token single-use. Because previously issued refresh tokens remain valid and are not flagged on reuse, a stolen or leaked refresh token can be replayed any number of times to mint new access tokens, keeping the attacker session alive for the full session lifetime regardless of the legitimate user's token rotation. This weakens session invalidation and extends the window in which a compromised token can be abused.\n\nEnable refresh-token reuse detection and a reuse grace period in GoTrue (e.g. configure single-use refresh token enforcement and the reuse interval option) so that a previously rotated refresh token is rejected and the affected session is invalidated on reuse. Where possible, revoke all outstanding refresh tokens for a session whenever a new one is issued, and bind refresh tokens to the issuing client to limit replay from a stolen token.",
+                "markdown": "The GoTrue token endpoint at /auth/v1/token rotates refresh tokens on use but does not invalidate the superseded token, and there is no reuse detection. A refresh token that has already been rotated can be replayed indefinitely to obtain valid access tokens, so a stolen token cannot be neutralized by rotation and grants a persistent authenticated session.\n\nRefresh token rotation is intended to cap the damage from a stolen refresh token by making each token single-use. Because previously issued refresh tokens remain valid and are not flagged on reuse, a stolen or leaked refresh token can be replayed any number of times to mint new access tokens, keeping the attacker session alive for the full session lifetime regardless of the legitimate user's token rotation. This weakens session invalidation and extends the window in which a compromised token can be abused.\n\nEnable refresh-token reuse detection and a reuse grace period in GoTrue (e.g. configure single-use refresh token enforcement and the reuse interval option) so that a previously rotated refresh token is rejected and the affected session is invalidated on reuse. Where possible, revoke all outstanding refresh tokens for a session whenever a new one is issued, and bind refresh tokens to the issuing client to limit replay from a stolen token."
+              },
+              "properties": {
+                "security-severity": "6.5",
+                "tags": [
+                  "security",
+                  "CWE-613",
+                  "stride:S"
+                ]
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/613.html"
+            }
+          ],
+          "version": "1.5.3"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-306",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Unauthenticated arbitrary SQL execution and database control via exposed postgres-meta API\n\nThe Supabase postgres-meta service is exposed at `/pg/*` on the public Kong gateway with no authentication. Any unauthenticated client can execute arbitrary SQL against the underlying PostgreSQL database via `POST /pg/query` (as the `postgres` role) and create/drop tables via `POST /pg/tables`. This yields full read and write access to all database data — including user PII and password hashes in `auth.users` — and completely bypasses the Row Level Security model that the application relies on. The REST API layer is correctly gated (all tables return HTTP 401 for anonymous users), which means the unauthenticated postgres-meta route nullifies the application's entire access-control design."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "SECURITY.md"
+                }
+              }
+            },
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "/pg/query",
+                  "kind": "endpoint"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "aea7636693444dcea33ed4c78809717bd302310f0f67773d68ed03ab31dfb0fc"
+          },
+          "properties": {
+            "security-severity": "9.8",
+            "strix_vuln_class_hash": "acaa905326949d7603bf4ffc8e6aee1aab8798a41b758ff1992236533fca6a97",
+            "synthetic_location": true,
+            "strix": {
+              "id": "vuln-0001",
+              "severity": "critical",
+              "cvss": 9.8,
+              "timestamp": "2026-08-26 07:39:14 UTC",
+              "target": "http://host.docker.internal:15421",
+              "endpoint": "/pg/query",
+              "method": "POST",
+              "cwe": "CWE-306",
+              "impact": "Unauthenticated, arbitrary SQL execution against the primary PostgreSQL database. Demonstrated actions include reading every table's data (including `auth.users` emails and bcrypt password hashes for all registered accounts), inserting new rows across tables (with foreign-key chains), deleting rows, dropping tables, and creating tables. Because the executing role has `can_bypass_rls`, the Row Level Security policies are completely ineffective against this channel. An attacker can exfiltrate all stored data, tamper with or destroy data, and escalate to creating roles/databases — a total compromise of the application's data plane.",
+              "technical_analysis": "The Kong gateway routes `/pg/*` to the self-hosted `@supabase/postgres-meta` service without any authentication requirements. postgres-meta exposes management endpoints equivalent to the Supabase dashboard's schema editor: `GET /pg/roles`, `GET /pg/policies`, `GET /pg/functions`, `GET /pg/tables`, `GET /pg/columns`, etc. all return HTTP 200 anonymously. More critically, `POST /pg/query` accepts a `{\"query\": \"...\"}` body and executes it against the database under the `postgres` role, and `POST /pg/tables` accepts `{\"name\": \"...\", \"schema\": \"...\"}` and creates tables.\n\nValidation confirmed:\n- `POST /pg/query` with `{\"query\":\"select current_user, (select rolsuper from pg_roles where rolname=current_user)\"}` returned `[{\"current_user\":\"postgres\",\"rolsuper\":false}]` — the query runs as `postgres`, which has `rolcreaterole`, `rolcreatedb`, and `can_bypass_rls` capabilities.\n- The same endpoint returned all `auth.users` rows including `encrypted_password` bcrypt hashes.\n- A full write chain was proven: `insert into public.tenant (nama, qr_code_value) values ('ZPENTEST_TENANT','ZPT')` succeeded, then `insert into public.kategori (tenant_id, nama)` referencing the new tenant succeeded, the rows were read back, and then deleted. `drop table public.zz_pentest_marker` (created via `POST /pg/tables`) also succeeded.\n- Contrast: every `GET /rest/v1/<table>?select=*` returns HTTP 401 `42501 anon-permission-denied`, so the intended REST access control is sound — the postgres-meta route bypasses it entirely.\n- The `postgres` role is not a database superuser and `pg_read_file` is denied, so direct host file read / classic RCE via file functions is not currently reachable; however, unrestricted data read/write/delete, password-hash disclosure, and table create/drop are all fully demonstrated, with a clear path to role/database creation as privilege escalation.",
+              "remediation_steps": "Remove the postgres-meta routes from the public origin entirely, since they are a management surface equivalent to the Supabase dashboard and must never be reachable over the internet. Configure the Kong gateway to deny external access to `/pg/*` (return 404 or 403 for all methods and all `/pg/*` paths), and only allow postgres-meta from the internal/trusted management network where schema-editing tooling legitimately calls it. As defense in depth, ensure the postgres-meta service itself requires an approved API token/role so that even an internal compromise cannot reach it, and verify no other service is behind an unauthenticated Kong route. After restricting the route, re-validate that `/pg/*` no longer responds anonymously and that `POST /pg/query` cannot be reached.",
+              "poc": {
+                "description": "1. Send an unauthenticated `POST` to `/pg/query` with body `{\"query\": \"<sql>\"}`. No cookie, JWT, or session is required.\n2. To prove read access, execute `select email, encrypted_password from auth.users` and observe the returned user emails and bcrypt password hashes.\n3. To prove write/delete access, execute an `insert` into a business table, then read it back, then `delete` it. (Creates and destroys rows without authentication.)\n4. To prove schema control, `POST /pg/tables` with `{\"name\": \"<marker>\", \"schema\": \"public\"}` creates a table; `POST /pg/query` with `drop table ...` removes it.\n5. Compare with the intended access control: an unauthenticated `GET /rest/v1/<table>?select=*` returns HTTP 401, confirming the REST/RLS model is bypassed by the `/pg/*` channel.",
+                "script_available": true
+              }
+            }
+          }
+        },
+        {
+          "ruleId": "CWE-798",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "Predictable JWT signing secret enables forged service_role token and full account takeover\n\nThe Supabase deployment signs JWTs with the publicly known default secret `super-secret-jwt-token-with-at-least-32-characters-long`. Any unauthenticated attacker can forge a valid HS256 `service_role` JWT and gain full GoTrue admin privileges: enumerate every registered user and reset any account's password, achieving complete account takeover. The forged token is also accepted as the PostgREST `service_role` DB role, which bypasses Row Level Security."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "SECURITY.md"
+                }
+              }
+            },
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "/auth/v1/admin/users",
+                  "kind": "endpoint"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "af79a99060e23fcd881a993034cf4e1565739d341dc17f99855fd2bf076a489d"
+          },
+          "properties": {
+            "security-severity": "9.8",
+            "strix_vuln_class_hash": "44667b564016a1c2a948a3a329ef3c383e4ce4205b47ee6b7055cb3dda178e3d",
+            "synthetic_location": true,
+            "strix": {
+              "id": "vuln-0002",
+              "severity": "critical",
+              "cvss": 9.8,
+              "timestamp": "2026-08-26 07:41:25 UTC",
+              "target": "http://host.docker.internal:15421",
+              "endpoint": "/auth/v1/admin/users",
+              "method": "GET",
+              "cwe": "CWE-798",
+              "impact": "An attacker with no prior access can mint arbitrary JWTs for any role and any user identity. Demonstrated consequences include: (1) listing all 15 registered accounts and their PII via `GET /auth/v1/admin/users`; (2) resetting any user's password via `PUT /auth/v1/admin/users/{id}` and logging in with the attacker-chosen password (full account takeover); and (3) causing PostgREST to execute queries as the `service_role` database role, which ignores RLS policies. Because the signing secret is shared by Kong/PostgREST/GoTrue/Storage, the compromise spans all Supabase services under this origin.",
+              "technical_analysis": "The deployment is configured with the default `JWT_SECRET` shipped in the Supabase self-hosted docker-compose template: `super-secret-jwt-token-with-at-least-32-characters-long`. GoTrue, PostgREST, Kong, and Storage all verify Bearer tokens by HMAC-SHA256 against this shared secret, relying on its secrecy. Because the value is publicly documented, an attacker can compute a valid HS256 signature for any claim set.\n\nA forged token carrying `{\"role\":\"service_role\"}` is accepted by:\n- GoTrue, enabling the administrative API endpoints under `/auth/v1/admin/*` that require `service_role` authorization (list users, update users, reset passwords).\n- PostgREST, where the JWT `role` claim is mapped to the PostgreSQL `service_role` role.\n\nThis was validated empirically: exact requests signed with the secret received 200-level authorization instead of the 401 `PGRST301` returned for wrong-secret or `alg=none` tokens. When the `sub` claim was a non-UUID, PostgREST advanced past signature verification to the query layer and returned a `22P02 invalid input syntax for type uuid` error — proving signature acceptance. A forged `postgres`-role token produced `permission denied to set role \"postgres\"`, further confirming claim-based role switching is honored.\n\nBecause the admin API fully trusts this token, an attacker can read all user records and set an arbitrary new password on any account, logging in as the victim immediately afterward.",
+              "remediation_steps": "Replace the `JWT_SECRET` with a high-entropy random value (at least 64 bytes) and rotate it across all Supabase services (GoTrue, PostgREST, Kong, Storage, Realtime) so they all verify against the new secret. Regenerate the `anon` and `service_role` API keys accordingly. Set `GOTRUE_SIGNING_KEY`/`JWT_SECRET` to the new value and restart the services. Audit `auth.users` for any accounts whose passwords were altered by an unauthorized party, and enable token-rotation reuse detection for refresh tokens as defense in depth. Also configure a secrets manager and avoid committing secret values to version control or docker-compose templates.",
+              "poc": {
+                "description": "1. Reconstruct an HS256 JWT client-side using the public default secret `super-secret-jwt-token-with-at-least-32-characters-long`, with payload `{\"iss\":\"http://127.0.0.1:15421/auth/v1\",\"role\":\"service_role\",\"sub\":\"<victim-or-self-uuid>\",\"aud\":\"authenticated\",\"exp\":<future-timestamp>}`.\n2. Send `GET /auth/v1/admin/users` with `Authorization: Bearer <forged-token>`; the response enumerates every registered user's id, email, metadata, and timestamps (HTTP 200).\n3. Send `PUT /auth/v1/admin/users/<target-user-id>` with body `{\"password\":\"<attacker-chosen>\"}`; the server returns the updated user (HTTP 200).\n4. Authenticate as the target with `POST /auth/v1/token?grant_type=password` using the attacker-chosen password to complete the account takeover (HTTP 200).",
+                "script_available": true
+              }
+            }
+          }
+        },
+        {
+          "ruleId": "CWE-613",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Refresh token rotation does not invalidate prior tokens (no reuse detection)\n\nThe GoTrue token endpoint at /auth/v1/token rotates refresh tokens on use but does not invalidate the superseded token, and there is no reuse detection. A refresh token that has already been rotated can be replayed indefinitely to obtain valid access tokens, so a stolen token cannot be neutralized by rotation and grants a persistent authenticated session."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "SECURITY.md"
+                }
+              }
+            },
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "/auth/v1/token",
+                  "kind": "endpoint"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "9650287b9153dde1e8fb45df42687db2893e3723cc6b4e922a568572fbd7cb0e"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "strix_vuln_class_hash": "e0f9dadada6a5772a505a53decbb05e2b9786087b2053be5cbcd0c7590f64a4d",
+            "synthetic_location": true,
+            "strix": {
+              "id": "vuln-0003",
+              "severity": "medium",
+              "cvss": 6.5,
+              "timestamp": "2026-08-26 07:42:16 UTC",
+              "target": "http://host.docker.internal:15421",
+              "endpoint": "/auth/v1/token",
+              "method": "POST",
+              "cwe": "CWE-613",
+              "impact": "Refresh token rotation is intended to cap the damage from a stolen refresh token by making each token single-use. Because previously issued refresh tokens remain valid and are not flagged on reuse, a stolen or leaked refresh token can be replayed any number of times to mint new access tokens, keeping the attacker session alive for the full session lifetime regardless of the legitimate user's token rotation. This weakens session invalidation and extends the window in which a compromised token can be abused.",
+              "technical_analysis": "POST /auth/v1/token?grant_type=refresh_token in GoTrue rotates the refresh token: each successful use returns a new token. The deployment, however, does not invalidate the superseded token or detect its reuse. Replaying an already-rotated refresh token still produces a valid new access token and another refresh token. Rotation therefore provides no real invalidation benefit; the old token's useful lifetime is only bounded by the overall session expiry or an explicit logout. This is consistent with refresh-token rotation enabled but reuse detection disabled, so a stolen token yields a persistent session that legitimate rotation cannot terminate.",
+              "remediation_steps": "Enable refresh-token reuse detection and a reuse grace period in GoTrue (e.g. configure single-use refresh token enforcement and the reuse interval option) so that a previously rotated refresh token is rejected and the affected session is invalidated on reuse. Where possible, revoke all outstanding refresh tokens for a session whenever a new one is issued, and bind refresh tokens to the issuing client to limit replay from a stolen token.",
+              "poc": {
+                "description": "1. Log in via POST /auth/v1/token?grant_type=password and record the initial refresh token rt0.\n2. Refresh once via POST /auth/v1/token?grant_type=refresh_token with body {\"refresh_token\":\"rt0\"}; note a distinct new token rt1 is issued.\n3. Replay the original rt0 again; the server returns HTTP 200 with a fresh access token. Repeat to show the old token remains valid.\n4. Use the freshly minted access token against GET /auth/v1/user to confirm it is fully functional.",
+                "script_available": true
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "syntheticLocationCount": 3
+      }
+    }
+  ]
+}

@@ -1,11 +1,21 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Card, SegmentedButtons, ActivityIndicator, Snackbar } from 'react-native-paper';
+import { View, Text, StyleSheet, ActivityIndicator, Platform, ScrollView } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { apiClient } from '../../lib/api/apiClient';
+import { Activity } from 'lucide-react-native';
 import { CartesianChart, Line } from 'victory-native';
-import { useTenant } from '../../lib/context/TenantContext';
+import { apiClient } from '../../lib/api/apiClient';
 import { supabase } from '../../lib/supabase';
+import { useTenant } from '../../lib/context/TenantContext';
+import { useAzelheimTheme } from '../../lib/theme';
+import {
+  AzelheimScreen,
+  AzelheimSectionHeader,
+  AzelheimCard,
+  AzelheimBadge,
+  AzelheimTabs,
+  AzelheimStatCard,
+  AzelheimToast,
+} from '../../lib/components/azelheim';
 
 interface ChartPoint {
   [key: string]: any;
@@ -15,6 +25,7 @@ interface ChartPoint {
 }
 
 export default function Dashboard() {
+  const { colors } = useAzelheimTheme();
   const { tenantId } = useTenant();
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -39,19 +50,12 @@ export default function Dashboard() {
   const loadData = async () => {
     if (!tenantId) return;
     try {
-      const [summaryData, loansRes, tarifRes] = await Promise.all([
+      const [summaryData, loansRes] = await Promise.all([
         apiClient.dashboard.summary(tenantId),
         supabase
           .from('peminjaman')
           .select('id, anggota_id, tanggal_pinjam, jatuh_tempo, tanggal_kembali, status, peminjaman_detail(salinan_id)')
           .eq('tenant_id', tenantId),
-        supabase
-          .from('tarif_denda_history')
-          .select('nominal_per_hari')
-          .eq('tenant_id', tenantId)
-          .order('berlaku_mulai_tanggal', { ascending: false })
-          .limit(1)
-          .single()
       ]);
 
       setSummary(summaryData);
@@ -79,19 +83,24 @@ export default function Dashboard() {
         const dayLabel = `${d.getDate()}/${d.getMonth() + 1}`;
 
         let val = 0;
-        const matchingLoans = rawLoans.filter(l => l.tanggal_pinjam === dateStr);
+        const matchingLoans = rawLoans.filter((l) => l.tanggal_pinjam === dateStr);
 
         if (chartContext === 'buku') {
-          matchingLoans.forEach(l => {
+          matchingLoans.forEach((l) => {
             val += (l.peminjaman_detail || []).length;
           });
         } else if (chartContext === 'peminjam') {
           val = matchingLoans.length;
         } else if (chartContext === 'denda') {
-          // Hitung denda pada hari tersebut untuk pinjaman yang terlambat
-          matchingLoans.forEach(l => {
+          matchingLoans.forEach((l) => {
             if (l.status === 'aktif' && l.jatuh_tempo < dateStr) {
-              const daysLate = Math.max(0, Math.floor((new Date(dateStr).getTime() - new Date(l.jatuh_tempo).getTime()) / (1000 * 60 * 60 * 24)));
+              const daysLate = Math.max(
+                0,
+                Math.floor(
+                  (new Date(dateStr).getTime() - new Date(l.jatuh_tempo).getTime()) /
+                    (1000 * 60 * 60 * 24)
+                )
+              );
               val += daysLate * 500;
             }
           });
@@ -103,27 +112,35 @@ export default function Dashboard() {
       // 4 minggu terakhir (masing-masing 7 hari)
       for (let i = 3; i >= 0; i--) {
         const endD = new Date(today);
-        endD.setDate(today.getDate() - (i * 7));
+        endD.setDate(today.getDate() - i * 7);
         const startD = new Date(endD);
         startD.setDate(endD.getDate() - 6);
 
         const startStr = startD.toISOString().split('T')[0];
         const endStr = endD.toISOString().split('T')[0];
-        const weekLabel = `Mgg ${4 - i}`;
+        const weekLabel = `M${4 - i}`;
 
         let val = 0;
-        const matchingLoans = rawLoans.filter(l => l.tanggal_pinjam >= startStr && l.tanggal_pinjam <= endStr);
+        const matchingLoans = rawLoans.filter(
+          (l) => l.tanggal_pinjam >= startStr && l.tanggal_pinjam <= endStr
+        );
 
         if (chartContext === 'buku') {
-          matchingLoans.forEach(l => {
+          matchingLoans.forEach((l) => {
             val += (l.peminjaman_detail || []).length;
           });
         } else if (chartContext === 'peminjam') {
           val = matchingLoans.length;
         } else if (chartContext === 'denda') {
-          matchingLoans.forEach(l => {
+          matchingLoans.forEach((l) => {
             if (l.status === 'aktif' && l.jatuh_tempo < endStr) {
-              const daysLate = Math.max(0, Math.floor((new Date(endStr).getTime() - new Date(l.jatuh_tempo).getTime()) / (1000 * 60 * 60 * 24)));
+              const daysLate = Math.max(
+                0,
+                Math.floor(
+                  (new Date(endStr).getTime() - new Date(l.jatuh_tempo).getTime()) /
+                    (1000 * 60 * 60 * 24)
+                )
+              );
               val += daysLate * 500;
             }
           });
@@ -140,18 +157,26 @@ export default function Dashboard() {
         const monthLabel = monthNames[d.getMonth()];
 
         let val = 0;
-        const matchingLoans = rawLoans.filter(l => (l.tanggal_pinjam || '').startsWith(monthYearStr));
+        const matchingLoans = rawLoans.filter((l) =>
+          (l.tanggal_pinjam || '').startsWith(monthYearStr)
+        );
 
         if (chartContext === 'buku') {
-          matchingLoans.forEach(l => {
+          matchingLoans.forEach((l) => {
             val += (l.peminjaman_detail || []).length;
           });
         } else if (chartContext === 'peminjam') {
           val = matchingLoans.length;
         } else if (chartContext === 'denda') {
-          matchingLoans.forEach(l => {
+          matchingLoans.forEach((l) => {
             if (l.status === 'aktif') {
-              const daysLate = Math.max(0, Math.floor((today.getTime() - new Date(l.jatuh_tempo).getTime()) / (1000 * 60 * 60 * 24)));
+              const daysLate = Math.max(
+                0,
+                Math.floor(
+                  (today.getTime() - new Date(l.jatuh_tempo).getTime()) /
+                    (1000 * 60 * 60 * 24)
+                )
+              );
               val += daysLate * 500;
             }
           });
@@ -165,172 +190,231 @@ export default function Dashboard() {
   }, [rawLoans, chartContext, chartPeriod]);
 
   const isChartEmpty = useMemo(() => {
-    return chartData.every(p => p.value === 0);
+    return chartData.every((p) => p.value === 0);
   }, [chartData]);
 
   if (loading || !summary) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.center, { backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text variant="headlineSmall" style={styles.title}>Ringkasan Perpustakaan</Text>
+    <AzelheimScreen>
+      <AzelheimSectionHeader
+        title="Metrik Perpustakaan"
+        code="SEC // 01"
+        icon={<Activity size={16} color={colors.text} />}
+      />
 
-      {/* 4 Card Kecil */}
-      <View style={styles.grid}>
-        {/* Card Carousel: Jumlah Buku & Jumlah Judul (DASH-006) */}
-        <Card
-          style={styles.smallCard}
-          mode="outlined"
+      {/* Card #1: Chart */}
+      <AzelheimCard style={{ marginBottom: 12 }}>
+        <View style={styles.cardHead}>
+          <View>
+            <Text style={[styles.eyebrow, { color: colors.muted }]}>OVERVIEW</Text>
+            <Text style={[styles.cardTitle, { color: colors.text, marginTop: 4 }]}>
+              {chartPeriod === 'harian'
+                ? 'Pergerakan 7 Hari'
+                : chartPeriod === 'mingguan'
+                ? 'Pergerakan 4 Minggu'
+                : 'Pergerakan 6 Bulan'}
+            </Text>
+          </View>
+          <AzelheimBadge
+            label={chartContext.toUpperCase()}
+            variant="purple"
+          />
+        </View>
+
+        {/* Chart Surface */}
+        <View
+          style={[
+            styles.chartbox,
+            { backgroundColor: colors.surface, borderColor: colors.line },
+          ]}
+        >
+          <View style={{ height: 110, width: '100%', paddingHorizontal: 4 }}>
+            <CartesianChart data={chartData} xKey="day" yKeys={['value'] as const}>
+              {({ points }) => (
+                <Line points={points.value} color={colors.text} strokeWidth={2.2} />
+              )}
+            </CartesianChart>
+          </View>
+          {isChartEmpty && (
+            <Text style={[styles.emptyChartText, { color: colors.faint }]}>
+              Belum ada aktivitas {chartContext} pada periode ini.
+            </Text>
+          )}
+        </View>
+
+        {/* X Axis Labels */}
+        <View style={styles.axisRow}>
+          {chartData.map((item, idx) => (
+            <Text key={idx} style={[styles.axisLabel, { color: colors.faint }]}>
+              {item.label}
+            </Text>
+          ))}
+        </View>
+
+        {/* Context Tabs */}
+        <AzelheimTabs<'buku' | 'peminjam' | 'denda'>
+          tabs={[
+            { value: 'buku', label: 'Buku' },
+            { value: 'peminjam', label: 'Peminjam' },
+            { value: 'denda', label: 'Denda' },
+          ]}
+          activeTab={chartContext}
+          onTabChange={setChartContext}
+          style={{ marginTop: 10, marginBottom: 8 }}
+        />
+
+        {/* Period Tabs */}
+        <AzelheimTabs<'harian' | 'mingguan' | 'bulanan'>
+          tabs={[
+            { value: 'harian', label: 'Harian' },
+            { value: 'mingguan', label: 'Mingguan' },
+            { value: 'bulanan', label: 'Bulanan' },
+          ]}
+          activeTab={chartPeriod}
+          onTabChange={setChartPeriod}
+          style={{ marginBottom: 0 }}
+        />
+      </AzelheimCard>
+
+      {/* Card #2: Total Denda */}
+      <AzelheimCard style={{ marginBottom: 12 }}>
+        <View style={styles.cardHead}>
+          <View>
+            <Text style={[styles.eyebrow, { color: colors.muted }]}>DENDA</Text>
+            <Text style={[styles.cardTitle, { color: colors.text, marginTop: 3 }]}>
+              Total Periode
+            </Text>
+          </View>
+          <View style={styles.kpiRow}>
+            <Text style={[styles.kpiBig, { color: colors.danger }]}>
+              Rp {summary.total_denda_periode ? summary.total_denda_periode.toLocaleString('id-ID') : '0'}
+            </Text>
+            <Text style={[styles.kpiLabel, { color: colors.muted }]}>30 HARI</Text>
+          </View>
+        </View>
+        <Text style={[styles.cardSub, { color: colors.muted, marginTop: 6 }]}>
+          Akumulasi denda dari transaksi yang terlambat.
+        </Text>
+      </AzelheimCard>
+
+      {/* 2x2 Grid: 4 Metric Cards */}
+      <View style={styles.grid2}>
+        {/* Metric 01: Carousel Jumlah Buku vs Jumlah Judul */}
+        <View
+          style={{ flex: 1 }}
           onLayout={(e) => {
             const w = e.nativeEvent.layout.width;
             if (w > 0) setCardWidth(w);
           }}
         >
-          <Card.Content style={{ paddingHorizontal: 0, paddingBottom: 8 }}>
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onScroll={(e) => {
-                const offsetX = e.nativeEvent.contentOffset.x;
-                const slide = Math.round(offsetX / (cardWidth || 1));
-                if (slide !== activeBookSlide) {
-                  setActiveBookSlide(slide);
-                }
-              }}
-              scrollEventThrottle={16}
-            >
-              {/* Slide 1: Jumlah Buku (Total Salinan) */}
-              <View style={{ width: cardWidth > 0 ? cardWidth : 160, paddingHorizontal: 16 }}>
-                <Text variant="titleMedium" numberOfLines={1}>Jumlah Buku</Text>
-                <Text variant="headlineMedium" style={styles.value}>{summary.jumlah_buku ?? 0}</Text>
-                <Text variant="bodySmall" style={styles.subLabel}>Total Salinan</Text>
-              </View>
+          <AzelheimStatCard
+            code="METRIC_01"
+            label={activeBookSlide === 0 ? 'Jumlah Buku' : 'Jumlah Judul'}
+            value=""
+            customContent={
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onScroll={(e) => {
+                  const offsetX = e.nativeEvent.contentOffset.x;
+                  const slide = Math.round(offsetX / (cardWidth || 1));
+                  if (slide !== activeBookSlide) {
+                    setActiveBookSlide(slide);
+                  }
+                }}
+                scrollEventThrottle={16}
+                style={{ width: '100%' }}
+              >
+                <View style={{ width: cardWidth > 0 ? cardWidth - 24 : 130 }}>
+                  <Text style={[styles.statValue, { color: colors.text }]}>
+                    {summary.jumlah_buku ?? 0}
+                  </Text>
+                  <Text style={[styles.statSub, { color: colors.faint }]}>
+                    Total Salinan
+                  </Text>
+                </View>
+                <View style={{ width: cardWidth > 0 ? cardWidth - 24 : 130 }}>
+                  <Text style={[styles.statValue, { color: colors.text }]}>
+                    {summary.jumlah_judul ?? 0}
+                  </Text>
+                  <Text style={[styles.statSub, { color: colors.faint }]}>
+                    Judul Unik
+                  </Text>
+                </View>
+              </ScrollView>
+            }
+          />
+          {/* Dot Indicator */}
+          <View style={styles.dotRow}>
+            <View
+              style={[
+                styles.dot,
+                {
+                  backgroundColor:
+                    activeBookSlide === 0 ? colors.text : colors.line,
+                  width: activeBookSlide === 0 ? 12 : 5,
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.dot,
+                {
+                  backgroundColor:
+                    activeBookSlide === 1 ? colors.text : colors.line,
+                  width: activeBookSlide === 1 ? 12 : 5,
+                },
+              ]}
+            />
+          </View>
+        </View>
 
-              {/* Slide 2: Jumlah Judul (Distinct Titles) */}
-              <View style={{ width: cardWidth > 0 ? cardWidth : 160, paddingHorizontal: 16 }}>
-                <Text variant="titleMedium" numberOfLines={1}>Jumlah Judul</Text>
-                <Text variant="headlineMedium" style={styles.value}>{summary.jumlah_judul ?? 0}</Text>
-                <Text variant="bodySmall" style={styles.subLabel}>Judul Unik</Text>
-              </View>
-            </ScrollView>
-
-            {/* Dot Indicator (DASH-006) */}
-            <View style={styles.dotContainer}>
-              <View style={[styles.dot, activeBookSlide === 0 ? styles.activeDot : styles.inactiveDot]} />
-              <View style={[styles.dot, activeBookSlide === 1 ? styles.activeDot : styles.inactiveDot]} />
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Peminjam Aktif */}
-        <Card style={styles.smallCard} mode="outlined">
-          <Card.Content style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-            <Text variant="titleMedium" numberOfLines={1}>Peminjam</Text>
-            <Text variant="headlineMedium" style={styles.value}>{summary.peminjam_aktif}</Text>
-            <Text variant="bodySmall" style={styles.subLabel}>Aktif Saat Ini</Text>
-          </Card.Content>
-        </Card>
-
-        {/* Buku Dipinjam */}
-        <Card style={styles.smallCard} mode="outlined">
-          <Card.Content style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-            <Text variant="titleMedium" numberOfLines={1}>Buku Dipinjam</Text>
-            <Text variant="headlineMedium" style={styles.value}>{summary.buku_dipinjam}</Text>
-            <Text variant="bodySmall" style={styles.subLabel}>Total Salinan</Text>
-          </Card.Content>
-        </Card>
-
-        {/* Buku Terlambat */}
-        <Card style={styles.smallCard} mode="outlined">
-          <Card.Content style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-            <Text variant="titleMedium" numberOfLines={1}>Buku Terlambat</Text>
-            <Text variant="headlineMedium" style={[styles.value, { color: '#D32F2F' }]}>{summary.buku_terlambat}</Text>
-            <Text variant="bodySmall" style={[styles.subLabel, { color: '#D32F2F' }]}>Perlu Ditindak</Text>
-          </Card.Content>
-        </Card>
+        {/* Metric 02: Peminjam */}
+        <AzelheimStatCard
+          code="METRIC_02"
+          label="Peminjam"
+          value={summary.peminjam_aktif ?? 0}
+          sublabel="Aktif saat ini"
+          style={{ flex: 1 }}
+        />
       </View>
 
-      {/* Card Lebar #2: Total Denda */}
-      <Card style={styles.wideCard} mode="outlined">
-        <Card.Content>
-          <Text variant="titleMedium">Total Denda Periode Ini</Text>
-          <Text variant="displaySmall" style={styles.dendaValue}>Rp {summary.total_denda_periode.toLocaleString('id-ID')}</Text>
-        </Card.Content>
-      </Card>
+      <View style={[styles.grid2, { marginTop: 8 }]}>
+        {/* Metric 03: Buku Dipinjam */}
+        <AzelheimStatCard
+          code="METRIC_03"
+          label="Buku Dipinjam"
+          value={summary.buku_dipinjam ?? 0}
+          sublabel="Total Salinan"
+          style={{ flex: 1 }}
+        />
 
-      {/* Card Lebar #1: Line Chart (DASH-007 Responsive Filters) */}
-      <Card style={styles.chartCard} mode="outlined">
-        <Card.Content>
-          <View style={styles.chartHeader}>
-            <Text variant="titleMedium" style={{ fontWeight: '600', marginBottom: 6 }}>Tren Aktivitas</Text>
-            <SegmentedButtons
-              value={chartContext}
-              onValueChange={val => setChartContext(val as any)}
-              buttons={[
-                { value: 'buku', label: 'Buku', labelStyle: styles.filterLabel },
-                { value: 'peminjam', label: 'Peminjam', labelStyle: styles.filterLabel },
-                { value: 'denda', label: 'Denda', labelStyle: styles.filterLabel },
-              ]}
-              density="small"
-              style={styles.fullWidthButtons}
-            />
-          </View>
+        {/* Metric 04: Terlambat */}
+        <AzelheimStatCard
+          code="ALERT_04"
+          label="Terlambat"
+          value={summary.buku_terlambat ?? 0}
+          sublabel="Perlu Ditindak"
+          isAlert={Boolean(summary.buku_terlambat && summary.buku_terlambat > 0)}
+          style={{ flex: 1 }}
+        />
+      </View>
 
-          {/* Period Selector (DASH-007) */}
-          <View style={styles.periodRow}>
-            <SegmentedButtons
-              value={chartPeriod}
-              onValueChange={val => setChartPeriod(val as any)}
-              buttons={[
-                { value: 'harian', label: 'Harian', labelStyle: styles.filterLabel },
-                { value: 'mingguan', label: 'Mingguan', labelStyle: styles.filterLabel },
-                { value: 'bulanan', label: 'Bulanan', labelStyle: styles.filterLabel },
-              ]}
-              density="small"
-              style={styles.fullWidthButtons}
-            />
-          </View>
-
-          {/* Chart View */}
-          <View style={styles.chartWrapper}>
-            <CartesianChart data={chartData} xKey="day" yKeys={["value"] as const}>
-              {({ points }) => (
-                <Line points={points.value} color="#000000" strokeWidth={2.5} />
-              )}
-            </CartesianChart>
-          </View>
-
-          {/* X Axis Labels */}
-          <View style={styles.labelRow}>
-            {chartData.map((item, idx) => (
-              <Text key={idx} variant="labelSmall" style={styles.axisLabel}>
-                {item.label}
-              </Text>
-            ))}
-          </View>
-
-          {isChartEmpty && (
-            <Text variant="bodySmall" style={styles.emptyNote}>
-              Belum ada aktivitas {chartContext} pada periode ini.
-            </Text>
-          )}
-        </Card.Content>
-      </Card>
-
-      <Snackbar
+      <AzelheimToast
         visible={visible}
+        message={snackMsg}
         onDismiss={() => setVisible(false)}
         duration={3000}
-      >
-        {snackMsg}
-      </Snackbar>
-    </ScrollView>
+      />
+    </AzelheimScreen>
   );
 }
 
@@ -339,108 +423,93 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
   },
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  title: {
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  grid: {
+  cardHead: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'flex-start',
   },
-  smallCard: {
-    width: '48%',
-    minHeight: 110,
-    marginBottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    justifyContent: 'space-between',
+  eyebrow: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
-  value: {
-    fontWeight: 'bold',
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  cardSub: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  chartbox: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 3,
+    marginTop: 8,
+    paddingTop: 6,
+    paddingBottom: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyChartText: {
+    position: 'absolute',
+    fontSize: 10,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  axisRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  axisLabel: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 9,
+    textAlign: 'center',
+  },
+  kpiRow: {
+    alignItems: 'flex-end',
+  },
+  kpiBig: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  kpiLabel: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  grid2: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statValue: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 23,
+    fontWeight: '800',
+    letterSpacing: -0.8,
     marginTop: 4,
   },
-  subLabel: {
-    color: '#888888',
+  statSub: {
+    fontSize: 9.5,
     marginTop: 2,
-    fontSize: 11,
   },
-  dotContainer: {
+  dotRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
+    gap: 4,
+    marginTop: 4,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
   },
-  activeDot: {
-    backgroundColor: '#000000',
-    width: 14,
-  },
-  inactiveDot: {
-    backgroundColor: '#D0D0D0',
-  },
-  wideCard: {
-    marginBottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-  },
-  dendaValue: {
-    fontWeight: 'bold',
-    color: '#D32F2F',
-    marginTop: 8,
-  },
-  chartCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-  },
-  chartHeader: {
-    marginBottom: 8,
-  },
-  periodRow: {
-    marginBottom: 16,
-  },
-  fullWidthButtons: {
-    width: '100%',
-  },
-  filterLabel: {
-    fontSize: 12,
-    paddingHorizontal: 2,
-  },
-  chartWrapper: {
-    height: 200,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 8,
-    paddingHorizontal: 4,
-  },
-  axisLabel: {
-    color: '#666666',
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  emptyNote: {
-    textAlign: 'center',
-    color: '#888888',
-    marginTop: 8,
-    fontStyle: 'italic',
-  }
 });
-
