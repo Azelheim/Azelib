@@ -23,6 +23,8 @@ import {
   ArrowLeft,
   Download,
   MoreVertical,
+  Shield,
+  Trash2,
 } from 'lucide-react-native';
 import { apiClient } from '../../lib/api/apiClient';
 import { supabase } from '../../lib/supabase';
@@ -359,6 +361,55 @@ export default function Pengaturan() {
     );
   };
 
+  const handleOpenPrivacyPolicy = () => {
+    Alert.alert(
+      'Kebijakan Privasi',
+      'Azelib berkomitmen melindungi privasi data Anda. Aplikasi ini tidak meminta izin kamera, dan seluruh data sirkulasi tersimpan aman di cloud terenkripsi.\n\nDetail lengkap dapat dibaca di berkas PRIVACY_POLICY.md atau situs resmi pengembang (azelheims@gmail.com).',
+      [{ text: 'Tutup', style: 'default' }]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Hapus Akun & Seluruh Data',
+      'PERINGATAN: Tindakan ini bersifat permanen. Akun Anda, seluruh perpustakaan yang Anda miliki, katalog buku, anggota, dan riwayat peminjaman akan dihapus dari server secara permanen dan tidak dapat dipulihkan kembali.',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus Permanen',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Konfirmasi Terakhir',
+              'Apakah Anda benar-benar yakin ingin menghapus akun dan data sekarang?',
+              [
+                { text: 'Batal', style: 'cancel' },
+                {
+                  text: 'Ya, Hapus Sekarang',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setLoading(true);
+                    try {
+                      await apiClient.auth.deleteAccount();
+                      await clearLastActiveTenant();
+                      clearTenant();
+                      Alert.alert('Akun Dihapus', 'Akun dan seluruh data Anda telah berhasil dihapus dari sistem.');
+                      router.replace('/');
+                    } catch (e: any) {
+                      console.error(e);
+                      setSnackMsg(e.message || 'Gagal menghapus akun');
+                      setLoading(false);
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.bg }]}>
@@ -579,6 +630,37 @@ export default function Pengaturan() {
             style={{ marginTop: 4 }}
           />
         )}
+      </AzelheimCard>
+
+      {/* Privacy & Account Deletion Card */}
+      <AzelheimCard style={{ marginBottom: 12 }}>
+        <View style={styles.cardHead}>
+          <View>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>AKUN & KEBIJAKAN</Text>
+            <Text style={[styles.cardSub, { color: colors.muted }]}>
+              Privasi data dan pengaturan akun pengguna
+            </Text>
+          </View>
+          <AzelheimBadge label="LEGAL // SEC" variant="gray" />
+        </View>
+
+        <AzelheimButton
+          variant="light"
+          title="Kebijakan Privasi (Privacy Policy)"
+          icon={<Shield size={16} color={colors.text} />}
+          onPress={handleOpenPrivacyPolicy}
+          fullWidth
+          style={{ marginTop: 12 }}
+        />
+
+        <AzelheimButton
+          variant="red"
+          title="Hapus Akun & Data"
+          icon={<Trash2 size={16} color={colors.danger} />}
+          onPress={handleDeleteAccount}
+          fullWidth
+          style={{ marginTop: 8 }}
+        />
       </AzelheimCard>
 
       {/* Keluar Perpustakaan Button */}

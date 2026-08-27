@@ -1,4 +1,4 @@
-import { createCorsResponse, createErrorResponse, corsHeaders, getSupabaseAdmin } from '../_shared/utils.ts'
+import { createCorsResponse, createErrorResponse, corsHeaders, getSupabaseClient, getSupabaseAdmin } from '../_shared/utils.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -27,10 +27,6 @@ Deno.serve(async (req) => {
 
       const supabaseAdmin = getSupabaseAdmin()
 
-      // Check if email exists
-      // Wait, we can just attempt to sign up or use admin API to create user.
-      // But we need to insert to app_user too.
-      // If we use admin.createUser, it won't trigger a sign-in, it just creates the user.
       const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
       if (listError) throw listError
       
@@ -66,7 +62,48 @@ Deno.serve(async (req) => {
         user_id: userId,
         message: 'Akun berhasil dibuat'
       })
-    } catch (e) {
+    } catch (e: any) {
+      return createErrorResponse(e.message, 500)
+    }
+  }
+
+  if (req.method === 'DELETE' && path === '/delete-account') {
+    try {
+      const supabase = getSupabaseClient(req)
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError || !user) return createErrorResponse('Unauthorized', 401)
+
+      const supabaseAdmin = getSupabaseAdmin()
+      const userId = user.id
+
+      // 1. Find all tenants owned by this user
+      const { data: memberships } = await supabaseAdmin
+        .from('tenant_member')
+        .select('tenant_id, role')
+        .eq('user_id', userId)
+
+      if (memberships && memberships.length > 0) {
+        const owned = memberships.filter((m: any) => m.role === 'owner')
+        for (const o of owned) {
+          // Deleting tenant cascades to buku, salinan, kategori, rak, anggota, peminjaman
+          await supabaseAdmin.from('tenant').delete().eq('id', o.tenant_id)
+        }
+      }
+
+      // 2. Delete remaining tenant memberships
+      await supabaseAdmin.from('tenant_member').delete().eq('user_id', userId)
+
+      // 3. Delete from app_user
+      await supabaseAdmin.from('app_user').delete().eq('id', userId)
+
+      // 4. Delete user from Supabase Auth
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+
+      return createCorsResponse({
+        success: true,
+        message: 'Akun dan seluruh data perpustakaan berhasil dihapus permanen'
+      })
+    } catch (e: any) {
       return createErrorResponse(e.message, 500)
     }
   }

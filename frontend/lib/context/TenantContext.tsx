@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../supabase';
 
 interface TenantState {
@@ -43,6 +43,20 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [tokenValue, setTokenValue] = useState<string | null>(null);
   const [tokenNotification, setTokenNotification] = useState<string | null>(null);
 
+  const checkSession = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUserId(session.user.id);
+        setUserEmail(session.user.email || null);
+      }
+    } catch (e) {
+      console.error('Error checking session:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     checkSession();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -60,7 +74,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       }
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [checkSession]);
 
   // Global Realtime listener for tenant token updates across all roles
   useEffect(() => {
@@ -87,20 +101,6 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(channel);
     };
   }, [tenantId]);
-
-  const checkSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUserId(session.user.id);
-        setUserEmail(session.user.email || null);
-      }
-    } catch (e) {
-      console.error('Error checking session:', e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const setActiveTenant = (id: string, nama: string, role: string) => {
     setTenantId(id);

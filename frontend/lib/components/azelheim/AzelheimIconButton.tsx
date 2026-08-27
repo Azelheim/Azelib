@@ -1,4 +1,4 @@
-import React, { ReactNode, useRef } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import {
   TouchableOpacity,
   StyleSheet,
@@ -28,7 +28,7 @@ export function AzelheimIconButton({
   accessibilityLabel,
 }: AzelheimIconButtonProps) {
   const { colors } = useAzelheimTheme();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useMemo(() => new Animated.Value(1), []);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {

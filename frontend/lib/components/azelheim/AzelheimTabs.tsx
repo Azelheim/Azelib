@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, StyleProp, Platform, Animated } from 'react-native';
 import { useAzelheimTheme } from '../../theme';
 
@@ -27,7 +27,7 @@ function TabItem<T extends string = string>({
   onPress: () => void;
 }) {
   const { colors } = useAzelheimTheme();
-  const pressAnim = useRef(new Animated.Value(1)).current;
+  const pressAnim = useMemo(() => new Animated.Value(1), []);
 
   const handlePressIn = () => {
     Animated.spring(pressAnim, {

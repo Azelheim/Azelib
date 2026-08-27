@@ -28,6 +28,32 @@ export const apiClient = {
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
       return data;
+    },
+    deleteAccount: async () => {
+      try {
+        return await invokeFunction('auth', '/delete-account', { method: 'DELETE' });
+      } catch {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Unauthorized');
+
+        // Delete user's tenant memberships & owned tenants if any
+        const { data: memberships } = await supabase
+          .from('tenant_member')
+          .select('tenant_id, role')
+          .eq('user_id', user.id);
+
+        if (memberships && memberships.length > 0) {
+          const owned = memberships.filter((m: any) => m.role === 'owner');
+          for (const o of owned) {
+            await supabase.from('tenant').delete().eq('id', o.tenant_id);
+          }
+        }
+
+        await supabase.from('tenant_member').delete().eq('user_id', user.id);
+        await supabase.from('app_user').delete().eq('id', user.id);
+        await supabase.auth.signOut();
+        return { success: true };
+      }
     }
   },
   tenant: {

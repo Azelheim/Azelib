@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform, ViewStyle, StyleProp, Animated } from 'react-native';
 import { Sun, Moon, SlidersHorizontal, Power } from 'lucide-react-native';
 import { useAzelheimTheme } from '../../theme';
@@ -26,7 +26,7 @@ export function AzelheimTopBar({
   style,
 }: AzelheimTopBarProps) {
   const { colors, isDark, toggleTheme } = useAzelheimTheme();
-  const themeAnim = useRef(new Animated.Value(isDark ? 1 : 0)).current;
+  const themeAnim = useMemo(() => new Animated.Value(0), []);
 
   const handleToggle = () => {
     Animated.spring(themeAnim, {

@@ -25,3 +25,12 @@ frontend/android/local.properties
 # Supabase Local Runtime
 supabase/.temp/
 supabase/.branches/
+
+# Environment Variables
+.env
+.env.local
+.env*.local
+*.env
+
+# Release Assets
+release-assets/

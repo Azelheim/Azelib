@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Panduan Rilis Google Play Store — Azelib</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm 15mm 20mm 15mm;
+    }
+    :root {
+      --primary: #1E3A8A;
+      --accent: #2563EB;
+      --text: #1E293B;
+      --muted: #64748B;
+      --border: #CBD5E1;
+      --card-bg: #F8FAFC;
+      --success: #15803D;
+      --danger: #B91C1C;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: #FFFFFF;
+      font-size: 13px;
+      margin: 0;
+      padding: 0;
+    }
+    .header {
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      margin: 0 0 4px 0;
+      color: var(--primary);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .header .sub {
+      color: var(--muted);
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .summary-box {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+    }
+    .summary-box h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: var(--primary);
+    }
+    .section {
+      margin-bottom: 24px;
+      page-break-inside: avoid;
+    }
+    h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h3 {
+      font-size: 13.5px;
+      font-weight: 750;
+      margin: 12px 0 6px 0;
+      color: #0F172A;
+    }
+    p, li {
+      color: #334155;
+      margin-top: 4px;
+      margin-bottom: 6px;
+    }
+    ul, ol {
+      padding-left: 20px;
+      margin-top: 4px;
+      margin-bottom: 8px;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 11.5px;
+      background: #F1F5F9;
+      border: 1px solid #E2E8F0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #0F172A;
+      font-weight: 600;
+    }
+    pre {
+      background: #0F172A;
+      color: #F8FAFC;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-family: monospace;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .badge-blue { background: #DBEAFE; color: #1E40AF; }
+    .badge-green { background: #DCFCE7; color: #166534; }
+    .badge-red { background: #FEE2E2; color: #991B1B; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th {
+      background: #F1F5F9;
+      color: #0F172A;
+      font-weight: 700;
+    }
+    .callout {
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>PANDUAN OPERASIONAL RILIS GOOGLE PLAY STORE</h1>
+    <div class="sub">Aplikasi Manajemen Perpustakaan — Azelib (v1.0.0 / versionCode: 1)</div>
+  </div>
+
+  <div class="summary-box">
+    <h3>📌 RINGKASAN: HANYA 3 KOMPONEN YANG PERLU DI-DEPLOY</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Komponen</th>
+          <th>Tujuan / Platform</th>
+          <th>Lokasi File di Proyek</th>
+          <th>Cara Eksekusi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1. Web Dokumen Publik</strong></td>
+          <td>GitHub Pages (Hosting Kebijakan Privasi &amp; Form Hapus Akun)</td>
+          <td>Folder <code>docs/</code></td>
+          <td>Push ke GitHub &rarr; Aktifkan GitHub Pages dari folder <code>/docs</code></td>
+        </tr>
+        <tr>
+          <td><strong>2. Database Backend</strong></td>
+          <td>Supabase Cloud SQL (Fungsi Penghapusan Akun &amp; Data)</td>
+          <td><code>supabase/migrations/20260827100000_account_deletion.sql</code></td>
+          <td>Salin isi SQL &rarr; Jalankan di Supabase Dashboard (SQL Editor)</td>
+        </tr>
+        <tr>
+          <td><strong>3. Android App Bundle (.aab)</strong></td>
+          <td>Google Play Console (Rilis Aplikasi Android)</td>
+          <td>Build remote via EAS CLI</td>
+          <td>Jalankan <code>npx eas-cli build --platform android --profile production</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- BAGIAN 1 -->
+  <div class="section">
+    <h2>1. PUBLIKASI DOKUMEN WEB (GITHUB PAGES)</h2>
+    <p>Google Play mewajibkan 2 tautan web publik yang aktif sebelum aplikasi dapat disetujui:</p>
+    <ol>
+      <li><strong>Privacy Policy URL:</strong> Tautan dokumen kebijakan privasi pengguna.</li>
+      <li><strong>Data Deletion Request URL:</strong> Tautan petunjuk penghapusan akun &amp; data mandiri bagi pengguna.</li>
+    </ol>
+
+    <h3>Langkah Aktivasi di GitHub:</h3>
+    <ol>
+      <li>Lakukan <code>git push</code> seluruh kode proyek ke repository GitHub Anda (termasuk folder <code>docs/</code>).</li>
+      <li>Buka repository Anda di browser &rarr; klik tab <strong>Settings</strong> &rarr; pilih menu <strong>Pages</strong> (di sidebar kiri).</li>
+      <li>Pada bagian <em>Build and deployment</em> &rarr; <strong>Source:</strong> pilih <code>Deploy from a branch</code>.</li>
+      <li>Pada bagian <strong>Branch:</strong> pilih <code>main</code> dan ubah foldernya dari <code>/ (root)</code> menjadi <strong><code>/docs</code></strong> &rarr; klik <strong>Save</strong>.</li>
+      <li>Tunggu 1–2 menit, Anda akan mendapatkan 2 URL publik yang siap dimasukkan ke Play Console:
+        <ul>
+          <li><strong>Privacy Policy:</strong> <code>https://&lt;username&gt;.github.io/&lt;repository&gt;/privacy-policy.html</code></li>
+          <li><strong>Data Deletion:</strong> <code>https://&lt;username&gt;.github.io/&lt;repository&gt;/delete-account.html</code></li>
+        </ul>
+      </li>
+    </ol>
+  </div>
+
+  <!-- BAGIAN 2 -->
+  <div class="section">
+    <h2>2. BUILD PRODUCTION ANDROID APP BUNDLE (.AAB)</h2>
+    <p>File yang diunggah ke Google Play Console wajib berformat <strong>Android App Bundle (<code>.aab</code>)</strong> bertanda tangan Keystore resmi (bukan file APK mentah atau expo export).</p>
+
+    <h3>Perintah Eksekusi Build:</h3>
+    <pre>cd frontend
+npx eas-cli build --platform android --profile production</pre>
+
+    <div class="callout">
+      <strong>Catatan Build EAS:</strong>
+      <ul>
+        <li>EAS Build akan menggunakan Keystore rilis yang sudah terdaftar di project EAS Anda.</li>
+        <li>Pastikan environment variables (<code>EXPO_PUBLIC_SUPABASE_URL</code> dan <code>EXPO_PUBLIC_SUPABASE_ANON_KEY</code>) sudah terdaftar di EAS Secrets / Environment Variables production.</li>
+        <li>Setelah build selesai, unduh file <code>.aab</code> dari tautan dashboard EAS yang diberikan.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- BAGIAN 3 -->
+  <div class="section">
+    <h2>3. PERSIAPAN ASET GRAFIS GOOGLE PLAY STORE</h2>
+    <p>Google Play Console mewajibkan aset gambar untuk tampilan toko (Store Listing):</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Jenis Aset</th>
+          <th>Spesifikasi Ukuran</th>
+          <th>Format</th>
+          <th>Ketentuan Google Play</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>App Icon</strong></td>
+          <td>512 × 512 piksel</td>
+          <td>PNG 32-bit (Maks 1 MB)</td>
+          <td>Tanpa sudut membulat/transparansi (Google Play otomatis membulatkan sudut).</td>
+        </tr>
+        <tr>
+          <td><strong>Feature Graphic</strong></td>
+          <td>1024 × 500 piksel</td>
+          <td>PNG / JPEG (Maks 15 MB)</td>
+          <td>Banner horizontal promosi; hindari menaruh teks penting terlalu di pinggir.</td>
+        </tr>
+        <tr>
+          <td><strong>Screenshots Ponsel</strong></td>
+          <td>Min 2 tangkapan layar (disarankan 4–6)</td>
+          <td>PNG / JPEG (Rasio 16:9 / 18:9)</td>
+          <td>Tangkapan layar nyata fitur aplikasi: Dashboard, Katalog Buku, Peminjaman, Detail Buku.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- BAGIAN 4 -->
+  <div class="section">
+    <h2>4. PANDUAN PENGISIAN GOOGLE PLAY CONSOLE</h2>
+
+    <h3>A. App Details &amp; Metadata (Salin dari <code>PLAYSTORE_METADATA.md</code>)</h3>
+    <ul>
+      <li><strong>App Name:</strong> <code>Azelib - Manajemen Perpustakaan</code></li>
+      <li><strong>Short Description (80 Karakter):</strong><br>
+        <code>Kelola koleksi buku, sirkulasi peminjaman, anggota, &amp; laporan perpustakaan mudah.</code>
+      </li>
+      <li><strong>Full Description:</strong> Salin teks lengkap dari berkas <code>PLAYSTORE_METADATA.md</code>.</li>
+    </ul>
+
+    <h3>B. Policy &amp; Data Safety Form</h3>
+    <ul>
+      <li><strong>Privacy Policy URL:</strong> Masukkan URL <code>privacy-policy.html</code> hasil GitHub Pages.</li>
+      <li><strong>Iklan (Ads):</strong> Pilih <strong>"No, my app does not contain ads"</strong>.</li>
+      <li><strong>Akses Aplikasi (App Access):</strong> Pilih <strong>"All or some functionality is restricted"</strong> &rarr; Tambahkan akun demo:
+        <ul>
+          <li><em>Instruksi:</em> "Gunakan akun demo untuk masuk dan mengelola perpustakaan."</li>
+          <li><em>Username / Email:</em> Email akun admin demo Anda.</li>
+          <li><em>Password:</em> Password akun demo Anda.</li>
+        </ul>
+      </li>
+      <li><strong>Target Audience:</strong> Pilih 13 tahun ke atas / Umum (Pendidikan).</li>
+      <li><strong>Data Safety:</strong>
+        <ul>
+          <li>Data dikumpulkan: <em>Email &amp; Nama</em> (untuk fungsionalitas akun dan identitas).</li>
+          <li>Data dienkripsi saat transit: <strong>Ya (HTTPS/TLS)</strong>.</li>
+          <li>Pengguna dapat meminta penghapusan data: <strong>Ya</strong> &rarr; Masukkan URL <code>delete-account.html</code>.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>C. Unggah Bundle (.aab)</h3>
+    <ol>
+      <li>Masuk ke menu <strong>Testing &rarr; Closed testing</strong> (atau <em>Internal testing</em>).</li>
+      <li>Buat Release baru (*Create new release*) &rarr; Unggah berkas <code>.aab</code> hasil EAS Build.</li>
+      <li>Tulis Release Notes (misal: <em>"Rilis awal Azelib v1.0.0"</em>) &rarr; Simpan dan Tinjau.</li>
+    </ol>
+  </div>
+
+</body>
+</html>

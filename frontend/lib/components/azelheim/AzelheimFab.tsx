@@ -1,4 +1,4 @@
-import React, { ReactNode, useRef } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import {
   TouchableOpacity,
   StyleSheet,
@@ -23,7 +23,7 @@ export function AzelheimFab({
   accessibilityLabel = 'Tambah',
 }: AzelheimFabProps) {
   const { colors } = useAzelheimTheme();
-  const pressAnim = useRef(new Animated.Value(0)).current;
+  const pressAnim = useMemo(() => new Animated.Value(0), []);
 
   const handlePressIn = () => {
     Animated.spring(pressAnim, {
