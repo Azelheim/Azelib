@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1024px;
+      height: 500px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 45%, #4338CA 80%, #6366F1 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 65px;
+      color: #FFFFFF;
+      position: relative;
+    }
+    .bg-circle {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(147, 51, 234, 0.25) 0%, rgba(79, 70, 229, 0.05) 70%, transparent 100%);
+      right: -50px;
+      top: -50px;
+      pointer-events: none;
+    }
+    .left {
+      max-width: 570px;
+      z-index: 2;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(10px);
+      padding: 6px 16px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+      color: #C7D2FE;
+    }
+    h1 {
+      font-size: 42px;
+      font-weight: 900;
+      line-height: 1.18;
+      margin-bottom: 14px;
+      letter-spacing: -0.8px;
+    }
+    h1 .highlight {
+      color: #A5B4FC;
+      display: block;
+      font-size: 34px;
+      font-weight: 750;
+      margin-top: 4px;
+    }
+    p {
+      font-size: 16.5px;
+      line-height: 1.55;
+      color: #E0E7FF;
+      font-weight: 400;
+    }
+    .features-pill {
+      display: flex;
+      gap: 8px;
+      margin-top: 22px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 5px 12px;
+      border-radius: 12px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #F1F5F9;
+    }
+    .right {
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-card {
+      width: 250px;
+      height: 250px;
+      background: #FFFFFF;
+      border-radius: 52px;
+      padding: 12px;
+      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .icon-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-circle"></div>
+  <div class="left">
+    <div class="badge">Aplikasi Perpustakaan Modern</div>
+    <h1>Azelib <span class="highlight">Kelola Perpustakaan</span></h1>
+    <p>Kelola koleksi buku, sirkulasi peminjaman, data anggota, dan laporan perpustakaan secara rapi, cepat, dan terorganisir.</p>
+    <div class="features-pill">
+      <span class="pill">📚 Katalog & Rak</span>
+      <span class="pill">🔄 Sirkulasi Real-time</span>
+      <span class="pill">👥 Multi-tenant</span>
+      <span class="pill">📄 Ekspor PDF</span>
+    </div>
+  </div>
+  <div class="right">
+    <div class="icon-card">
+      <img src="../logo azelib.jpg">
+    </div>
+  </div>
+</body>
+</html>
