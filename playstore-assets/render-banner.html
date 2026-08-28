@@ -13,28 +13,27 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 65px;
+      padding: 0 70px;
       color: #FFFFFF;
       position: relative;
     }
     .bg-circle {
       position: absolute;
-      width: 600px;
-      height: 600px;
+      width: 550px;
+      height: 550px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(147, 51, 234, 0.25) 0%, rgba(79, 70, 229, 0.05) 70%, transparent 100%);
-      right: -50px;
-      top: -50px;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, rgba(99, 102, 241, 0.08) 60%, transparent 100%);
+      right: 20px;
+      top: -25px;
       pointer-events: none;
     }
     .left {
-      max-width: 570px;
+      max-width: 560px;
       z-index: 2;
     }
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
       background: rgba(255, 255, 255, 0.12);
       border: 1px solid rgba(255, 255, 255, 0.22);
       backdrop-filter: blur(10px);
@@ -88,23 +87,22 @@
       align-items: center;
       justify-content: center;
     }
-    .icon-card {
-      width: 250px;
-      height: 250px;
+    .circle-logo {
+      width: 290px;
+      height: 290px;
+      border-radius: 50%;
       background: #FFFFFF;
-      border-radius: 52px;
-      padding: 12px;
-      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
+      padding: 6px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 8px rgba(255, 255, 255, 0.12);
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
     }
-    .icon-card img {
+    .circle-logo img {
       width: 100%;
       height: 100%;
+      border-radius: 50%;
       object-fit: cover;
-      border-radius: 40px;
     }
   </style>
 </head>
@@ -122,8 +120,8 @@
     </div>
   </div>
   <div class="right">
-    <div class="icon-card">
-      <img src="../logo azelib.jpg">
+    <div class="circle-logo">
+      <img src="icon-512.png">
     </div>
   </div>
 </body>
