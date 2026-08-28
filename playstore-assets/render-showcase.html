@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1080px;
+      height: 2280px;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 10%, #2E1065 0%, #0F172A 50%, #030712 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 90px;
+      position: relative;
+    }
+    .ambient-glow {
+      position: absolute;
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, rgba(99, 102, 241, 0.05) 70%, transparent 100%);
+      top: 150px;
+      pointer-events: none;
+    }
+    .header-box {
+      text-align: center;
+      max-width: 960px;
+      z-index: 2;
+      margin-bottom: 50px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(12px);
+      padding: 10px 24px;
+      border-radius: 30px;
+      font-size: 20px;
+      font-weight: 750;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      color: #C4B5FD;
+    }
+    h1 {
+      font-size: 56px;
+      font-weight: 900;
+      line-height: 1.2;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+    h1 span {
+      background: linear-gradient(135deg, #DDD6FE 0%, #A78BFA 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      font-size: 28px;
+      color: #E2E8F0;
+      font-weight: 400;
+      line-height: 1.4;
+    }
+    .phone-frame {
+      width: 860px;
+      height: 1780px;
+      background: #000000;
+      border-radius: 54px;
+      padding: 14px;
+      box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7), 0 0 0 14px rgba(255, 255, 255, 0.12);
+      z-index: 2;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .screen-cropper {
+      width: 100%;
+      height: 100%;
+      border-radius: 42px;
+      overflow: hidden;
+      background: #FAFAFA;
+      position: relative;
+    }
+    .screen-cropper img {
+      width: 100%;
+      /* Crop off the top status bar completely */
+      margin-top: -6.8%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body id="body">
+  <div class="ambient-glow"></div>
+  <div class="header-box">
+    <div class="badge" id="badge">01 // DASHBOARD METRIK</div>
+    <h1 id="title">Dashboard <span>Statistik Real-time</span></h1>
+    <p id="subtitle">Pantau stok buku, sirkulasi aktif, dan denda terlambat seketika</p>
+  </div>
+  <div class="phone-frame">
+    <div class="screen-cropper">
+      <img id="screenshot-img" src="">
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('badge')) document.getElementById('badge').innerHTML = params.get('badge');
+    if (params.get('title')) document.getElementById('title').innerHTML = params.get('title');
+    if (params.get('subtitle')) document.getElementById('subtitle').innerHTML = params.get('subtitle');
+    if (params.get('img')) document.getElementById('screenshot-img').src = params.get('img');
+  </script>
+</body>
+</html>
